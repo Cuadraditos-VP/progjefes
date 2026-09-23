@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programación Jefes – Septiembre 2026</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --border: #d0d7de;
+      --header-bg: #1e3a5f;
+      --name-col: #f8fafc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: #1f2937;
+      line-height: 1.4;
+      padding: 16px 8px 60px;
+    }
+    .container { max-width: none; margin: 0 auto; padding: 0 8px; }
+    header { text-align: center; margin-bottom: 18px; }
+    header h1 { font-size: 1.6rem; font-weight: 700; color: #1e3a5f; }
+    header p { color: #64748b; font-size: 0.9rem; margin-top: 4px; }
+    .view-original-btn {
+      margin-top: 8px;
+      border: 0;
+      border-radius: 7px;
+      padding: 7px 12px;
+      background: #7c3aed;
+      color: white;
+      font-weight: 600;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin: 10px 0 4px;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 8px 3px 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #334155;
+    }
+    .legend-item .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+
+    .group {
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin: 0 auto 24px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      width: max-content;
+      max-width: 100%;
+    }
+    .group-header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+      color: white;
+      padding: 10px 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .group-header span {
+      background: rgba(255,255,255,0.18);
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 0;
+      font-size: 0.75rem;
+    }
+    thead th {
+      background: var(--header-bg);
+      color: #fff;
+      font-weight: 600;
+      padding: 8px 3px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 2px solid #0f2744;
+      white-space: nowrap;
+      height: 52px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+    }
+    /* Encabezados de día (fecha/número) en gris medio, con el finde suavizado */
+    thead th:not(.sticky-col):not(.sticky-col-2) {
+      background: #64748b;
+      border-bottom: 2px solid #475569;
+    }
+    thead th.day-num { font-size: 0.85rem; font-weight: 500; }
+    thead th.weekend { background: #94a3b8; }
+    th.sticky-col, td.sticky-col {
+      position: sticky; left: 0; z-index: 10; background: var(--name-col);
+    }
+    th.sticky-col-2, td.sticky-col-2 {
+      position: sticky; left: 68px; z-index: 10; background: var(--name-col);
+      border-right: 2px solid var(--border);
+    }
+    th.sticky-col, td.sticky-col {
+      left: 0;
+      z-index: 25;
+    }
+    th.sticky-col {
+      background: var(--header-bg);
+    }
+    th.sticky-col-2, td.sticky-col-2 {
+      left: var(--col-legajo);
+      z-index: 25;
+    }
+    th.sticky-col-2 {
+      background: var(--header-bg); text-align: left; padding-left: 8px;
+    }
+    tbody td {
+      text-align: center;
+      padding: 6px 3px;
+      border: 1px solid #e5e7eb;
+      font-weight: 600;
+      font-size: 1.05rem;
+      min-width: 48px;
+      height: 39px;
+      box-sizing: border-box;
+      cursor: pointer;
+      transition: filter 0.1s;
+    }
+    tbody td:hover { filter: brightness(0.93); }
+    tbody tr:nth-child(even) td.sticky-col,
+    tbody tr:nth-child(even) td.sticky-col-2 { background: #f1f5f9; }
+    td.sticky-col {
+      font-weight: 600; color: #475569; font-size: 0.72rem; border-right: none;
+    }
+    td.sticky-col-2 {
+      text-align: left; padding-left: 8px; font-weight: 600;
+      color: #1e293b; font-size: 0.78rem; white-space: nowrap;
+    }
+    td.empty { background: #fafafa; color: #cbd5e1; cursor: default; }
+    td.empty:hover { filter: none; }
+
+    [data-code] {
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .palette-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .palette-overlay.open { display: flex; }
+    .palette-modal {
+      background: white;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      padding: 18px;
+    }
+    .palette-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .palette-header h3 {
+      font-size: 1rem;
+      color: #1e293b;
+    }
+    .palette-header .code-badge {
+      background: #1e3a5f;
+      color: white;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .close-btn {
+      background: #f1f5f9;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: #64748b;
+      line-height: 1;
+    }
+    .close-btn:hover { background: #e2e8f0; color: #1e293b; }
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .shift-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .shift-option {
+      padding: 12px 4px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.88rem;
+      text-align: center;
+      background: #f1f5f9;
+      color: #334155;
+      transition: transform 0.12s, border-color 0.12s;
+      user-select: none;
+    }
+    .shift-option:hover { transform: scale(1.05); border-color: #1e293b; }
+    .shift-option.selected {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.4);
+    }
+    #originalBanner {
+      display: none;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      color: #78350f;
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .palette-color {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s;
+      position: relative;
+    }
+    .palette-color:hover {
+      transform: scale(1.08);
+      border-color: #1e293b;
+    }
+    .palette-color.selected {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.4);
+    }
+    .palette-color .hex-label {
+      position: absolute;
+      bottom: 2px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 0.55rem;
+      font-weight: 600;
+      color: rgba(0,0,0,0.55);
+      text-shadow: 0 0 3px white;
+      pointer-events: none;
+    }
+    .palette-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn-clear {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .btn-clear:hover { background: #e2e8f0; }
+    .btn-done {
+      background: #1e3a5f;
+      color: white;
+    }
+    .btn-done:hover { background: #16304f; }
+
+    .group-body {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+    }
+    .group-body .table-wrap {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+    }
+    .group-body .counts-wrap {
+      flex: 0 0 auto;
+      border-left: 3px solid #1e3a5f;
+      overflow: hidden;
+    }
+    .group-body .counts-wrap table {
+      min-width: 0;
+      width: auto;
+      border-collapse: collapse;
+    }
+    /* Match EXACTLY the main table cell metrics */
+    .group-body .counts-wrap thead th {
+      background: #2a4a73;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.65rem;
+      padding: 7px 2px;
+      text-align: center;
+      border-bottom: 2px solid #0f2744;
+      white-space: nowrap;
+      min-width: 30px;
+      width: 30px;
+      line-height: 1.25;
+      height: 40px;          /* approx 2-line header height */
+      box-sizing: border-box;
+    }
+    .group-body .counts-wrap tbody td {
+      text-align: center;
+      padding: 4px 2px;
+      border: 1px solid #e5e7eb;
+      font-weight: 600;
+      font-size: 0.7rem;
+      min-width: 30px;
+      width: 30px;
+      height: 26px;
+      box-sizing: border-box;
+    }
+    /* Force main table body cells to same fixed height */
+    .group-body .table-wrap tbody td {
+      height: 26px;
+      box-sizing: border-box;
+    }
+    .group-body .table-wrap thead th {
+      height: 40px;
+      box-sizing: border-box;
+    }
+    .hint {
+
+      text-align: center;
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 12px;
+      margin-bottom: 8px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+  
+    #summaryTable {
+      table-layout: auto;
+    }
+    #summaryTable thead th:not(.sticky-col):not(.sticky-col-2) {
+      min-width: 30px;
+      width: 30px;
+    }
+    #summaryTable tbody td:not(.sticky-col):not(.sticky-col-2) {
+      min-width: 30px;
+      width: 30px;
+      height: 26px;
+      box-sizing: border-box;
+    }
+
+  
+    /* ========== STRICT COLUMN ALIGNMENT ========== */
+    :root {
+      --col-legajo: 68px;
+      --col-nombre: 130px;
+      --col-day: 42px;
+      --days-total: 1260px; /* 30 * 42 */
+    }
+
+    table {
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+
+    /* Sticky columns – same everywhere */
+    th.sticky-col, td.sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      width: var(--col-legajo) !important;
+      min-width: var(--col-legajo) !important;
+      max-width: var(--col-legajo) !important;
+      box-sizing: border-box;
+    }
+    th.sticky-col {
+      background: var(--header-bg);
+      z-index: 25;
+    }
+    td.sticky-col {
+      background: var(--name-col);
+    }
+    tbody tr:nth-child(even) td.sticky-col {
+      background: #f1f5f9;
+    }
+
+    th.sticky-col-2, td.sticky-col-2 {
+      position: sticky;
+      left: var(--col-legajo);
+      z-index: 10;
+      width: var(--col-nombre) !important;
+      min-width: var(--col-nombre) !important;
+      max-width: var(--col-nombre) !important;
+      box-sizing: border-box;
+      border-right: 2px solid var(--border);
+    }
+    th.sticky-col-2 {
+      background: var(--header-bg);
+      z-index: 25;
+      text-align: left;
+      padding-left: 8px;
+    }
+    td.sticky-col-2 {
+      background: var(--name-col);
+      text-align: left;
+      padding-left: 8px;
+    }
+    tbody tr:nth-child(even) td.sticky-col-2 {
+      background: #f1f5f9;
+    }
+
+    /* Separador de semana (entre DO y LU) — nunca corta un bloque LAO, porque ese bloque es una sola celda */
+    .week-sep {
+      border-left: 3px solid #334155 !important;
+    }
+    /* Bloque de vacaciones (LAO) fusionado en una sola celda */
+    td.lao-block {
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+    }
+
+    /* Day columns – identical width everywhere (main + summary) */
+    thead th:not(.sticky-col):not(.sticky-col-2),
+    tbody td:not(.sticky-col):not(.sticky-col-2) {
+      width: var(--col-day) !important;
+      min-width: var(--col-day) !important;
+      max-width: var(--col-day) !important;
+      box-sizing: border-box;
+      padding: 6px 2px;
+      overflow: hidden;
+    }
+    thead th:not(.sticky-col):not(.sticky-col-2) {
+      padding: 8px 2px;
+      height: 52px;
+    }
+    tbody td:not(.sticky-col):not(.sticky-col-2) {
+      height: 39px;
+    }
+
+    /* Main schedule tables width = sticky + sticky2 + 30 days */
+    .group-body .table-wrap table {
+      width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
+      min-width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
+      max-width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
+    }
+
+    /* Summary table same width formula */
+    #summaryTable {
+      width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
+      min-width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
+    }
+
+    /* Side counts – fixed narrow columns, do not affect day alignment */
+    .group-body {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      padding: 0;
+    }
+    .group-body .table-wrap {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Conteo por jefe: se muestra como tabla independiente, separada de la programación */
+    .group-body .counts-wrap {
+      flex: 0 0 auto;
+      margin-left: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      overflow: hidden;
+      background: #fff;
+    }
+    .group-body .counts-wrap table {
+      width: auto;
+      table-layout: fixed;
+    }
+    .group-body .counts-wrap thead th {
+      background: #2a4a73;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      width: 42px !important;
+      min-width: 42px !important;
+      max-width: 42px !important;
+      padding: 8px 2px;
+      box-sizing: border-box;
+      border: 1px solid transparent;
+      border-bottom: 2px solid #0f2744;
+      line-height: 1.25;
+      vertical-align: middle;
+    }
+    .group-body .counts-wrap tbody td {
+      width: 42px !important;
+      min-width: 42px !important;
+      max-width: 42px !important;
+      padding: 6px 2px;
+      box-sizing: border-box;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+      vertical-align: middle;
+    }
+    .group-body .counts-wrap tbody tr:last-child td { border-bottom: none; }
+    .group-body .counts-wrap tbody td:last-child { border-right: none; }
+
+  
+    /* Toggle buttons */
+    .toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e3a5f;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 4px 6px 4px 0;
+    }
+    .toggle-btn:hover { background: #16304f; }
+    .toggle-btn .arrow {
+      display: inline-block;
+      transition: transform 0.2s;
+      font-size: 0.75rem;
+    }
+    .toggle-btn.collapsed .arrow { transform: rotate(-90deg); }
+    .toggle-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .collapsible.hidden-section { display: none !important; }
+    .counts-wrap.hidden-section { display: none !important; }
+
+  
+    .gnum {
+      display: inline-block;
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+  
+    /* Frozen name panel */
+    th.sticky-col, td.sticky-col,
+    th.sticky-col-2, td.sticky-col-2 {
+      position: sticky !important;
+      z-index: 30 !important;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.08);
+    }
+    th.sticky-col, th.sticky-col-2 {
+      z-index: 40 !important;
+      background: var(--header-bg) !important;
+    }
+    td.sticky-col, td.sticky-col-2 {
+      background: #f8fafc !important;
+    }
+    tbody tr:nth-child(even) td.sticky-col,
+    tbody tr:nth-child(even) td.sticky-col-2 {
+      background: #eef2f7 !important;
+    }
+
+  
+    #perPersonTable thead th[data-code],
+    #perPersonTable tbody td[data-code] {
+      min-width: 42px;
+      width: 42px;
+      text-align: center;
+    }
+    #perPersonTable {
+      table-layout: auto;
+    }
+
+  
+    /* ===== VERSIÓN SIMPLE / CELULAR ===== */
+    body { padding: 8px 4px 24px; }
+    .container { padding: 0 2px; }
+    header { margin-bottom: 10px; }
+    header h1 { font-size: 1.15rem; }
+    header p { font-size: 0.78rem; }
+    .view-original-btn { font-size: 0.72rem; padding: 6px 10px; }
+    .group { margin-bottom: 12px; border-radius: 8px; }
+    .group-header { padding: 7px 10px; font-size: 0.85rem; }
+    .group-body { padding: 0; }
+    .group-body .table-wrap { overflow-x: auto; }
+    tbody td:not(.sticky-col):not(.sticky-col-2) {
+      font-size: 0.68rem !important;
+      font-weight: 500 !important;
+      height: 34px !important;
+      min-width: 42px !important;
+      width: 42px !important;
+      padding: 3px 1px !important;
+    }
+    td.lao-block { font-size: 0.62rem !important; }
+    th.sticky-col, td.sticky-col {
+      width: 68px !important; min-width: 68px !important; max-width: 68px !important;
+    }
+    th.sticky-col-2, td.sticky-col-2 {
+      width: 130px !important; min-width: 130px !important; max-width: 130px !important;
+    }
+    thead th:not(.sticky-col):not(.sticky-col-2) {
+      width: 42px !important; min-width: 42px !important; max-width: 42px !important;
+      height: 44px !important; font-size: 0.72rem !important; padding: 4px 1px !important;
+    }
+    thead th.day-num { font-size: 0.68rem !important; }
+    .palette-overlay { padding: 8px; }
+    .palette-modal { max-width: 360px; padding: 12px; }
+    .shift-option { padding: 10px 3px; font-size: 0.78rem; }
+    footer { font-size: 0.68rem; margin-top: 8px; }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>PROGRAMACIÓN JEFES — SEPTIEMBRE 2026</h1>
+      <p>Tocá cualquier celda para cambiar el turno</p>
+      <button id="btnOriginalView" class="view-original-btn">Ver programación original</button>
+      <div class="legend" id="legend"></div>
+    </header>
+    <div id="originalBanner">Estás viendo la programación ORIGINAL (sin tus cambios). Los turnos no se pueden editar en esta vista — tocá "Volver a mi programación" para seguir editando.</div>
+
+    <section class="group" id="groupSection1">
+    <div class="group-header">Grupo 1 <span id="groupCount1">12 jefes</span></div>
+    <div class="group-body">
+    <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sticky-col">Legajo</th>
+              <th class="sticky-col-2">Apellido</th>
+              <th>MA<br><span class="day-num">1</span></th>
+              <th>MI<br><span class="day-num">2</span></th>
+              <th>JU<br><span class="day-num">3</span></th>
+              <th>VI<br><span class="day-num">4</span></th>
+              <th class="weekend">SA<br><span class="day-num">5</span></th>
+              <th class="weekend">DO<br><span class="day-num">6</span></th>
+              <th class="week-sep">LU<br><span class="day-num">7</span></th>
+              <th>MA<br><span class="day-num">8</span></th>
+              <th>MI<br><span class="day-num">9</span></th>
+              <th>JU<br><span class="day-num">10</span></th>
+              <th>VI<br><span class="day-num">11</span></th>
+              <th class="weekend">SA<br><span class="day-num">12</span></th>
+              <th class="weekend">DO<br><span class="day-num">13</span></th>
+              <th class="week-sep">LU<br><span class="day-num">14</span></th>
+              <th>MA<br><span class="day-num">15</span></th>
+              <th>MI<br><span class="day-num">16</span></th>
+              <th>JU<br><span class="day-num">17</span></th>
+              <th>VI<br><span class="day-num">18</span></th>
+              <th class="weekend">SA<br><span class="day-num">19</span></th>
+              <th class="weekend">DO<br><span class="day-num">20</span></th>
+              <th class="week-sep">LU<br><span class="day-num">21</span></th>
+              <th>MA<br><span class="day-num">22</span></th>
+              <th>MI<br><span class="day-num">23</span></th>
+              <th>JU<br><span class="day-num">24</span></th>
+              <th>VI<br><span class="day-num">25</span></th>
+              <th class="weekend">SA<br><span class="day-num">26</span></th>
+              <th class="weekend">DO<br><span class="day-num">27</span></th>
+              <th class="week-sep">LU<br><span class="day-num">28</span></th>
+              <th>MA<br><span class="day-num">29</span></th>
+              <th>MI<br><span class="day-num">30</span></th>
+            </tr>
+          </thead>
+          <tbody id="group1"></tbody>
+        </table>
+      </div>
+    </div>
+    </section>
+
+    <section class="group" id="groupSection2">
+    <div class="group-header">Grupo 2 <span id="groupCount2">11 jefes</span></div>
+    <div class="group-body">
+    <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sticky-col">Legajo</th>
+              <th class="sticky-col-2">Apellido</th>
+              <th>MA<br><span class="day-num">1</span></th>
+              <th>MI<br><span class="day-num">2</span></th>
+              <th>JU<br><span class="day-num">3</span></th>
+              <th>VI<br><span class="day-num">4</span></th>
+              <th class="weekend">SA<br><span class="day-num">5</span></th>
+              <th class="weekend">DO<br><span class="day-num">6</span></th>
+              <th class="week-sep">LU<br><span class="day-num">7</span></th>
+              <th>MA<br><span class="day-num">8</span></th>
+              <th>MI<br><span class="day-num">9</span></th>
+              <th>JU<br><span class="day-num">10</span></th>
+              <th>VI<br><span class="day-num">11</span></th>
+              <th class="weekend">SA<br><span class="day-num">12</span></th>
+              <th class="weekend">DO<br><span class="day-num">13</span></th>
+              <th class="week-sep">LU<br><span class="day-num">14</span></th>
+              <th>MA<br><span class="day-num">15</span></th>
+              <th>MI<br><span class="day-num">16</span></th>
+              <th>JU<br><span class="day-num">17</span></th>
+              <th>VI<br><span class="day-num">18</span></th>
+              <th class="weekend">SA<br><span class="day-num">19</span></th>
+              <th class="weekend">DO<br><span class="day-num">20</span></th>
+              <th class="week-sep">LU<br><span class="day-num">21</span></th>
+              <th>MA<br><span class="day-num">22</span></th>
+              <th>MI<br><span class="day-num">23</span></th>
+              <th>JU<br><span class="day-num">24</span></th>
+              <th>VI<br><span class="day-num">25</span></th>
+              <th class="weekend">SA<br><span class="day-num">26</span></th>
+              <th class="weekend">DO<br><span class="day-num">27</span></th>
+              <th class="week-sep">LU<br><span class="day-num">28</span></th>
+              <th>MA<br><span class="day-num">29</span></th>
+              <th>MI<br><span class="day-num">30</span></th>
+            </tr>
+          </thead>
+          <tbody id="group2"></tbody>
+        </table>
+      </div>
+    </div>
+    </section>
+<footer>Programación Jefes · Septiembre 2026 · Versión simplificada para celular</footer>
+  </div>
+  <div class="palette-overlay" id="shiftOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="shiftPersonDay">—</h3>
+        <button class="close-btn" id="closeShift" title="Cerrar">×</button>
+      </div>
+      <div class="shift-grid" id="shiftGrid"></div>
+      <div class="palette-actions">
+        <button class="btn btn-clear" id="clearShift">Vaciar turno</button>
+        <button class="btn btn-clear" id="restoreShift">Restaurar original</button>
+        <button class="btn btn-done" id="doneShift">Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DATA: PAZ, C vacío (confirmado por usuario). Resto realineado.
+    const people = [
+      { id: "60198", name: "PAZ, C", codes: Array(30).fill("") },
+      { id: "60219", name: "PAZ, L", codes: "M F T MD T MD T M T1 M F F F T M T M M T M F N NC NC NC N F NC T T".split(" ") },
+      { id: "60228", name: "ALVAREZ", codes: "F F M M MD M M T T T M M MD M F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60238", name: "BORLANDELLI", codes: "F NC NC N T T T T1 M MD F F NC N N NC N T MD F F NC N N N T M M M F".split(" ") },
+      { id: "60243", name: "CAPECHE", codes: "T M F F F T M T M MD MD F F M M T T T M MD M M M F NC INT/P T/P M M T".split(" ") },
+      { id: "60254", name: "DE CARLO", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO T T T1 M M F F T M M".split(" ") },
+      { id: "60262", name: "FILLON", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO M MD MD M T/P M T M F F M M T T M MD MD F F T".split(" ") },
+      { id: "60264", name: "FRANCO", codes: "M M M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F F NC".split(" ") },
+      { id: "60280", name: "LANCELLOTTI", codes: "NC N F F NC N N NC N N N F F NC N N NC N N N NC N N F F NC N N N N".split(" ") },
+      { id: "60287", name: "MELE", codes: "NC N F F NC N N NC N N N F F NC N N NC N N N NC N N F F NC N N N N".split(" ") },
+      { id: "60296", name: "MORALES", codes: "T T T F N NC NC T T1 T T M F F N T INT/P T M MD F F N NC N T M F T T".split(" ") },
+      { id: "60299", name: "MURATORI", codes: "F T T/P T MD T1 T M T T MD F F T T T M MD MD F F T T T MD MD T T T1 F".split(" ") },
+      { id: "60301", name: "NEMARIC", codes: "T/P T T M F F NC N N NC NC N T F F NC NC N T M T T INT/P T1 F F NC N T T".split(" ") },
+      { id: "60423", name: "RIVAS", codes: "N T M MD F F NC N N NC NC N T T1 M F F NC N T T/P M M T INT/P M F F NC N".split(" ") },
+      { id: "60457", name: "ESPINOZA", codes: "T M F F T T T M M M F T T/P T T M T MD F F T T/P M M F T T M T M".split(" ") },
+      { id: "60502", name: "PIÑERO", codes: "F F NC NC NC N N NC NC N F NC NC N NC NC N NC NC NC N NC NC N F F F NC NC N".split(" ") },
+      { id: "60613", name: "CANTERO", codes: "T T1 T M F F F INT/P T T T T T M M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60616", name: "KYRIACO", codes: "N N F NC N NC N N T F F NC NC N NC N T F F NC N NC NC N F NC NC N N NC".split(" ") },
+      { id: "60636", name: "CASANOVA", codes: "F F F F F F ** ** NC N T MD M F NC N N T T T M N/P T INT/P T F T T M M".split(" ") },
+      { id: "60668", name: "ANTELO", codes: "N NC N T M MD M F NC NC N T M T T1 M F F NC T T T1 M M MD F F F N NC".split(" ") },
+      { id: "60713", name: "RAMOS", codes: "N F NC NC N NC N T F F NC N N NC T F N NC NC NC N N F NC NC N T NC N F".split(" ") },
+      { id: "60718", name: "SOSNICKI", codes: "M F N N T M T T1 M F F NC N T T M T1 M F F NC N N N T M MD F NC N".split(" ") },
+      { id: "60823", name: "PEREYRA", codes: "NC NC N T M F F N T M F F N N T T M F N T/P T1 T T T T F NC T T M".split(" ") },
+    ];
+
+    // Snapshot de la programación ORIGINAL (tal cual estaba antes de cualquier reasignación de turno)
+    const ORIGINAL_CODES = people.map(p => p.codes.slice());
+
+    // Turnos que el usuario reasignó a mano, guardados en este navegador ("pi:di" -> código nuevo)
+    let editsMap = JSON.parse(localStorage.getItem("ctEditsMap") || "{}");
+    Object.keys(editsMap).forEach(key => {
+      const [pi, di] = key.split(":").map(Number);
+      if (people[pi]) people[pi].codes[di] = editsMap[key];
+    });
+
+    // Si está en true, se muestra la programación ORIGINAL (solo lectura, sin las ediciones del usuario)
+    let viewingOriginal = false;
+
+    // Todos los códigos de turno asignables desde el abanico (además de "vacío")
+    const ALL_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","**"];
+
+    const CODES = ["M","T1","T","MD","F","N","NC","LAO","POK","**"];
+
+    const PALETTE = [
+      "#92D050","#00B050","#70AD47","#C6EFCE",
+      "#FFC000","#FFD966","#F79646","#ED7D31",
+      "#00B0F0","#5B9BD5","#9DC3E6","#0070C0","#BDD7EE",
+      "#FF0000","#FF6B6B","#C00000","#FFC7CE",
+      "#A5A5A5","#D9D9D9","#7F7F7F","#F2F2F2",
+      "#C8C0D8","#B4A7D6","#E2D5F1","#7030A0",
+      "#002060","#FFFF00","#00FFFF","#FFFFFF"
+    ];
+
+    const colorMap = {
+      "M": "#FFC000",
+      "T1": "#D9D9D9",
+      "T": "#FFFFFF",
+      "MD": "#F79646",
+      "F": "#FF6B6B",
+      "N": "#9DC3E6",
+      "NC": "#0070C0",
+      "LAO": "#00B050",
+      "INT/P": "#00B050",
+      "T/P": "#00B050",
+      "N/P": "#00B050",
+      "POK": "#7030A0",
+      "**": "#FFFF00"
+    };
+
+    // Codes the user requested, in exact order (display labels)
+    const SUMMARY_CODES = ["MD", "M", "T1", "T", "N", "NC", "F", "POK"];
+
+    // Possible aliases from the original data → summary code
+    const CODE_ALIASES = {
+      "MD": "MD",
+      "M": "M",
+      "T1": "T1",
+      "T": "T",
+      "N": "N",
+      "NC": "NC",
+      "F": "F",
+      // INT/P, T/P, N/P → all count as POK
+      "INT/P": "POK",
+      "T/P": "POK",
+      "N/P": "POK",
+      "POK": "POK"
+    };
+
+
+    function getTextColor(bg) {
+      if (!bg || ["#FFFFFF","#F2F2F2","#C6EFCE","#FFC7CE","#BDD7EE","#E2D5F1","#FFD966"].includes(bg)) return "#1a1a1a";
+      const hex = bg.replace("#","");
+      const r = parseInt(hex.substr(0,2),16);
+      const g = parseInt(hex.substr(2,2),16);
+      const b = parseInt(hex.substr(4,2),16);
+      const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+      return lum > 0.55 ? "#1a1a1a" : "#ffffff";
+    }
+
+    function applyColors() {
+      document.querySelectorAll("[data-code]").forEach(el => {
+        const code = el.dataset.code;
+        if (!code) return;
+        // POK inherits T/P color if not explicitly set
+        let bg = colorMap[code];
+        if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
+        if (bg) {
+          el.style.background = bg;
+          el.style.color = getTextColor(bg);
+        } else {
+          el.style.background = "";
+          el.style.color = "";
+        }
+      });
+      document.querySelectorAll(".legend-item").forEach(item => {
+        const code = item.dataset.code;
+        const sw = item.querySelector(".swatch");
+        if (colorMap[code]) {
+          sw.style.background = colorMap[code];
+        } else {
+          sw.style.background = "#e2e8f0";
+        }
+      });
+    }
+
+    function saveMap() {
+      localStorage.setItem("ctColorMap", JSON.stringify(colorMap));
+    }
+    // Índices de día (0-based) donde empieza una nueva semana (LU = lunes)
+    const WEEK_START_DAYS = [6, 13, 20, 27];
+
+    function buildRow(person, pi) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="sticky-col">${person.id}</td>
+        <td class="sticky-col-2">${person.name}</td>
+      `;
+      const codesArr = viewingOriginal ? ORIGINAL_CODES[pi] : person.codes;
+      let di = 0;
+      while (di < codesArr.length) {
+        const code = codesArr[di];
+        const isLao = code && code.toUpperCase() === "LAO";
+        const td = document.createElement("td");
+
+        if (isLao) {
+          // Fusionar toda la racha consecutiva de LAO en una sola celda
+          let runEnd = di;
+          while (
+            runEnd + 1 < codesArr.length &&
+            codesArr[runEnd + 1] &&
+            codesArr[runEnd + 1].toUpperCase() === "LAO"
+          ) {
+            runEnd++;
+          }
+          const runLen = runEnd - di + 1;
+          td.dataset.code = "LAO";
+          td.textContent = "LAO";
+          td.className = "lao-block";
+          if (runLen > 1) td.colSpan = runLen;
+          if (WEEK_START_DAYS.includes(di)) td.classList.add("week-sep");
+          if (!viewingOriginal) {
+            td.style.cursor = "pointer";
+            td.addEventListener("click", () => openShiftPicker(pi, di));
+          } else {
+            td.style.cursor = "default";
+          }
+          tr.appendChild(td);
+          di = runEnd + 1;
+          continue;
+        }
+
+        if (!code) {
+          td.className = "empty";
+          td.textContent = "·";
+        } else {
+          td.dataset.code = code;
+          td.textContent = code;
+        }
+        if (WEEK_START_DAYS.includes(di)) td.classList.add("week-sep");
+        if (viewingOriginal) {
+          td.style.cursor = "default";
+        } else {
+          td.addEventListener("click", () => openShiftPicker(pi, di));
+        }
+        tr.appendChild(td);
+        di++;
+      }
+      return tr;
+    }
+
+    const GROUP_SPLIT = 12; // Grupo 1: primeros 12 · Grupo 2: resto
+    const g1 = document.getElementById("group1");
+    const g2 = document.getElementById("group2");
+
+    function renderGroups() {
+      g1.innerHTML = "";
+      g2.innerHTML = "";
+      people.forEach((p, pi) => {
+        const row = buildRow(p, pi);
+        if (pi < GROUP_SPLIT) g1.appendChild(row);
+        else g2.appendChild(row);
+      });
+    }
+    function buildLegend() {
+      const legend = document.getElementById("legend");
+      if (!legend) return;
+      const codes = ["M","T1","T","MD","F","N","NC","LAO","INT/P","T/P","N/P","POK","**"];
+      legend.innerHTML = codes.map(code =>
+        `<span class="legend-item" data-code="${code}"><span class="swatch"></span>${code}</span>`
+      ).join("");
+    }
+    renderGroups();
+    buildLegend();
+    applyColors();
+    // ========== ABANICO DE TURNOS (reasignar el CT de una celda) ==========
+    let shiftPersonIdx = null;
+    let shiftDayIdx = null;
+    const shiftOverlay = document.getElementById("shiftOverlay");
+    const shiftGrid = document.getElementById("shiftGrid");
+    const shiftPersonDay = document.getElementById("shiftPersonDay");
+
+    function buildShiftGrid() {
+      shiftGrid.innerHTML = "";
+      ALL_SHIFT_CODES.forEach(code => {
+        const opt = document.createElement("div");
+        opt.className = "shift-option";
+        opt.dataset.code = code;
+        opt.textContent = code;
+        let bg = colorMap[code];
+        if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
+        if (bg) {
+          opt.style.background = bg;
+          opt.style.color = getTextColor(bg);
+        }
+        opt.addEventListener("click", () => applyShift(code));
+        shiftGrid.appendChild(opt);
+      });
+    }
+    buildShiftGrid();
+
+    function openShiftPicker(pi, di) {
+      if (viewingOriginal) return;
+      shiftPersonIdx = pi;
+      shiftDayIdx = di;
+      const person = people[pi];
+      shiftPersonDay.textContent = `${person.name} · día ${di + 1}`;
+      document.querySelectorAll(".shift-option").forEach(el => {
+        el.classList.toggle("selected", el.dataset.code === person.codes[di]);
+      });
+      shiftOverlay.classList.add("open");
+    }
+
+    function saveEdit(pi, di, code) {
+      editsMap[pi + ":" + di] = code;
+      localStorage.setItem("ctEditsMap", JSON.stringify(editsMap));
+    }
+    function removeEdit(pi, di) {
+      delete editsMap[pi + ":" + di];
+      localStorage.setItem("ctEditsMap", JSON.stringify(editsMap));
+    }
+
+    function refreshAfterEdit() {
+      renderGroups();
+      buildShiftGrid();
+      applyColors();
+    }
+
+    function applyShift(code) {
+      people[shiftPersonIdx].codes[shiftDayIdx] = code;
+      saveEdit(shiftPersonIdx, shiftDayIdx, code);
+      refreshAfterEdit();
+      closeShiftPicker();
+    }
+
+    document.getElementById("clearShift").addEventListener("click", () => {
+      people[shiftPersonIdx].codes[shiftDayIdx] = "";
+      saveEdit(shiftPersonIdx, shiftDayIdx, "");
+      refreshAfterEdit();
+      closeShiftPicker();
+    });
+
+    document.getElementById("restoreShift").addEventListener("click", () => {
+      const original = ORIGINAL_CODES[shiftPersonIdx][shiftDayIdx];
+      people[shiftPersonIdx].codes[shiftDayIdx] = original;
+      removeEdit(shiftPersonIdx, shiftDayIdx);
+      refreshAfterEdit();
+      closeShiftPicker();
+    });
+
+    document.getElementById("closeShift").addEventListener("click", closeShiftPicker);
+    document.getElementById("doneShift").addEventListener("click", closeShiftPicker);
+    shiftOverlay.addEventListener("click", (e) => {
+      if (e.target === shiftOverlay) closeShiftPicker();
+    });
+
+    function closeShiftPicker() {
+      shiftOverlay.classList.remove("open");
+    }
+
+    // ========== VER PROGRAMACIÓN ORIGINAL ==========
+    const btnOriginalView = document.getElementById("btnOriginalView");
+    const originalBanner = document.getElementById("originalBanner");
+    btnOriginalView.addEventListener("click", () => {
+      viewingOriginal = !viewingOriginal;
+      btnOriginalView.textContent = viewingOriginal ? "Volver a mi programación" : "Ver programación original";
+      btnOriginalView.style.background = viewingOriginal ? "#5b21b6" : "#7c3aed";
+      originalBanner.style.display = viewingOriginal ? "block" : "none";
+      refreshAfterEdit();
+    });
+</script>
+</body>
+</html>

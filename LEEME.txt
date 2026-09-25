@@ -1,0 +1,37 @@
+CÓMO INSTALAR ESTO EN GITHUB
+=============================
+
+1. Subí estos 3 archivos al repositorio (Cuadraditos-VP), reemplazando
+   los que ya tenés:
+     - index.html
+     - manifest.json   (nuevo)
+     - sw.js           (nuevo)
+
+   NO hace falta tocar los íconos (icon-192.png, icon-512.png,
+   apple-touch-icon.png) ni el septiembre-2026.json: siguen igual.
+
+2. Esperá un par de minutos a que GitHub Pages publique los cambios.
+
+3. En el celular: borrá el ícono de la pantalla de inicio y volvé a
+   agregarlo desde la web (https://tu-usuario.github.io/Cuadraditos-VP/)
+   una única vez, para que tome el service worker nuevo. De ahí en
+   adelante se va a mantener actualizada sola.
+
+QUÉ CAMBIA
+==========
+- Se puede instalar también en Android/Chrome (aparece un cartel para
+  "Instalar app"), no solo en iPhone.
+- Abre más rápido.
+- Funciona sin internet, mostrando la última programación que se
+  haya cargado con conexión.
+- Sigue trayendo siempre la versión más nueva del HTML y del JSON
+  cuando hay internet — el service worker está armado para priorizar
+  la red primero y usar la copia guardada solo como respaldo offline,
+  así no vuelve a pasar lo de quedarse pegado en una versión vieja.
+
+SI EN EL FUTURO CAMBIAN LOS ÍCONOS U OTROS ARCHIVOS FIJOS
+===========================================================
+Abrí sw.js y cambiá esta línea:
+    const CACHE_NAME = "jefes-v1";
+por ejemplo a "jefes-v2". Eso hace que todos los dispositivos
+limpien la copia guardada vieja y bajen todo de nuevo.

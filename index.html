@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Jefes Sep 2026</title>
+  <title>Jefes</title>
   <meta name="theme-color" content="#1e3a5f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -511,7 +511,7 @@
       height: 39px;
     }
 
-    /* Main schedule tables width = sticky + sticky2 + 30 days */
+    /* Main schedule tables width = sticky + sticky2 + días del mes (--days-total lo fija el JS) */
     .group-body .table-wrap table {
       width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
       min-width: calc(var(--col-legajo) + var(--col-nombre) + var(--days-total));
@@ -1047,6 +1047,14 @@
       }
     }
 
+    .month-select {
+      border: 0; border-radius: 7px; padding: 7px 8px;
+      background: #0f766e; color: #fff; font-weight: 600; font-size: 0.78rem;
+      cursor: pointer; font-family: inherit;
+    }
+    @media (orientation: landscape) {
+      .month-select { height: 32px; padding: 0 6px; font-size: 0.75rem; }
+    }
   </style>
 </head>
 <body class="month-view">
@@ -1067,7 +1075,8 @@
         </button>
         <button id="btnOriginalView" class="view-original-btn" title="Actual">A</button>
         <button type="button" id="btnToggleNames" class="names-toggle-btn" title="Ocultar nombres">N</button>
-        <h1><span class="title-full">PROGRAMACIÓN JEFES — SEPTIEMBRE 2026</span><span class="title-short">9/26</span></h1>
+        <select id="monthSelect" class="month-select" title="Mes" aria-label="Mes" style="display:none"></select>
+        <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
@@ -1085,40 +1094,7 @@
     <div class="table-wrap" id="scheduleWrap">
         <table id="scheduleTable">
           <thead>
-            <tr id="dayHeadRow">
-              <th class="sticky-col">Legajo</th>
-              <th class="sticky-col-2">Apellido</th>
-              <th data-di="0">MA<br><span class="day-num">1</span></th>
-              <th data-di="1">MI<br><span class="day-num">2</span></th>
-              <th data-di="2">JU<br><span class="day-num">3</span></th>
-              <th data-di="3">VI<br><span class="day-num">4</span></th>
-              <th class="weekend" data-di="4">SA<br><span class="day-num">5</span></th>
-              <th class="weekend" data-di="5">DO<br><span class="day-num">6</span></th>
-              <th class="week-sep" data-di="6">LU<br><span class="day-num">7</span></th>
-              <th data-di="7">MA<br><span class="day-num">8</span></th>
-              <th data-di="8">MI<br><span class="day-num">9</span></th>
-              <th data-di="9">JU<br><span class="day-num">10</span></th>
-              <th data-di="10">VI<br><span class="day-num">11</span></th>
-              <th class="weekend" data-di="11">SA<br><span class="day-num">12</span></th>
-              <th class="weekend" data-di="12">DO<br><span class="day-num">13</span></th>
-              <th class="week-sep" data-di="13">LU<br><span class="day-num">14</span></th>
-              <th data-di="14">MA<br><span class="day-num">15</span></th>
-              <th data-di="15">MI<br><span class="day-num">16</span></th>
-              <th data-di="16">JU<br><span class="day-num">17</span></th>
-              <th data-di="17">VI<br><span class="day-num">18</span></th>
-              <th class="weekend" data-di="18">SA<br><span class="day-num">19</span></th>
-              <th class="weekend" data-di="19">DO<br><span class="day-num">20</span></th>
-              <th class="week-sep" data-di="20">LU<br><span class="day-num">21</span></th>
-              <th data-di="21">MA<br><span class="day-num">22</span></th>
-              <th data-di="22">MI<br><span class="day-num">23</span></th>
-              <th data-di="23">JU<br><span class="day-num">24</span></th>
-              <th data-di="24">VI<br><span class="day-num">25</span></th>
-              <th class="weekend" data-di="25">SA<br><span class="day-num">26</span></th>
-              <th class="weekend" data-di="26">DO<br><span class="day-num">27</span></th>
-              <th class="week-sep" data-di="27">LU<br><span class="day-num">28</span></th>
-              <th data-di="28">MA<br><span class="day-num">29</span></th>
-              <th data-di="29">MI<br><span class="day-num">30</span></th>
-            </tr>
+            <tr id="dayHeadRow"></tr>
           </thead>
           <tbody id="group1"></tbody>
           <tbody id="group2"></tbody>
@@ -1172,8 +1148,33 @@
   </div>
 
   <script>
-    // DATA: PAZ, C vacío (confirmado por usuario). Resto realineado.
-    let people = [
+    // ========== MES ACTUAL (septiembre, octubre, ...) ==========
+    // El archivo de cada mes se llama <mes>-<año>.json (septiembre-2026.json, octubre-2026.json, ...)
+    const MES_NOMBRES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    const MES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    const WEEKDAY_ABBR = ["LU","MA","MI","JU","VI","SA","DO"];
+    const FIRST_MES = "2026-09";
+    const DEFAULT_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","10A","10J","C/A","LIC"];
+
+    function mesInfo(key) {
+      const [y, m] = key.split("-").map(Number);
+      return {
+        key, y, m,
+        days: new Date(y, m, 0).getDate(),                  // cantidad de días del mes
+        startWd: (new Date(y, m - 1, 1).getDay() + 6) % 7,  // día de la semana del 1 (LU=0 ... DO=6)
+        file: MES_NOMBRES[m - 1] + "-" + y + ".json",
+        nombre: MES_NOMBRES[m - 1].toUpperCase()
+      };
+    }
+    let currentMes = FIRST_MES;
+    let MES = mesInfo(currentMes);
+    let DAYS = MES.days;
+    let DAY_LABELS = [];      // "MA 1", "MI 2", ...
+    let WEEKEND_DAYS = [];    // índices (0-based) de sábados y domingos
+    let WEEK_START_DAYS = []; // índices (0-based) donde empieza una semana (LU)
+
+    // DATA inicial de septiembre: PAZ, C vacío (confirmado por usuario). Resto realineado.
+    const SEED_SEP = [
       { id: "60198", name: "PAZ, C", codes: Array(30).fill("") },
       { id: "60219", name: "PAZ, L", codes: "M F T MD T MD T M T1 M F F F T M T M M T M F N NC NC NC N F NC T T".split(" ") },
       { id: "60228", name: "ALVAREZ", codes: "F F M M MD M M T T T M M MD M F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
@@ -1199,10 +1200,40 @@
       { id: "60823", name: "PEREYRA", codes: "NC NC N T M F F N T M F F N N T T M F N T/P T1 T T T T F NC T T M".split(" ") },
     ];
 
-    // Snapshot de la programación INICIAL de septiembre: nunca se pisa,
+    const SEED_OCT = [
+      { id: "60198", name: "PAZ, C", codes: "LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC".split(" ") },
+      { id: "60219", name: "PAZ, L", codes: "M M MD MD M F T M MD F F N T M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60228", name: "ALVAREZ", codes: "LAO LAO LAO LAO LAO LAO F F NC N T T M M F F NC N T M M M F T T M M M F NC N".split(" ") },
+      { id: "60238", name: "BORLANDELLI", codes: "F N N T T M F F NC NC NC N T M F F F NC NC N NC N T T M T1 T M M MD F".split(" ") },
+      { id: "60243", name: "CAPECHE", codes: "T MD F T T T1 M F F N T M M T T M MD F F F N T T1 M T M T M T1 MD F".split(" ") },
+      { id: "60254", name: "DE CARLO", codes: "F T T M T M M T1 T M MD T M F F N N T M T M T M MD T T M F F F F".split(" ") },
+      { id: "60262", name: "FILLON", codes: "M F F F · T M M MD T M MD F T T M MD F F T T1 M M T M M F N N T T".split(" ").map(c => c === "·" ? "" : c) },
+      { id: "60264", name: "FRANCO", codes: "N NC NC N T M F NC N T M F F F F NC NC N T T1 M F F N NC NC N T T M M".split(" ") },
+      { id: "60280", name: "LANCELLOTTI", codes: "F F N N NC N NC N F N N NC N N NC N F F NC NC N NC N NC N F F NC NC N N".split(" ") },
+      { id: "60287", name: "MELE", codes: "F F N N NC N NC N F N N NC N N NC N F F NC NC N NC N NC N F F NC NC N N".split(" ") },
+      { id: "60296", name: "MORALES", codes: "T M F NC N T T M M F F NC N T T1 T T TT F F NC N T M MD T T F F T T".split(" ") },
+      { id: "60299", name: "MURATORI", codes: "T1 MD MD F F T T1 T T M MD MD F F T MD M F T T T T1 T F F N N T T T MD".split(" ") },
+      { id: "60301", name: "NEMARIC", codes: "M M T T T1 F F NC N T M F F NC N T T T F N T T M F F NC N T T M M".split(" ") },
+      { id: "60423", name: "RIVAS", codes: "F F NC NC N T T M F F NC N N T T M T T M M F F NC N NC N T T M F NC".split(" ") },
+      { id: "60457", name: "ESPINOZA", codes: "T T T M M F · T T F T M T T1 M F F F T M M M MD MD T M F F T M MD".split(" ").map(c => c === "·" ? "" : c) },
+      { id: "60502", name: "PIÑERO", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F NC NC N N F F NC NC NC NC NC N F NC NC".split(" ") },
+      { id: "60613", name: "CANTERO", codes: "LAO LAO LAO LAO LAO F T T T1 F F T T T M MD M TT F F T T T M MD F F NC N T T".split(" ") },
+      { id: "60616", name: "KYRIACO", codes: "NC N F F NC NC N N F NC NC N NC N F NC N N N NC N F F N N N NC N N F NC".split(" ") },
+      { id: "60636", name: "CASANOVA", codes: "T T M M F NC N NC N T T M F NC N T M TT F F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60668", name: "ANTELO", codes: "N T M MD F F N T M MD T T T1 M M F F NC N T T M MD F F F NC N NC N T".split(" ") },
+      { id: "60713", name: "RAMOS", codes: "N NC NC NC N N F F NC NC N LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60718", name: "SOSNICKI", codes: "NC N T T M F N T M MD F F NC NC N T T TT F F NC NC N T M T T1 T1 M F F".split(" ") },
+      { id: "60823", name: "PEREYRA", codes: "NC NC N T F NC NC N T M F F NC N NC NC N T M F F N NC N T T M F F NC N".split(" ") },
+    ];
+
+    const SEED_BY_MES = { "2026-09": SEED_SEP, "2026-10": SEED_OCT };
+
+    let people = SEED_BY_MES[FIRST_MES].map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }));
+
+    // Snapshot de la programación INICIAL del mes: nunca se pisa,
     // ni al cargar un JSON nuevo ni al hacer ediciones. Sirve para poder
     // volver a ver siempre el punto de partida original.
-    const INITIAL_CODES = people.map(p => p.codes.slice());
+    let INITIAL_CODES = people.map(p => p.codes.slice());
 
     // Snapshot de la programación OFICIAL más reciente (la última publicada
     // en GitHub). A diferencia de INITIAL_CODES, esta SÍ se actualiza cada
@@ -1210,8 +1241,12 @@
     // celdas quedaron editadas localmente sin publicar todavía.
     let ORIGINAL_CODES = people.map(p => p.codes.slice());
 
+    // Ediciones locales: se guardan por mes (septiembre conserva su clave de siempre)
+    function editsKey(mes) { return mes === FIRST_MES ? "ctEditsMap" : "ctEditsMap:" + mes; }
     let editsMap = {};
-    try { editsMap = JSON.parse(localStorage.getItem("ctEditsMap") || "{}"); } catch (e) { editsMap = {}; }
+    function loadEdits() {
+      try { editsMap = JSON.parse(localStorage.getItem(editsKey(currentMes)) || "{}"); } catch (e) { editsMap = {}; }
+    }
 
     function applyLocalEdits() {
       Object.keys(editsMap).forEach(key => {
@@ -1232,15 +1267,14 @@
     }
 
     // Modo de vista: "actual" (editable), "oficial" (última publicada, solo lectura)
-    // o "inicial" (la programación de arranque de septiembre, solo lectura)
+    // o "inicial" (la programación de arranque del mes, solo lectura)
     let viewMode = "actual";
-    let selectedDay = null; // 0-29 or null = mes completo
+    let selectedDay = null; // índice de día (0-based) o null = mes completo
     let daySortByShift = false;
-    const DAY_LABELS = ["MA 1","MI 2","JU 3","VI 4","SA 5","DO 6","LU 7","MA 8","MI 9","JU 10","VI 11","SA 12","DO 13","LU 14","MA 15","MI 16","JU 17","VI 18","SA 19","DO 20","LU 21","MA 22","MI 23","JU 24","VI 25","SA 26","DO 27","LU 28","MA 29","MI 30"];
     const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","N/P","N","NC"];
 
     // Todos los códigos de turno asignables desde el abanico (además de "vacío")
-    let ALL_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","10A","10J","C/A","LIC"];
+    let ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
 
     const CODES = ["M","T1","T","MD","F","N","NC","LAO","POK"];
 
@@ -1333,13 +1367,11 @@
     function saveMap() {
       localStorage.setItem("ctColorMap", JSON.stringify(colorMap));
     }
-    // Índices de día (0-based) donde empieza una nueva semana (LU = lunes)
-    const WEEK_START_DAYS = [6, 13, 20, 27];
 
     // Según el modo de vista actual, de dónde sacar los códigos de una persona
     function codesFor(pi) {
-      if (viewMode === "inicial") return INITIAL_CODES[pi];
-      if (viewMode === "oficial") return ORIGINAL_CODES[pi];
+      if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
+      if (viewMode === "oficial") return ORIGINAL_CODES[pi] || [];
       return people[pi].codes;
     }
 
@@ -1435,7 +1467,7 @@
     }
 
     function fillDayHead(el, title) {
-      const wknd = [4,5,11,12,18,19,25,26].includes(selectedDay) ? " weekend" : "";
+      const wknd = WEEKEND_DAYS.includes(selectedDay) ? " weekend" : "";
       const parts = DAY_LABELS[selectedDay].split(" ");
       el.innerHTML = `<tr>
         <th class="sticky-col">Leg.</th>
@@ -1467,8 +1499,8 @@
       if (selectedDay === null) {
         g1.innerHTML = "";
         g2.innerHTML = "";
-        g1.appendChild(groupTitleRow("Grupo 1", GROUP_SPLIT, 32));
-        g2.appendChild(groupTitleRow("Grupo 2", people.length - GROUP_SPLIT, 32));
+        g1.appendChild(groupTitleRow("Grupo 1", GROUP_SPLIT, DAYS + 2));
+        g2.appendChild(groupTitleRow("Grupo 2", people.length - GROUP_SPLIT, DAYS + 2));
         people.forEach((p, pi) => {
           const row = buildRow(p, pi);
           if (pi < GROUP_SPLIT) g1.appendChild(row);
@@ -1517,8 +1549,8 @@
         name: p.name,
         codes: (Array.isArray(p.codes) ? p.codes.slice() : String(p.codes || "").split(/\s+/)).map(normCode)
       })).map(p => {
-        while (p.codes.length < 30) p.codes.push("");
-        p.codes = p.codes.slice(0, 30);
+        while (p.codes.length < DAYS) p.codes.push("");
+        p.codes = p.codes.slice(0, DAYS);
         return p;
       });
     }
@@ -1534,26 +1566,160 @@
       }
     }
 
-    async function loadSharedSchedule() {
+    // Trae el JSON de un mes (null si no existe o falla)
+    async function fetchMes(key) {
       try {
-        const r = await fetch("septiembre-2026.json?t=" + Date.now(), { cache: "no-store" });
-        if (r.ok) {
-          const data = await r.json();
-          if (data && Array.isArray(data.people) && data.people.length) {
-            applyCatalog(data);
-            const official = normalizePeople(data.people);
-            people = official;
-            ORIGINAL_CODES = official.map(p => p.codes.slice());
-          }
-        }
+        const r = await fetch(mesInfo(key).file + "?t=" + Date.now(), { cache: "no-store" });
+        if (!r.ok) return null;
+        const data = await r.json();
+        if (data && Array.isArray(data.people) && data.people.length) return data;
       } catch (e) {}
+      return null;
+    }
+
+    // Arma el encabezado de días según el mes (cantidad de días y día de la semana del 1)
+    function renderDayHead() {
+      const row = document.getElementById("dayHeadRow");
+      row.innerHTML = '<th class="sticky-col">Legajo</th><th class="sticky-col-2">Apellido</th>';
+      for (let d = 0; d < DAYS; d++) {
+        const wd = (MES.startWd + d) % 7;
+        const th = document.createElement("th");
+        th.dataset.di = String(d);
+        const cls = [];
+        if (wd >= 5) cls.push("weekend");
+        if (wd === 0 && d > 0) cls.push("week-sep");
+        th.className = cls.join(" ");
+        th.innerHTML = WEEKDAY_ABBR[wd] + '<br><span class="day-num">' + (d + 1) + "</span>";
+        row.appendChild(th);
+      }
+    }
+
+    // Deja todo listo para mostrar un mes: fechas, título, encabezado y ediciones locales
+    function setMonthGlobals(key) {
+      currentMes = key;
+      MES = mesInfo(key);
+      DAYS = MES.days;
+      DAY_LABELS = [];
+      WEEKEND_DAYS = [];
+      WEEK_START_DAYS = [];
+      for (let d = 0; d < DAYS; d++) {
+        const wd = (MES.startWd + d) % 7;
+        DAY_LABELS.push(WEEKDAY_ABBR[wd] + " " + (d + 1));
+        if (wd >= 5) WEEKEND_DAYS.push(d);
+        if (wd === 0 && d > 0) WEEK_START_DAYS.push(d);
+      }
+      document.documentElement.style.setProperty("--days-total", (DAYS * 42) + "px");
+      document.getElementById("titleFull").textContent = "PROGRAMACIÓN JEFES — " + MES.nombre + " " + MES.y;
+      document.getElementById("titleShort").textContent = MES.m + "/" + String(MES.y).slice(2);
+      document.title = "Jefes " + MES_ABR[MES.m - 1] + " " + MES.y;
+      selectedDay = null;
+      daySortByShift = false;
+      loadEdits();
+      renderDayHead();
+    }
+
+    // Muestra un mes: usa el JSON publicado si existe, si no la semilla incluida en el HTML
+    function switchMonth(key) {
+      setMonthGlobals(key);
+      const data = MES_DATA[key];
+      ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
+      if (data) {
+        applyCatalog(data);
+        people = normalizePeople(data.people);
+      } else {
+        people = normalizePeople(SEED_BY_MES[key]);
+      }
+      ORIGINAL_CODES = people.map(p => p.codes.slice());
+      if (SEED_BY_MES[key]) {
+        INITIAL_CODES = normalizePeople(SEED_BY_MES[key]).map(p => p.codes.slice());
+      } else {
+        // Mes sin semilla: la primera versión publicada que vio este dispositivo queda como "inicial"
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem("ctInitial:" + key) || "null"); } catch (e) {}
+        if (!Array.isArray(saved)) {
+          saved = ORIGINAL_CODES.map(c => c.slice());
+          try { localStorage.setItem("ctInitial:" + key, JSON.stringify(saved)); } catch (e) {}
+        }
+        INITIAL_CODES = saved;
+      }
       resetPeopleFromOfficial();
       renderGroups();
+      buildShiftGrid();
       applyColors();
     }
-    loadSharedSchedule();
 
-    // Auto-actualización: cada cierto tiempo vuelve a traer septiembre-2026.json,
+    // Vuelve a traer el JSON del mes que se está viendo (auto-actualización)
+    async function loadSharedSchedule() {
+      const mes = currentMes;
+      const data = await fetchMes(mes);
+      if (mes !== currentMes) return; // cambiaron de mes mientras cargaba
+      if (data) {
+        MES_DATA[mes] = data;
+        applyCatalog(data);
+        people = normalizePeople(data.people);
+        ORIGINAL_CODES = people.map(p => p.codes.slice());
+      }
+      resetPeopleFromOfficial();
+      renderGroups();
+      buildShiftGrid();
+      applyColors();
+    }
+
+    // ---- Meses disponibles ----
+    const MES_DATA = {};        // JSON publicado ya traído, por mes
+    let AVAILABLE_MESES = [];
+
+    function mesKeyOf(y, m) { return y + "-" + String(m).padStart(2, "0"); }
+    // Meses a probar: desde 5 meses atrás (sin bajar de septiembre 2026) hasta 2 meses adelante
+    function candidateMeses() {
+      const now = new Date();
+      const nowIdx = now.getFullYear() * 12 + now.getMonth();
+      const [fy, fm] = FIRST_MES.split("-").map(Number);
+      const start = Math.max(fy * 12 + fm - 1, nowIdx - 5);
+      const end = Math.max(nowIdx + 2, 2026 * 12 + 9); // como mínimo hasta octubre 2026
+      const out = [];
+      for (let i = start; i <= end; i++) out.push(mesKeyOf(Math.floor(i / 12), (i % 12) + 1));
+      return out;
+    }
+
+    function fillMonthSelect() {
+      const sel = document.getElementById("monthSelect");
+      sel.innerHTML = "";
+      AVAILABLE_MESES.forEach(k => {
+        const mi = mesInfo(k);
+        const o = document.createElement("option");
+        o.value = k;
+        o.textContent = MES_ABR[mi.m - 1] + " " + mi.y;
+        sel.appendChild(o);
+      });
+      sel.style.display = AVAILABLE_MESES.length > 1 ? "" : "none";
+      sel.value = currentMes;
+    }
+    document.getElementById("monthSelect").addEventListener("change", (e) => {
+      const key = e.target.value;
+      try { sessionStorage.setItem("jefesMes", key); } catch (err) {}
+      switchMonth(key);
+    });
+
+    async function initApp() {
+      const cands = candidateMeses();
+      const results = await Promise.all(cands.map(k => fetchMes(k)));
+      cands.forEach((k, i) => { if (results[i]) MES_DATA[k] = results[i]; });
+      AVAILABLE_MESES = cands.filter(k => MES_DATA[k] || SEED_BY_MES[k]);
+      if (!AVAILABLE_MESES.length) AVAILABLE_MESES = [FIRST_MES];
+      let want = null;
+      try { want = sessionStorage.getItem("jefesMes"); } catch (e) {}
+      if (!want || !AVAILABLE_MESES.includes(want)) {
+        const now = new Date();
+        const today = mesKeyOf(now.getFullYear(), now.getMonth() + 1);
+        want = AVAILABLE_MESES.includes(today) ? today : AVAILABLE_MESES[AVAILABLE_MESES.length - 1];
+      }
+      switchMonth(want);
+      fillMonthSelect();
+    }
+    initApp();
+
+    // Auto-actualización: cada cierto tiempo vuelve a traer el JSON del mes que se está viendo,
     // así los dispositivos que ya tienen la página abierta reciben los cambios solos.
     const AUTO_REFRESH_MS = 3 * 60 * 1000; // cada 3 minutos
     setInterval(() => {
@@ -1621,7 +1787,7 @@
 
     function currentJson() {
       return {
-        mes: "2026-09",
+        mes: currentMes,
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
         people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }))
@@ -1634,10 +1800,10 @@
       // En el celular, "compartir" es más confiable que la descarga (Safari suele
       // abrir el JSON como texto en vez de guardarlo con el attribute "download").
       let file = null;
-      try { file = new File([blob], "septiembre-2026.json", { type: "application/json" }); } catch (e) {}
+      try { file = new File([blob], MES.file, { type: "application/json" }); } catch (e) {}
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: "septiembre-2026.json" });
+          await navigator.share({ files: [file], title: MES.file });
           return;
         } catch (err) {
           if (err && err.name === "AbortError") return; // el usuario canceló el panel de compartir
@@ -1647,7 +1813,7 @@
       // Escritorio / navegadores sin Web Share: descarga normal
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "septiembre-2026.json";
+      a.download = MES.file;
       a.click();
       URL.revokeObjectURL(a.href);
     });
@@ -1690,14 +1856,16 @@
           const data = JSON.parse(reader.result);
           const list = Array.isArray(data) ? data : data.people;
           if (!list || !list.length) throw new Error("sin people");
+          if (data.mes && data.mes !== currentMes &&
+              !confirm("Este JSON es de " + data.mes + " pero estás viendo " + currentMes + ". ¿Importarlo igual?")) return;
           applyCatalog(data);
           people = normalizePeople(list);
           ORIGINAL_CODES = people.map(p => p.codes.slice());
           editsMap = {};
-          try { localStorage.removeItem("ctEditsMap"); } catch (err) {}
+          try { localStorage.removeItem(editsKey(currentMes)); } catch (err) {}
           renderGroups();
           applyColors();
-          alert("JSON importado. Para que lo vean todos, subí ese mismo archivo a GitHub como septiembre-2026.json");
+          alert("JSON importado. Para que lo vean todos, subí ese mismo archivo a GitHub como " + MES.file);
         } catch (err) {
           alert("JSON inválido");
         }
@@ -1744,11 +1912,11 @@
 
     function saveEdit(pi, di, code) {
       editsMap[pi + ":" + di] = code;
-      try { localStorage.setItem("ctEditsMap", JSON.stringify(editsMap)); } catch (e) {}
+      try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
     }
     function removeEdit(pi, di) {
       delete editsMap[pi + ":" + di];
-      try { localStorage.setItem("ctEditsMap", JSON.stringify(editsMap)); } catch (e) {}
+      try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
     }
 
     function refreshAfterEdit() {
@@ -1831,13 +1999,13 @@
     // Un solo botón cicla entre los 3 modos, para no ocupar más lugar en la barra:
     //   A = Actual (editable)
     //   O = Oficial (la última que se publicó en GitHub, solo lectura)
-    //   I = Inicial (la programación de arranque de septiembre, solo lectura)
+    //   I = Inicial (la programación de arranque del mes, solo lectura)
     const VIEW_MODE_ORDER = ["actual", "oficial", "inicial"];
     const VIEW_MODE_LABEL = { actual: "A", oficial: "O", inicial: "I" };
     const VIEW_MODE_TITLE = {
       actual: "Actual (editable)",
       oficial: "Oficial (última publicada)",
-      inicial: "Programación inicial de septiembre"
+      inicial: "Programación inicial del mes"
     };
     const VIEW_MODE_COLOR = { actual: "#7c3aed", oficial: "#5b21b6", inicial: "#0f766e" };
     const btnOriginalView = document.getElementById("btnOriginalView");
@@ -1877,9 +2045,6 @@
     const personCalGrid = document.getElementById("personCalGrid");
     const personCalRow = document.getElementById("personCalRow");
     const btnToggleCalView = document.getElementById("btnToggleCalView");
-    const WEEKDAY_ABBR = ["LU","MA","MI","JU","VI","SA","DO"];
-    // Sept 2026: el día 1 cae martes (índice 1 dentro de WEEKDAY_ABBR, con LU=0)
-    const CAL_START_WEEKDAY = 1;
 
     let calViewMode = "grid"; // "grid" (almanaque) u "horizontal" (fila única)
     try { calViewMode = localStorage.getItem("jefesCalView") || "grid"; } catch (e) {}
@@ -1903,8 +2068,8 @@
 
       // Vista almanaque (grilla de 7 columnas)
       let gridHtml = WEEKDAY_ABBR.map(d => `<div class="cal-wd">${d}</div>`).join("");
-      for (let i = 0; i < CAL_START_WEEKDAY; i++) gridHtml += `<div class="cal-empty"></div>`;
-      for (let d = 0; d < 30; d++) {
+      for (let i = 0; i < MES.startWd; i++) gridHtml += `<div class="cal-empty"></div>`;
+      for (let d = 0; d < DAYS; d++) {
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
@@ -1916,14 +2081,14 @@
       }
       personCalGrid.innerHTML = gridHtml;
 
-      // Vista horizontal (una fila con los 30 días, para leer el mes de corrido)
+      // Vista horizontal (una fila con todos los días, para leer el mes de corrido)
       let rowHtml = "";
-      for (let d = 0; d < 30; d++) {
+      for (let d = 0; d < DAYS; d++) {
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
         const edited = viewMode === "actual" && (codesArr[d] || "") !== (ORIGINAL_CODES[pi][d] || "");
-        const wd = WEEKDAY_ABBR[(CAL_START_WEEKDAY + d) % 7];
+        const wd = WEEKDAY_ABBR[(MES.startWd + d) % 7];
         rowHtml += `<div class="cal-day-h${edited ? " edited" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-wd-h">${wd}</span>
           <span class="cal-num-h">${d + 1}</span>

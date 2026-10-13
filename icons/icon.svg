@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 288 288" width="512" height="512">
+  <g stroke="#000" stroke-width="1.1" stroke-linejoin="round">
+    <rect x="-2" y="-2" width="292" height="292" fill="#464646" stroke="none"/>
+    <!-- camisa -->
+    <polygon points="86,-2 202,-2 144,143" fill="#ffffff"/>
+    <!-- solapas -->
+    <polygon points="64,-2 66,10 43,22 144,143 86,-2" fill="#242424"/>
+    <polygon points="224,-2 222,10 245,22 144,143 202,-2" fill="#242424"/>
+    <!-- corbata -->
+    <polygon points="130,-2 158,-2 151,24 156,108 144,142 132,108 137,24" fill="#7a1818"/>
+    <!-- línea central -->
+    <line x1="144" y1="143" x2="144" y2="290"/>
+    <!-- botones -->
+    <circle cx="144" cy="154" r="9" fill="#000"/>
+    <circle cx="144" cy="196" r="9" fill="#000"/>
+    <circle cx="144" cy="238.5" r="9" fill="#000"/>
+  </g>
+</svg>

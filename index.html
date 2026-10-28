@@ -2921,40 +2921,39 @@
     // ========== CELULAR VERTICAL: DOS POSICIONES ==========
     // Grupo 1 tocado -> tabla arriba del todo.
     // Grupo 2 tocado -> la tabla SUBE hasta que el último jefe (PEREYRA) queda visible abajo.
-    // La posición se recuerda y se mantiene aunque la tabla se redibuje.
+    // No se usa el scroll vertical del navegador (que se "resetea" al redibujar y producía
+    // el sube y baja): las tarjetas se corren con un desplazamiento que maneja solo la app.
     const mobilePosMq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
     let mobilePos = "top";
-    let mobileAnim = null;
-    function mobileTarget(wrap) {
+    let mobileOffset = 0;
+    function mobileCards() { return document.querySelectorAll("#scheduleWrap .grp-card"); }
+    function computeMobileOffset() {
       if (mobilePos !== "bottom") return 0;
+      const wrap = document.getElementById("scheduleWrap");
       const lastRow = document.querySelector("#group2 tr:last-child");
-      const max = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
-      if (!lastRow) return max;
-      // Fondo de la fila del último jefe, medido dentro del contenido desplazable
-      const rowBottom = lastRow.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top + wrap.scrollTop;
-      const want = rowBottom + 12 - wrap.clientHeight; // 12px de aire para el borde y la sombra
-      return Math.min(max, Math.max(0, Math.ceil(want)));
+      if (!lastRow) return 0;
+      const wr = wrap.getBoundingClientRect();
+      const rr = lastRow.getBoundingClientRect();
+      const bottomSinCorrer = rr.bottom - wr.top + mobileOffset; // dónde estaría PEREYRA sin desplazar
+      return Math.max(0, Math.ceil(bottomSinCorrer + 12 - wrap.clientHeight));
+    }
+    function setMobileOffset(px, animate) {
+      mobileOffset = px;
+      mobileCards().forEach(c => {
+        c.style.transition = animate ? "transform 0.22s ease-out" : "none";
+        c.style.transform = px ? "translateY(" + (-px) + "px)" : "";
+      });
     }
     function applyMobilePos() {
-      if (!mobilePosMq.matches) return false;
+      if (!mobilePosMq.matches) {
+        if (mobileOffset) setMobileOffset(0, false);
+        return false;
+      }
       const wrap = document.getElementById("scheduleWrap");
-      if (mobileAnim) { cancelAnimationFrame(mobileAnim); mobileAnim = null; }
-      wrap.scrollTop = mobileTarget(wrap);
+      if (wrap.scrollTop) wrap.scrollTop = 0;
+      const px = computeMobileOffset();
+      if (px !== mobileOffset) setMobileOffset(px, false);
       return true;
-    }
-    function goMobilePos() {
-      const wrap = document.getElementById("scheduleWrap");
-      if (mobileAnim) cancelAnimationFrame(mobileAnim);
-      const from = wrap.scrollTop, to = mobileTarget(wrap);
-      const t0 = performance.now(), dur = 220;
-      const step = (now) => {
-        const k = Math.min(1, (now - t0) / dur);
-        const ease = 1 - Math.pow(1 - k, 3);
-        wrap.scrollTop = from + (to - from) * ease;
-        if (k < 1) { mobileAnim = requestAnimationFrame(step); }
-        else { mobileAnim = null; wrap.scrollTop = mobileTarget(wrap); }
-      };
-      mobileAnim = requestAnimationFrame(step);
     }
     (function () {
       const wrap = document.getElementById("scheduleWrap");
@@ -2964,13 +2963,18 @@
       }, { passive: true });
       wrap.addEventListener("touchend", () => {
         if (!startCard) return;
-        const cards = wrap.querySelectorAll(".grp-card");
+        const cards = mobileCards();
         mobilePos = startCard === cards[1] ? "bottom" : "top";
         startCard = null;
-        if (Math.abs(wrap.scrollTop - mobileTarget(wrap)) > 1) goMobilePos();
+        const px = computeMobileOffset();
+        if (px !== mobileOffset) setMobileOffset(px, true);
       }, { passive: true });
-      // Si cambia el tamaño de pantalla (barra del navegador, girar el celular), reacomoda
-      window.addEventListener("resize", () => { if (mobilePosMq.matches) applyMobilePos(); });
+      // Si el navegador intenta desplazar verticalmente por su cuenta, se anula
+      wrap.addEventListener("scroll", () => {
+        if (mobilePosMq.matches && wrap.scrollTop) wrap.scrollTop = 0;
+      }, { passive: true });
+      // Cambio de tamaño (barra del navegador, girar el celular): recalcula sin animar
+      window.addEventListener("resize", () => applyMobilePos());
     })();
 
     // ========== PALETA DE COLORES DE LOS CT (solo admin) ==========

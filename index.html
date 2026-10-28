@@ -2908,25 +2908,22 @@
     });
 
     // ========== CELULAR VERTICAL: DOS POSICIONES ==========
-    // Arriba = Grupo 1 desde el tope · Abajo = el último jefe al pie de la pantalla.
-    // Solo un deslizamiento claramente vertical cambia de posición; los movimientos
-    // de costado nunca la alteran.
+    // Tocar el Grupo 2 sube la pantalla hasta ver al último jefe abajo;
+    // tocar el Grupo 1 vuelve al tope. No hay otra forma de cambiar la posición.
     (function () {
       const wrap = document.getElementById("scheduleWrap");
       const mq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
-      let start = null;
+      let startCard = null;
       wrap.addEventListener("touchstart", (e) => {
-        start = (mq.matches && e.touches.length === 1)
-          ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+        startCard = mq.matches ? e.target.closest(".grp-card") : null;
       }, { passive: true });
-      wrap.addEventListener("touchend", (e) => {
-        if (!start) return;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - start.x, dy = t.clientY - start.y;
-        start = null;
-        if (Math.abs(dy) < 40 || Math.abs(dy) < Math.abs(dx) * 1.5) return; // no fue vertical
+      wrap.addEventListener("touchend", () => {
+        if (!startCard) return;
+        const cards = wrap.querySelectorAll(".grp-card");
         const max = wrap.scrollHeight - wrap.clientHeight;
-        wrap.scrollTo({ top: dy < 0 ? max : 0, behavior: "smooth" });
+        const target = startCard === cards[1] ? max : 0;
+        startCard = null;
+        if (Math.abs(wrap.scrollTop - target) > 2) wrap.scrollTo({ top: target, behavior: "smooth" });
       }, { passive: true });
     })();
 

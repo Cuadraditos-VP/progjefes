@@ -1298,7 +1298,7 @@
         <button type="button" id="btnToggleNames" class="names-toggle-btn" title="Ocultar nombres">N</button>
         <select id="monthSelect" class="month-select" title="Mes" aria-label="Mes" style="display:none"></select>
         <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
-        <button type="button" id="btnDownload" class="json-btn dl-btn" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
+        <button type="button" id="btnDownload" class="json-btn dl-btn admin-only" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
@@ -3110,6 +3110,7 @@
     const dlOverlay = document.getElementById("dlOverlay");
     const dlStatus = document.getElementById("dlStatus");
     document.getElementById("btnDownload").addEventListener("click", () => {
+      if (currentUser !== "ADMIN") return;
       document.getElementById("dlTitle").textContent = "Descargar " + MES.nombre.charAt(0) + MES.nombre.slice(1).toLowerCase() + " " + MES.y;
       dlStatus.textContent = "";
       dlOverlay.classList.add("open");

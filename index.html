@@ -1306,7 +1306,7 @@
     </header>
     <div id="dayFilterBar">
       <span id="dayFilterLabel">Sólo un día</span>
-      <button type="button" id="btnDaySort">Por turno</button>
+      <button type="button" id="btnDaySort" hidden>Por turno</button>
       <button type="button" id="btnClearDay">Ver mes</button>
     </div>
 
@@ -1875,6 +1875,8 @@
 
     function renderGroups() {
       if (selectedDay === null) {
+        const wrapEl = document.getElementById("scheduleWrap");
+        const keepTop = wrapEl.scrollTop, keepLeft = wrapEl.scrollLeft;
         g1.innerHTML = "";
         g2.innerHTML = "";
         people.forEach((p, pi) => {
@@ -1882,10 +1884,17 @@
           if (pi < groupSplit()) g1.appendChild(row);
           else g2.appendChild(row);
         });
+        // Al redibujar no se pierde la posición (antes volvía al tope un instante)
+        if (typeof applyMobilePos === "function" && applyMobilePos()) {
+          wrapEl.scrollLeft = keepLeft;
+        } else {
+          wrapEl.scrollTop = keepTop;
+          wrapEl.scrollLeft = keepLeft;
+        }
       } else {
         dayBody1.innerHTML = "";
         dayBody2.innerHTML = "";
-        if (!daySortByShift) {
+        if (false) { // "Orden lista" eliminado: el día se muestra siempre por turno
           fillDayHead(dayHead1, "Día");
           if (dayHead2) dayHead2.innerHTML = "";
           people.forEach((p, pi) => {
@@ -2909,21 +2918,33 @@
 
     // ========== CELULAR VERTICAL: DOS POSICIONES ==========
     // Tocar el Grupo 2 sube la pantalla hasta ver al último jefe abajo;
-    // tocar el Grupo 1 vuelve al tope. No hay otra forma de cambiar la posición.
+    // tocar el Grupo 1 vuelve al tope. La posición se recuerda y se mantiene
+    // aunque la tabla se redibuje (al editar un CT, al llegar una publicación, etc.).
+    const mobilePosMq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
+    let mobilePos = "top";
+    function mobileTarget(wrap) {
+      return mobilePos === "bottom" ? wrap.scrollHeight - wrap.clientHeight : 0;
+    }
+    function applyMobilePos() {
+      if (!mobilePosMq.matches) return false;
+      const wrap = document.getElementById("scheduleWrap");
+      wrap.scrollTop = mobileTarget(wrap);
+      return true;
+    }
     (function () {
       const wrap = document.getElementById("scheduleWrap");
-      const mq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
       let startCard = null;
       wrap.addEventListener("touchstart", (e) => {
-        startCard = mq.matches ? e.target.closest(".grp-card") : null;
+        startCard = mobilePosMq.matches ? e.target.closest(".grp-card") : null;
       }, { passive: true });
       wrap.addEventListener("touchend", () => {
         if (!startCard) return;
         const cards = wrap.querySelectorAll(".grp-card");
-        const max = wrap.scrollHeight - wrap.clientHeight;
-        const target = startCard === cards[1] ? max : 0;
+        const want = startCard === cards[1] ? "bottom" : "top";
         startCard = null;
-        if (Math.abs(wrap.scrollTop - target) > 2) wrap.scrollTo({ top: target, behavior: "smooth" });
+        if (want === mobilePos) return; // ya está en ese grupo: no se mueve
+        mobilePos = want;
+        wrap.scrollTo({ top: mobileTarget(wrap), behavior: "smooth" });
       }, { passive: true });
     })();
 

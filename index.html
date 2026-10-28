@@ -1223,6 +1223,8 @@
       border-left: 0;
     }
     .grp-card thead th.sticky-col-2 { border-left: 0; }
+    /* Las celdas fijas del encabezado (GRUPO 1/2) quedan por encima de los días al moverse de costado */
+    .grp-card thead th.sticky-col, .grp-card thead th.sticky-col-2 { z-index: 60 !important; }
 
     /* El encabezado del Grupo 1 se desplaza con la tabla (no queda fijo arriba) */
     #scheduleTable thead th { top: auto !important; }
@@ -2917,19 +2919,42 @@
     });
 
     // ========== CELULAR VERTICAL: DOS POSICIONES ==========
-    // Tocar el Grupo 2 sube la pantalla hasta ver al último jefe abajo;
-    // tocar el Grupo 1 vuelve al tope. La posición se recuerda y se mantiene
-    // aunque la tabla se redibuje (al editar un CT, al llegar una publicación, etc.).
+    // Grupo 1 tocado -> tabla arriba del todo.
+    // Grupo 2 tocado -> la tabla SUBE hasta que el último jefe (PEREYRA) queda visible abajo.
+    // La posición se recuerda y se mantiene aunque la tabla se redibuje.
     const mobilePosMq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
     let mobilePos = "top";
+    let mobileAnim = null;
     function mobileTarget(wrap) {
-      return mobilePos === "bottom" ? wrap.scrollHeight - wrap.clientHeight : 0;
+      if (mobilePos !== "bottom") return 0;
+      const lastRow = document.querySelector("#group2 tr:last-child");
+      const max = Math.max(0, wrap.scrollHeight - wrap.clientHeight);
+      if (!lastRow) return max;
+      // Fondo de la fila del último jefe, medido dentro del contenido desplazable
+      const rowBottom = lastRow.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top + wrap.scrollTop;
+      const want = rowBottom + 12 - wrap.clientHeight; // 12px de aire para el borde y la sombra
+      return Math.min(max, Math.max(0, Math.ceil(want)));
     }
     function applyMobilePos() {
       if (!mobilePosMq.matches) return false;
       const wrap = document.getElementById("scheduleWrap");
+      if (mobileAnim) { cancelAnimationFrame(mobileAnim); mobileAnim = null; }
       wrap.scrollTop = mobileTarget(wrap);
       return true;
+    }
+    function goMobilePos() {
+      const wrap = document.getElementById("scheduleWrap");
+      if (mobileAnim) cancelAnimationFrame(mobileAnim);
+      const from = wrap.scrollTop, to = mobileTarget(wrap);
+      const t0 = performance.now(), dur = 220;
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / dur);
+        const ease = 1 - Math.pow(1 - k, 3);
+        wrap.scrollTop = from + (to - from) * ease;
+        if (k < 1) { mobileAnim = requestAnimationFrame(step); }
+        else { mobileAnim = null; wrap.scrollTop = mobileTarget(wrap); }
+      };
+      mobileAnim = requestAnimationFrame(step);
     }
     (function () {
       const wrap = document.getElementById("scheduleWrap");
@@ -2940,12 +2965,12 @@
       wrap.addEventListener("touchend", () => {
         if (!startCard) return;
         const cards = wrap.querySelectorAll(".grp-card");
-        const want = startCard === cards[1] ? "bottom" : "top";
+        mobilePos = startCard === cards[1] ? "bottom" : "top";
         startCard = null;
-        if (want === mobilePos) return; // ya está en ese grupo: no se mueve
-        mobilePos = want;
-        wrap.scrollTo({ top: mobileTarget(wrap), behavior: "smooth" });
+        if (Math.abs(wrap.scrollTop - mobileTarget(wrap)) > 1) goMobilePos();
       }, { passive: true });
+      // Si cambia el tamaño de pantalla (barra del navegador, girar el celular), reacomoda
+      window.addEventListener("resize", () => { if (mobilePosMq.matches) applyMobilePos(); });
     })();
 
     // ========== PALETA DE COLORES DE LOS CT (solo admin) ==========

@@ -406,6 +406,11 @@
       font-size: 0.8rem; font-weight: 600; color: #334155; cursor: pointer;
     }
     .custom-color input { width: 44px; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; }
+    .dl-btn { background: #0f766e; }
+    .dl-modal { max-width: 340px; }
+    .dl-note { font-size: 0.8rem; color: #475569; margin: 4px 0 14px; line-height: 1.35; }
+    .dl-actions { display: flex; gap: 8px; }
+    .dl-status { min-height: 1em; margin-top: 10px; font-size: 0.75rem; color: #64748b; text-align: center; }
     .color-note { margin-top: 10px; font-size: 0.7rem; color: #64748b; text-align: center; }
     .btn {
       flex: 1;
@@ -1293,6 +1298,7 @@
         <button type="button" id="btnToggleNames" class="names-toggle-btn" title="Ocultar nombres">N</button>
         <select id="monthSelect" class="month-select" title="Mes" aria-label="Mes" style="display:none"></select>
         <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
+        <button type="button" id="btnDownload" class="json-btn dl-btn" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
@@ -1358,6 +1364,20 @@
         <button class="btn btn-clear" id="restoreShift">Restaurar original</button>
         <button class="btn btn-done" id="doneShift">Listo</button>
       </div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="dlOverlay">
+    <div class="palette-modal dl-modal">
+      <div class="palette-header">
+        <h3 id="dlTitle">Descargar mes</h3>
+        <button class="close-btn" id="closeDl" title="Cerrar">×</button>
+      </div>
+      <p class="dl-note">Se baja la versión <b>oficial</b> del mes, con los cambios publicados marcados en azul.</p>
+      <div class="dl-actions">
+        <button class="btn btn-done" id="dlPng">🖼 Imagen</button>
+        <button class="btn btn-done" id="dlPdf">📄 PDF</button>
+      </div>
+      <p class="dl-status" id="dlStatus"></p>
     </div>
   </div>
   <div class="palette-overlay" id="colorOverlay">
@@ -2073,7 +2093,7 @@
       const now = new Date();
       const nowIdx = now.getFullYear() * 12 + now.getMonth();
       const [fy, fm] = FIRST_MES.split("-").map(Number);
-      const start = Math.max(fy * 12 + fm - 1, nowIdx - 5);
+      const start = fy * 12 + fm - 1; // desde el primer mes cargado, sin límite hacia atrás
       const end = Math.max(nowIdx + 2, 2026 * 12 + 9); // como mínimo hasta octubre 2026
       const out = [];
       for (let i = start; i <= end; i++) out.push(mesKeyOf(Math.floor(i / 12), (i % 12) + 1));
@@ -2083,19 +2103,34 @@
     function fillMonthSelect() {
       const sel = document.getElementById("monthSelect");
       sel.innerHTML = "";
-      AVAILABLE_MESES.forEach(k => {
+      // Recientes: desde 5 meses atrás en adelante. El resto va agrupado en "Anteriores".
+      const now = new Date();
+      const nowIdx = now.getFullYear() * 12 + now.getMonth();
+      const idxOf = k => { const [y, m] = k.split("-").map(Number); return y * 12 + m - 1; };
+      const recientes = AVAILABLE_MESES.filter(k => idxOf(k) >= nowIdx - 5);
+      const anteriores = AVAILABLE_MESES.filter(k => idxOf(k) < nowIdx - 5);
+      const opt = k => {
         const mi = mesInfo(k);
         const o = document.createElement("option");
         o.value = k;
         o.textContent = MES_ABR[mi.m - 1] + " " + mi.y;
-        sel.appendChild(o);
-      });
+        return o;
+      };
+      if (anteriores.length) {
+        const g1 = document.createElement("optgroup"); g1.label = "Recientes";
+        recientes.forEach(k => g1.appendChild(opt(k)));
+        const g2 = document.createElement("optgroup"); g2.label = "Anteriores";
+        anteriores.slice().reverse().forEach(k => g2.appendChild(opt(k)));
+        sel.appendChild(g1); sel.appendChild(g2);
+      } else {
+        recientes.forEach(k => sel.appendChild(opt(k)));
+      }
       sel.style.display = AVAILABLE_MESES.length > 1 ? "" : "none";
       sel.value = currentMes;
     }
     document.getElementById("monthSelect").addEventListener("change", (e) => {
       const key = e.target.value;
-      try { sessionStorage.setItem("jefesMes", key); } catch (err) {}
+      try { localStorage.setItem("jefesMes", key); } catch (err) {} // se recuerda aunque se cierre la app
       switchMonth(key);
     });
 
@@ -2106,7 +2141,7 @@
       AVAILABLE_MESES = cands.filter(k => MES_DATA[k] || SEED_BY_MES[k] || loadFbCache(k));
       if (!AVAILABLE_MESES.length) AVAILABLE_MESES = [FIRST_MES];
       let want = null;
-      try { want = sessionStorage.getItem("jefesMes"); } catch (e) {}
+      try { want = localStorage.getItem("jefesMes"); } catch (e) {}
       if (!want || !AVAILABLE_MESES.includes(want)) {
         const now = new Date();
         const today = mesKeyOf(now.getFullYear(), now.getMonth() + 1);
@@ -2907,6 +2942,211 @@
       const cell = e.target.closest("td.person-name, td.person-id");
       if (!cell) return;
       openPersonCalendar(Number(cell.dataset.pi));
+    });
+
+    // ========== DESCARGAR EL MES COMO IMAGEN O PDF ==========
+    // Dibuja la versión oficial del mes (no las ediciones personales) con el diseño de tarjetas.
+    function drawMonthCanvas() {
+      const S = 2;                         // resolución doble para que se vea nítido
+      const CW = 34, RH = 24, HH = 40;     // ancho de día, alto de fila, alto de encabezado
+      const LW = 52, NW = 112;             // columnas legajo y apellido
+      const PAD = 24, TITLE = 54, GAP = 22, R = 10;
+      const INK = "#111827", GRID = "#e5e7eb";
+      const FONT = "'Inter', 'Segoe UI', system-ui, sans-serif";
+      const split = groupSplit();
+      const groups = [
+        { name: "GRUPO 1", rows: people.map((p, i) => i).filter(i => i < split) },
+        { name: "GRUPO 2", rows: people.map((p, i) => i).filter(i => i >= split) }
+      ].filter(g => g.rows.length);
+      const tableW = LW + NW + DAYS * CW;
+      const W = PAD * 2 + tableW;
+      const H = PAD + TITLE + groups.reduce((a, g) => a + HH + g.rows.length * RH + GAP, 0) - GAP + PAD;
+      const cv = document.createElement("canvas");
+      cv.width = W * S; cv.height = H * S;
+      const ctx = cv.getContext("2d");
+      ctx.scale(S, S);
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+      ctx.textBaseline = "middle";
+
+      // Título
+      ctx.fillStyle = INK; ctx.textAlign = "center";
+      ctx.font = "800 26px " + FONT;
+      const t1 = "JEFES ", t2 = MES.nombre + " " + MES.y;
+      const w1 = ctx.measureText(t1).width;
+      ctx.font = "500 26px " + FONT;
+      const w2 = ctx.measureText(t2).width;
+      const tx = (W - w1 - w2) / 2;
+      ctx.textAlign = "left";
+      ctx.font = "800 26px " + FONT; ctx.fillText(t1, tx, PAD + 20);
+      ctx.font = "500 26px " + FONT; ctx.fillText(t2, tx + w1, PAD + 20);
+
+      const roundRect = (x, y, w, hh, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + hh, r); ctx.arcTo(x + w, y + hh, x, y + hh, r);
+        ctx.arcTo(x, y + hh, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      };
+      const official = pi => (ORIGINAL_CODES[pi] || []);
+      const isChanged = (pi, d) => {
+        const ini = INITIAL_CODES[pi];
+        return !!ini && (official(pi)[d] || "") !== (ini[d] || "");
+      };
+
+      let y0 = PAD + TITLE;
+      groups.forEach(g => {
+        const x0 = PAD;
+        const gh = HH + g.rows.length * RH;
+        ctx.save();
+        roundRect(x0, y0, tableW, gh, R);
+        ctx.clip();
+        ctx.fillStyle = "#fff"; ctx.fillRect(x0, y0, tableW, gh);
+
+        // Encabezado
+        ctx.fillStyle = INK; ctx.textAlign = "left";
+        ctx.font = "800 11px " + FONT;
+        ctx.fillText(g.name, x0 + 10, y0 + HH / 2);
+        for (let d = 0; d < DAYS; d++) {
+          const wd = (MES.startWd + d) % 7;
+          const cx = x0 + LW + NW + d * CW + CW / 2;
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#6b7280"; ctx.font = "600 8px " + FONT;
+          ctx.fillText(WEEKDAY_ABBR[wd], cx, y0 + 12);
+          ctx.fillStyle = INK; ctx.font = "600 15px " + FONT;
+          ctx.fillText(String(d + 1), cx, y0 + 27);
+        }
+
+        // Filas
+        g.rows.forEach((pi, ri) => {
+          const ry = y0 + HH + ri * RH;
+          const p = people[pi];
+          const codes = official(pi);
+          ctx.textAlign = "left";
+          ctx.fillStyle = "#6b7280"; ctx.font = "500 9.5px " + FONT;
+          ctx.fillText(p.id, x0 + 10, ry + RH / 2);
+          ctx.fillStyle = INK; ctx.font = "700 9.5px " + FONT;
+          ctx.fillText(p.name, x0 + LW, ry + RH / 2);
+          // fondo de cada día
+          let d = 0;
+          while (d < DAYS) {
+            const code = (codes[d] || "").toUpperCase();
+            let end = d;
+            if (code && BLOCK_CODES.includes(code)) {
+              while (end + 1 < DAYS && (codes[end + 1] || "").toUpperCase() === code) end++;
+            }
+            const cx = x0 + LW + NW + d * CW;
+            const cw = (end - d + 1) * CW;
+            const bg = code ? (colorMap[code] || "#e2e8f0") : "#fff";
+            ctx.fillStyle = bg; ctx.fillRect(cx, ry, cw, RH);
+            // líneas internas solo entre días que no son bloque
+            ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+            ctx.strokeRect(cx + 0.5, ry + 0.5, cw - 1, RH - 1);
+            if (code) {
+              ctx.fillStyle = getTextColor(bg);
+              const blk = end > d || BLOCK_CODES.includes(code);
+              ctx.font = (blk ? "italic " : "") + "600 9px " + FONT;
+              ctx.textAlign = "center";
+              ctx.fillText(code, cx + CW / 2, ry + RH / 2 + 0.5);
+            }
+            for (let k = d; k <= end; k++) {
+              if (isChanged(pi, k)) {
+                const tx2 = x0 + LW + NW + (k + 1) * CW;
+                ctx.fillStyle = "#2563eb";
+                ctx.beginPath(); ctx.moveTo(tx2 - 9, ry); ctx.lineTo(tx2, ry); ctx.lineTo(tx2, ry + 9); ctx.closePath(); ctx.fill();
+              }
+            }
+            d = end + 1;
+          }
+          // separación entre filas en la zona de nombres
+          ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x0, ry + RH + 0.5); ctx.lineTo(x0 + LW + NW, ry + RH + 0.5); ctx.stroke();
+        });
+
+        // Líneas gruesas: bajo el encabezado, nombres|días y separadores de semana
+        ctx.strokeStyle = INK; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x0, y0 + HH); ctx.lineTo(x0 + tableW, y0 + HH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0 + LW + NW, y0); ctx.lineTo(x0 + LW + NW, y0 + gh); ctx.stroke();
+        for (let d = 1; d < DAYS; d++) {
+          if ((MES.startWd + d) % 7 === 0) {
+            const lx = x0 + LW + NW + d * CW;
+            ctx.beginPath(); ctx.moveTo(lx, y0); ctx.lineTo(lx, y0 + gh); ctx.stroke();
+          }
+        }
+        ctx.restore();
+        // Borde redondeado de la tarjeta
+        ctx.strokeStyle = INK; ctx.lineWidth = 2;
+        roundRect(x0 + 1, y0 + 1, tableW - 2, gh - 2, R);
+        ctx.stroke();
+        y0 += gh + GAP;
+      });
+      return cv;
+    }
+
+    function dlFileName(ext) { return "jefes-" + currentMes + "." + ext; }
+    async function deliverBlob(blob, name) {
+      const file = new File([blob], name, { type: blob.type });
+      // En el celular, si se puede, abre el menú de compartir (guardar en Fotos/Archivos, WhatsApp…)
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && window.matchMedia("(pointer: coarse)").matches) {
+        try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+    let jsPdfLoading = null;
+    function loadJsPdf() {
+      if (window.jspdf) return Promise.resolve();
+      if (!jsPdfLoading) {
+        jsPdfLoading = new Promise((ok, fail) => {
+          const s = document.createElement("script");
+          s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+          s.onload = () => ok(); s.onerror = () => { jsPdfLoading = null; fail(new Error("jspdf")); };
+          document.head.appendChild(s);
+        });
+      }
+      return jsPdfLoading;
+    }
+
+    const dlOverlay = document.getElementById("dlOverlay");
+    const dlStatus = document.getElementById("dlStatus");
+    document.getElementById("btnDownload").addEventListener("click", () => {
+      document.getElementById("dlTitle").textContent = "Descargar " + MES.nombre.charAt(0) + MES.nombre.slice(1).toLowerCase() + " " + MES.y;
+      dlStatus.textContent = "";
+      dlOverlay.classList.add("open");
+    });
+    const closeDl = () => dlOverlay.classList.remove("open");
+    document.getElementById("closeDl").addEventListener("click", closeDl);
+    dlOverlay.addEventListener("click", e => { if (e.target === dlOverlay) closeDl(); });
+
+    document.getElementById("dlPng").addEventListener("click", async () => {
+      dlStatus.textContent = "Preparando imagen…";
+      try { await (document.fonts && document.fonts.ready); } catch (e) {}
+      const cv = drawMonthCanvas();
+      cv.toBlob(async blob => {
+        await deliverBlob(blob, dlFileName("png"));
+        dlStatus.textContent = "";
+        closeDl();
+      }, "image/png");
+    });
+    document.getElementById("dlPdf").addEventListener("click", async () => {
+      dlStatus.textContent = "Preparando PDF…";
+      try {
+        try { await (document.fonts && document.fonts.ready); } catch (e) {}
+        await loadJsPdf();
+        const cv = drawMonthCanvas();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+        const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+        const m = 8;
+        const k = Math.min((pw - 2 * m) / cv.width, (ph - 2 * m) / cv.height);
+        const iw = cv.width * k, ih = cv.height * k;
+        pdf.addImage(cv.toDataURL("image/png"), "PNG", (pw - iw) / 2, (ph - ih) / 2, iw, ih);
+        await deliverBlob(pdf.output("blob"), dlFileName("pdf"));
+        dlStatus.textContent = "";
+        closeDl();
+      } catch (e) {
+        dlStatus.textContent = "No se pudo armar el PDF (¿sin conexión?). Probá con Imagen.";
+      }
     });
 
     // ========== PALETA DE COLORES DE LOS CT (solo admin) ==========

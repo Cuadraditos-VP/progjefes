@@ -1226,6 +1226,18 @@
     /* El encabezado del Grupo 1 se desplaza con la tabla (no queda fijo arriba) */
     #scheduleTable thead th { top: auto !important; }
 
+    /* Sin espacio extra abajo: el scroll va del tope hasta que el último jefe queda al pie de la pantalla */
+    .scroll-pad, body .scroll-pad { height: 8px !important; }
+    .grp-card:last-of-type { margin-bottom: 0; }
+
+    /* Celular vertical: el scroll salta entre solo dos posiciones (tope / último jefe abajo).
+       En horizontal no, porque quedarían filas del medio sin poder verse. */
+    @media (orientation: portrait) {
+      #scheduleWrap { scroll-snap-type: y mandatory; scroll-padding-top: 4px; }
+      #scheduleWrap .grp-card:first-of-type { scroll-snap-align: start; }
+      #scheduleWrap .scroll-pad { scroll-snap-align: end; }
+    }
+
     /* Columnas fijas: fondo blanco, sin rayado */
     .grp-card td.sticky-col,
     .grp-card td.sticky-col-2,

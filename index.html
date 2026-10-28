@@ -360,7 +360,18 @@
       position: relative;
     }
     td.has-comment .comment-dot,
-    .cal-day.has-comment .comment-dot,
+    .cal-day.has-comment .comment-dot {
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #111;
+      box-shadow: 0 0 0 1.5px #fff;
+      pointer-events: none;
+      z-index: 4;
+    }
     .wa-share-btn {
       background: #25D366; color: #fff;
       display: inline-flex; align-items: center; justify-content: center;
@@ -376,9 +387,24 @@
       height: 6px;
       border-radius: 50%;
       background: #111;
+      box-shadow: 0 0 0 1.5px #fff;
       pointer-events: none;
       z-index: 4;
     }
+    .color-step {
+      font-size: 0.75rem; font-weight: 700; color: #475569;
+      margin: 4px 0 6px;
+    }
+    #colorStep2 { margin-top: 14px; }
+    #colorCodeGrid .shift-option { padding: 9px 3px; }
+    .custom-color {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding: 6px 10px;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: 0.8rem; font-weight: 600; color: #334155; cursor: pointer;
+    }
+    .custom-color input { width: 44px; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; }
+    .color-note { margin-top: 10px; font-size: 0.7rem; color: #64748b; text-align: center; }
     .btn {
       flex: 1;
       padding: 9px 12px;
@@ -763,6 +789,10 @@
       font-weight: 700; cursor: pointer;
     }
     body:not(.is-admin) .admin-only { display: none !important; }
+    body:not(.fb-on) .fb-only { display: none !important; }
+    .publish-btn { background: #16a34a; }
+    .publish-btn.pending { background: #dc2626; }
+    .publish-btn:disabled { opacity: 0.6; cursor: wait; }
     .user-btn {
       width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
       background: #334155; color: #fff; cursor: pointer;
@@ -1159,6 +1189,8 @@
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
+        <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
+        <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar para todos">⬆ Publicar</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
@@ -1216,6 +1248,27 @@
       </div>
     </div>
   </div>
+  <div class="palette-overlay" id="colorOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>Colores de los CT</h3>
+        <button class="close-btn" id="closeColors" title="Cerrar">×</button>
+      </div>
+      <div class="color-step">1. Elegí el CT</div>
+      <div class="shift-grid" id="colorCodeGrid"></div>
+      <div class="color-step" id="colorStep2">2. Elegí el color</div>
+      <div class="palette-grid" id="colorPaletteGrid"></div>
+      <label class="custom-color">
+        <span>Otro color…</span>
+        <input type="color" id="customColor">
+      </label>
+      <div class="palette-actions">
+        <button class="btn btn-clear" id="resetCodeColor">Color original</button>
+        <button class="btn btn-done" id="doneColors">Listo</button>
+      </div>
+      <p class="color-note">Se guarda en este dispositivo. Para que lo vean todos, exportá el JSON y subilo a GitHub.</p>
+    </div>
+  </div>
   <div class="palette-overlay" id="personOverlay">
     <div class="palette-modal person-cal-modal">
       <div class="palette-header">
@@ -1233,14 +1286,40 @@
     </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
+    // ========== FIREBASE (programación oficial compartida) ==========
+    // Pegá acá el bloque "firebaseConfig" de tu proyecto (Configuración del proyecto → Tus apps → Web).
+    // Si queda en null, la app funciona como antes (JSON de GitHub + semillas).
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyC02jKcLlrN3-QLed2IwIVHyLEirCp5kRc",
+      authDomain: "programacionjefes.firebaseapp.com",
+      projectId: "programacionjefes",
+      storageBucket: "programacionjefes.firebasestorage.app",
+      messagingSenderId: "1034308042191",
+      appId: "1:1034308042191:web:56aff714750281d30fe6ba"
+    };
+    // Única cuenta de Google que puede publicar (la seguridad real la ponen las reglas de Firestore).
+    const ADMIN_EMAIL = "guillermo.nemaric@gmail.com";
+    let fbReady = false, fbDb = null, fbAuth = null;
+    try {
+      if (FIREBASE_CONFIG && window.firebase) {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        fbDb = firebase.firestore();
+        fbAuth = firebase.auth();
+        fbReady = true;
+      }
+    } catch (e) { fbReady = false; }
+
     // ========== MES ACTUAL (septiembre, octubre, ...) ==========
     // El archivo de cada mes se llama <mes>-<año>.json (septiembre-2026.json, octubre-2026.json, ...)
     const MES_NOMBRES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
     const MES_ABR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     const WEEKDAY_ABBR = ["LU","MA","MI","JU","VI","SA","DO"];
     const FIRST_MES = "2026-09";
-    const DEFAULT_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","10A","10J","C/A","LIC"];
+    const DEFAULT_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","IN","10A","10J","C/A","LIC"];
 
     function mesInfo(key) {
       const [y, m] = key.split("-").map(Number);
@@ -1312,7 +1391,32 @@
       { id: "60823", name: "PEREYRA", codes: "NC NC N T F NC NC N T M F F NC N NC NC N T M F F N NC N T T M F F NC N".split(" ") },
     ];
 
-    const SEED_BY_MES = { "2026-09": SEED_SEP, "2026-10": SEED_OCT };
+    const SEED_NOV = [
+      { id: "60198", name: "PAZ, C", codes: "LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC".split(" ") },
+      { id: "60219", name: "PAZ, L", codes: "LAO LAO LAO NC NC N T F M M MD T M MD F F T T1 T M F NC NC N T T MD M MD F".split(" ") },
+      { id: "60228", name: "ALVAREZ", codes: "N F T M M MD MD MD F F NC N N T M M F F T M M T MD M F T M MD M M".split(" ") },
+      { id: "60238", name: "BORLANDELLI", codes: "F NC NC N T T M MD F F N NC NC N T M F N NC N T MD F F F LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60243", name: "CAPECHE", codes: "M M M F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F F NC N N T T T M F F NC N T".split(" ") },
+      { id: "60254", name: "DE CARLO", codes: "F T M M T M MD M F T M T T M MD F F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60262", name: "FILLON", codes: "MD M F F T T M M F T M T1 MD F F T M T T M MD T MD M F NC N T T M".split(" ") },
+      { id: "60280", name: "LANCELLOTTI", codes: "NC N N NC N F F F NC N N NC NC NC N N N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO NC".split(" ") },
+      { id: "60287", name: "MELE", codes: "NC N N NC N F F F NC N N NC NC NC N N N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO NC".split(" ") },
+      { id: "60296", name: "MORALES", codes: "F N T T M MD T M F N T M MD F F F NC NC N T T M F NC NC N IN T T T".split(" ") },
+      { id: "60299", name: "MURATORI", codes: "F T T1 T T IN T T M T1 F F T M T T T/P T T1 MD F F IN T T T T MD MD F".split(" ") },
+      { id: "60301", name: "NEMARIC", codes: "N T M T M M F F T T M M F NC N T T M F F NC NC NC N T T M T M F".split(" ") },
+      { id: "60423", name: "RIVAS", codes: "F F NC N NC NC N IN T M MD F F N T T1 M M F NC N N N N T M F NC NC N".split(" ") },
+      { id: "60457", name: "ESPINOZA", codes: "MD T1 M M F F T T MD F F T T T MD C/A T T M MD F F T T M T/P T T T M".split(" ") },
+      { id: "60502", name: "PIÑERO", codes: "NC NC N F F N NC NC N NC NC N F F NC NC NC N N F NC NC NC NC N F NC NC NC NC".split(" ") },
+      { id: "60613", name: "CANTERO", codes: "M F F T T1 T IN T MD F T M T1 MD F T M M T T MD MD F F NC N T M IN T".split(" ") },
+      { id: "60616", name: "KYRIACO", codes: "T T NC N F NC NC N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
+      { id: "60636", name: "CASANOVA", codes: "LAO LAO LAO LAO LAO LAO LAO LAO NC N NC N N T T M F NC NC NC N N T T M M MD F F F".split(" ") },
+      { id: "60668", name: "ANTELO", codes: "T C/A T M M F F NC IN T T T/P M F F NC N T M T T M F F NC NC N N N T".split(" ") },
+      { id: "60713", name: "RAMOS", codes: "N NC N N N F NC NC N NC N N N N NC NC N N F NC NC N N NC N N F F F F".split(" ") },
+      { id: "60718", name: "SOSNICKI", codes: "F N T T1 T M F F N NC T T T T M F NC NC N N T T M M F F NC N NC N".split(" ") },
+      { id: "60823", name: "PEREYRA", codes: "T M F F NC NC N N T M T1 M F F NC N T INT/P M T M T M F N NC NC N F N".split(" ") },
+    ];
+
+    const SEED_BY_MES = { "2026-09": SEED_SEP, "2026-10": SEED_OCT, "2026-11": SEED_NOV };
 
     let people = SEED_BY_MES[FIRST_MES].map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }));
 
@@ -1382,7 +1486,7 @@
     let viewMode = "actual";
     let selectedDay = null; // índice de día (0-based) o null = mes completo
     let daySortByShift = false;
-    const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","N/P","N","NC","F"];
+    const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","IN","N/P","N","NC","F"];
 
     // Todos los códigos de turno asignables desde el abanico (además de "vacío")
     let ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
@@ -1415,7 +1519,8 @@
       "10A": "#374151",
       "10J": "#374151",
       "C/A": "#374151",
-      "LIC": "#F8BBD0"
+      "LIC": "#F8BBD0",
+      "IN": "#B4A7D6"
     };
 
     // Codes the user requested, in exact order (display labels)
@@ -1478,6 +1583,25 @@
     function saveMap() {
       localStorage.setItem("ctColorMap", JSON.stringify(colorMap));
     }
+
+    // ===== Colores de CT elegidos por el admin =====
+    // Se guardan como "overrides" en este dispositivo y se aplican siempre por encima
+    // de los colores que traiga el JSON. Al exportar el JSON viajan dentro de "colores",
+    // así que al publicarlo en GitHub les llegan a todos.
+    const DEFAULT_COLORS = Object.assign({}, colorMap);
+    let catalogColors = {};
+    let colorOverrides = {};
+    try { colorOverrides = JSON.parse(localStorage.getItem("ctColorOverrides") || "{}"); } catch (e) { colorOverrides = {}; }
+    function saveColorOverrides() {
+      try { localStorage.setItem("ctColorOverrides", JSON.stringify(colorOverrides)); } catch (e) {}
+    }
+    function applyColorOverrides() {
+      Object.keys(colorOverrides).forEach(k => { colorMap[k] = colorOverrides[k]; });
+    }
+    function baseColor(code) {
+      return catalogColors[code] || DEFAULT_COLORS[code] || "";
+    }
+    applyColorOverrides();
 
     // Según el modo de vista actual, de dónde sacar los códigos de una persona
     function codesFor(pi) {
@@ -1560,7 +1684,9 @@
       return tr;
     }
 
-    const GROUP_SPLIT = 12; // Grupo 1: primeros 12 · Grupo 2: resto
+    // Cuántos jefes van en el Grupo 1 (el resto va al Grupo 2). Noviembre: 11 porque se fue FRANCO.
+    const GROUP_SPLIT_BY_MES = { "2026-11": 11 };
+    function groupSplit() { return GROUP_SPLIT_BY_MES[currentMes] != null ? GROUP_SPLIT_BY_MES[currentMes] : 12; }
     const g1 = document.getElementById("group1");
     const g2 = document.getElementById("group2");
     const daySplit = document.getElementById("daySplit");
@@ -1613,11 +1739,11 @@
       if (selectedDay === null) {
         g1.innerHTML = "";
         g2.innerHTML = "";
-        g1.appendChild(groupTitleRow("Grupo 1", GROUP_SPLIT, DAYS + 2));
-        g2.appendChild(groupTitleRow("Grupo 2", people.length - GROUP_SPLIT, DAYS + 2));
+        g1.appendChild(groupTitleRow("Grupo 1", groupSplit(), DAYS + 2));
+        g2.appendChild(groupTitleRow("Grupo 2", people.length - groupSplit(), DAYS + 2));
         people.forEach((p, pi) => {
           const row = buildRow(p, pi);
-          if (pi < GROUP_SPLIT) g1.appendChild(row);
+          if (pi < groupSplit()) g1.appendChild(row);
           else g2.appendChild(row);
         });
       } else {
@@ -1647,19 +1773,21 @@
         }
       }
       applyDayHeaderFilter();
+      if (typeof updatePublishBtn === "function" && fbStarted) updatePublishBtn();
     }
     function normCode(c) {
       if (c == null || c === "") return "";
       return String(c).trim().toUpperCase();
     }
-    function normalizePeople(list) {
+    function normalizePeople(list, days) {
+      const n = days || DAYS;
       return list.map(p => ({
         id: String(p.id || ""),
         name: p.name,
         codes: (Array.isArray(p.codes) ? p.codes.slice() : String(p.codes || "").split(/\s+/)).map(normCode)
       })).map(p => {
-        while (p.codes.length < DAYS) p.codes.push("");
-        p.codes = p.codes.slice(0, DAYS);
+        while (p.codes.length < n) p.codes.push("");
+        p.codes = p.codes.slice(0, n);
         return p;
       });
     }
@@ -1671,8 +1799,10 @@
       if (data.colores && typeof data.colores === "object") {
         Object.keys(data.colores).forEach(k => {
           colorMap[normCode(k)] = data.colores[k];
+          catalogColors[normCode(k)] = data.colores[k];
         });
       }
+      applyColorOverrides();
       if (data.comments && typeof data.comments === "object") {
         commentsMap = Object.assign({}, data.comments, commentsMap);
         saveComments();
@@ -1735,7 +1865,7 @@
     // Muestra un mes: usa el JSON publicado si existe, si no la semilla incluida en el HTML
     function switchMonth(key) {
       setMonthGlobals(key);
-      const data = MES_DATA[key];
+      const data = loadFbCache(key) || MES_DATA[key];
       ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
       if (data) {
         applyCatalog(data);
@@ -1819,7 +1949,7 @@
       const cands = candidateMeses();
       const results = await Promise.all(cands.map(k => fetchMes(k)));
       cands.forEach((k, i) => { if (results[i]) MES_DATA[k] = results[i]; });
-      AVAILABLE_MESES = cands.filter(k => MES_DATA[k] || SEED_BY_MES[k]);
+      AVAILABLE_MESES = cands.filter(k => MES_DATA[k] || SEED_BY_MES[k] || loadFbCache(k));
       if (!AVAILABLE_MESES.length) AVAILABLE_MESES = [FIRST_MES];
       let want = null;
       try { want = sessionStorage.getItem("jefesMes"); } catch (e) {}
@@ -1830,6 +1960,7 @@
       }
       switchMonth(want);
       fillMonthSelect();
+      startFirebase();
     }
     initApp();
 
@@ -1839,6 +1970,7 @@
     setInterval(() => {
       const openOverlay = document.querySelector(".palette-overlay.open, #loginOverlay.open");
       if (openOverlay) return; // no interrumpir si hay un modal abierto (editando un turno, login, etc.)
+      if (fbReady) return; // con Firebase los cambios llegan solos en tiempo real
       loadSharedSchedule();
     }, AUTO_REFRESH_MS);
 
@@ -1852,14 +1984,41 @@
       location.replace(location.pathname + "?v=" + Date.now());
     }, FULL_RELOAD_MS);
 
-    let currentUser = sessionStorage.getItem("jefesUser") || "";
+    let currentUser = fbReady ? "" : (sessionStorage.getItem("jefesUser") || "");
     function setAdminUI() {
       document.body.classList.toggle("is-admin", currentUser === "ADMIN");
       document.getElementById("btnUser").title = currentUser === "ADMIN" ? "Admin (salir)" : "Usuario";
     }
     setAdminUI();
     const loginOverlay = document.getElementById("loginOverlay");
+    function leaveInicialView() {
+      if (viewMode === "inicial") {
+        viewMode = "actual";
+        btnOriginalView.textContent = "A";
+        btnOriginalView.title = "Actual (editable)";
+        btnOriginalView.style.background = "#7c3aed";
+        refreshAfterEdit();
+      }
+    }
     document.getElementById("btnUser").addEventListener("click", () => {
+      if (fbReady) {
+        if (fbAuth.currentUser) {
+          if (confirm("¿Cerrar sesión de " + (fbAuth.currentUser.email || "Google") + "?")) fbAuth.signOut();
+          return;
+        }
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        fbAuth.signInWithPopup(provider).catch(err => {
+          const code = err && err.code || "";
+          if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
+          if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+            fbAuth.signInWithRedirect(provider);
+            return;
+          }
+          alert("No se pudo entrar con Google (" + code + ").");
+        });
+        return;
+      }
       if (currentUser === "ADMIN") {
         if (confirm("¿Cerrar sesión de admin?")) {
           currentUser = "";
@@ -1897,6 +2056,127 @@
     });
     document.getElementById("loginPass").addEventListener("keydown", e => {
       if (e.key === "Enter") document.getElementById("loginGo").click();
+    });
+
+    // ========== FIREBASE: lectura en tiempo real y publicación ==========
+    function fbCacheKey(key) { return "ctFb:" + key; }
+    function loadFbCache(key) {
+      try {
+        const d = JSON.parse(localStorage.getItem(fbCacheKey(key)) || "null");
+        return d && Array.isArray(d.people) && d.people.length ? d : null;
+      } catch (e) { return null; }
+    }
+    function saveFbCache(key, data) {
+      try { localStorage.setItem(fbCacheKey(key), JSON.stringify(data)); } catch (e) {}
+    }
+
+    // Llega una versión oficial nueva de un mes (el admin tocó "Publicar").
+    // Regla: TODAS las ediciones personales de ese mes se descartan y todos ven
+    // exactamente la versión del admin. Los comentarios no se tocan (son personales).
+    function applyOfficialUpdate(key, data) {
+      if (!data || !Array.isArray(data.people) || !data.people.length) return;
+      const days = mesInfo(key).days;
+      const prevSrc = loadFbCache(key);
+      if (prevSrc && prevSrc.version && data.version && prevSrc.version === data.version) return; // ya la tenía
+      const next = normalizePeople(data.people, days);
+      const em = {};
+      try { localStorage.setItem(editsKey(key), JSON.stringify(em)); } catch (e) {}
+      saveFbCache(key, data);
+
+      if (!AVAILABLE_MESES.includes(key)) {
+        AVAILABLE_MESES.push(key);
+        AVAILABLE_MESES.sort();
+        fillMonthSelect();
+      }
+      if (key === currentMes) {
+        editsMap = em;
+        ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
+        applyCatalog(data);
+        people = next;
+        ORIGINAL_CODES = people.map(p => p.codes.slice());
+        resetPeopleFromOfficial();
+        renderGroups();
+        buildShiftGrid();
+        applyColors();
+        if (personOverlay.classList.contains("open") && currentCalPi !== null) openPersonCalendar(currentCalPi);
+      }
+    }
+
+    let fbStarted = false;
+    function startFirebase() {
+      if (!fbReady || fbStarted) return;
+      fbStarted = true;
+      document.body.classList.add("fb-on");
+      fbDb.collection("jefes").onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") return;
+          applyOfficialUpdate(ch.doc.id, ch.doc.data());
+        });
+      }, err => { console.warn("Firebase:", err); });
+      fbAuth.onAuthStateChanged(u => {
+        const email = u && u.email ? u.email.toLowerCase() : "";
+        const isAdmin = !!email && !!ADMIN_EMAIL && email === ADMIN_EMAIL.toLowerCase();
+        if (u && !isAdmin) {
+          alert("La cuenta " + email + " no tiene permiso para publicar.");
+          fbAuth.signOut();
+        }
+        currentUser = isAdmin ? "ADMIN" : "";
+        if (!isAdmin) leaveInicialView();
+        setAdminUI();
+        updatePublishBtn();
+      });
+    }
+
+    // Cuántas diferencias hay entre lo que ve el admin y la versión oficial
+    function pendingCount() {
+      let n = 0;
+      people.forEach((p, pi) => {
+        for (let d = 0; d < DAYS; d++) {
+          if ((p.codes[d] || "") !== ((ORIGINAL_CODES[pi] || [])[d] || "")) n++;
+        }
+      });
+      return n + Object.keys(colorOverrides).length;
+    }
+    function updatePublishBtn() {
+      const btn = document.getElementById("btnPublish");
+      if (!btn || btn.disabled) return;
+      const n = pendingCount();
+      btn.textContent = n ? "⬆ Publicar (" + n + ")" : "⬆ Publicar";
+      btn.classList.toggle("pending", n > 0);
+    }
+
+    document.getElementById("btnPublish").addEventListener("click", async () => {
+      if (!fbReady || currentUser !== "ADMIN") return;
+      const n = pendingCount();
+      const msg = n
+        ? "¿Publicar " + MES.nombre + " " + MES.y + " para todos? (" + n + " cambio" + (n === 1 ? "" : "s") + ")"
+        : "No hay cambios respecto a la versión oficial. ¿Publicar " + MES.nombre + " igual?";
+      if (!confirm(msg)) return;
+      const btn = document.getElementById("btnPublish");
+      btn.disabled = true;
+      btn.textContent = "Publicando…";
+      const data = {
+        mes: currentMes,
+        version: Date.now(),
+        codigos: ALL_SHIFT_CODES.slice(),
+        colores: Object.assign({}, colorMap),
+        people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }))
+      };
+      try {
+        await fbDb.collection("jefes").doc(currentMes).set(data);
+        colorOverrides = {};
+        saveColorOverrides();
+        btn.disabled = false;
+        btn.textContent = "✓ Publicado";
+        btn.classList.remove("pending");
+        setTimeout(updatePublishBtn, 2000);
+      } catch (err) {
+        btn.disabled = false;
+        updatePublishBtn();
+        alert(err && err.code === "permission-denied"
+          ? "Firebase rechazó la publicación: esta cuenta no tiene permiso (revisá las reglas)."
+          : "No se pudo publicar. Revisá la conexión y probá de nuevo.");
+      }
     });
 
     function currentJson() {
@@ -2471,6 +2751,85 @@
       if (!cell) return;
       openPersonCalendar(Number(cell.dataset.pi));
     });
+
+    // ========== PALETA DE COLORES DE LOS CT (solo admin) ==========
+    const colorOverlay = document.getElementById("colorOverlay");
+    const colorCodeGrid = document.getElementById("colorCodeGrid");
+    const colorPaletteGrid = document.getElementById("colorPaletteGrid");
+    const customColor = document.getElementById("customColor");
+    let colorEditCode = null;
+
+    function codeBg(code) {
+      let bg = colorMap[code];
+      if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
+      return bg || "";
+    }
+    function renderColorEditor() {
+      colorCodeGrid.innerHTML = "";
+      ALL_SHIFT_CODES.forEach(code => {
+        const opt = document.createElement("div");
+        opt.className = "shift-option" + (code === colorEditCode ? " selected" : "");
+        opt.textContent = code;
+        const bg = codeBg(code);
+        if (bg) { opt.style.background = bg; opt.style.color = getTextColor(bg); }
+        if (bg.toUpperCase() === "#FFFFFF" && code !== colorEditCode) opt.style.borderColor = "#cbd5e1";
+        opt.addEventListener("click", () => { colorEditCode = code; renderColorEditor(); });
+        colorCodeGrid.appendChild(opt);
+      });
+      const cur = colorEditCode ? (codeBg(colorEditCode) || "").toUpperCase() : "";
+      colorPaletteGrid.innerHTML = "";
+      PALETTE.forEach(hex => {
+        const sw = document.createElement("div");
+        sw.className = "palette-color" + (cur === hex.toUpperCase() ? " selected" : "");
+        sw.style.background = hex;
+        sw.style.border = hex.toUpperCase() === "#FFFFFF" ? "2px solid #e2e8f0" : "";
+        if (cur === hex.toUpperCase()) sw.style.border = "";
+        sw.addEventListener("click", () => setCodeColor(hex));
+        colorPaletteGrid.appendChild(sw);
+      });
+      const off = !colorEditCode;
+      colorPaletteGrid.style.opacity = off ? "0.35" : "1";
+      colorPaletteGrid.style.pointerEvents = off ? "none" : "";
+      customColor.disabled = off;
+      document.getElementById("resetCodeColor").disabled = off;
+      if (cur && /^#[0-9A-F]{6}$/.test(cur)) customColor.value = cur.toLowerCase();
+      document.getElementById("colorStep2").textContent = colorEditCode
+        ? "2. Elegí el color para " + colorEditCode
+        : "2. Elegí el color";
+    }
+    function afterColorChange() {
+      saveColorOverrides();
+      try { saveMap(); } catch (e) {}
+      renderGroups();
+      buildShiftGrid();
+      applyColors();
+      if (personOverlay.classList.contains("open") && currentCalPi !== null) openPersonCalendar(currentCalPi);
+      renderColorEditor();
+    }
+    function setCodeColor(hex) {
+      if (!colorEditCode) return;
+      colorMap[colorEditCode] = hex;
+      colorOverrides[colorEditCode] = hex;
+      afterColorChange();
+    }
+    customColor.addEventListener("input", () => setCodeColor(customColor.value.toUpperCase()));
+    document.getElementById("resetCodeColor").addEventListener("click", () => {
+      if (!colorEditCode) return;
+      delete colorOverrides[colorEditCode];
+      const base = baseColor(colorEditCode);
+      if (base) colorMap[colorEditCode] = base; else delete colorMap[colorEditCode];
+      afterColorChange();
+    });
+    function closeColors() { colorOverlay.classList.remove("open"); }
+    document.getElementById("btnColors").addEventListener("click", () => {
+      if (currentUser !== "ADMIN") return;
+      colorEditCode = null;
+      renderColorEditor();
+      colorOverlay.classList.add("open");
+    });
+    document.getElementById("closeColors").addEventListener("click", closeColors);
+    document.getElementById("doneColors").addEventListener("click", closeColors);
+    colorOverlay.addEventListener("click", (e) => { if (e.target === colorOverlay) closeColors(); });
 </script>
 </body>
 </html>

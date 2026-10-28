@@ -1233,11 +1233,6 @@
     .scroll-pad, body .scroll-pad { height: 18px !important; }
     .grp-card:last-of-type { margin-bottom: 0; }
 
-    /* Celular vertical: sin scroll vertical libre. Solo dos posiciones (tope / último jefe abajo),
-       que se cambian con un deslizamiento claramente vertical. Moverse de costado no la altera. */
-    @media (orientation: portrait) and (pointer: coarse) {
-      #scheduleWrap { overflow-y: hidden !important; }
-    }
     /* Columnas fijas: fondo blanco, sin rayado */
     .grp-card td.sticky-col,
     .grp-card td.sticky-col-2,
@@ -1887,12 +1882,8 @@
           else g2.appendChild(row);
         });
         // Al redibujar no se pierde la posición (antes volvía al tope un instante)
-        if (typeof applyMobilePos === "function" && applyMobilePos()) {
-          wrapEl.scrollLeft = keepLeft;
-        } else {
-          wrapEl.scrollTop = keepTop;
-          wrapEl.scrollLeft = keepLeft;
-        }
+        wrapEl.scrollTop = keepTop;
+        wrapEl.scrollLeft = keepLeft;
       } else {
         dayBody1.innerHTML = "";
         dayBody2.innerHTML = "";
@@ -2917,65 +2908,6 @@
       if (!cell) return;
       openPersonCalendar(Number(cell.dataset.pi));
     });
-
-    // ========== CELULAR VERTICAL: DOS POSICIONES ==========
-    // Grupo 1 tocado -> tabla arriba del todo.
-    // Grupo 2 tocado -> la tabla SUBE hasta que el último jefe (PEREYRA) queda visible abajo.
-    // No se usa el scroll vertical del navegador (que se "resetea" al redibujar y producía
-    // el sube y baja): las tarjetas se corren con un desplazamiento que maneja solo la app.
-    const mobilePosMq = window.matchMedia("(orientation: portrait) and (pointer: coarse)");
-    let mobilePos = "top";
-    let mobileOffset = 0;
-    function mobileCards() { return document.querySelectorAll("#scheduleWrap .grp-card"); }
-    function computeMobileOffset() {
-      if (mobilePos !== "bottom") return 0;
-      const wrap = document.getElementById("scheduleWrap");
-      const lastRow = document.querySelector("#group2 tr:last-child");
-      if (!lastRow) return 0;
-      const wr = wrap.getBoundingClientRect();
-      const rr = lastRow.getBoundingClientRect();
-      const bottomSinCorrer = rr.bottom - wr.top + mobileOffset; // dónde estaría PEREYRA sin desplazar
-      return Math.max(0, Math.ceil(bottomSinCorrer + 12 - wrap.clientHeight));
-    }
-    function setMobileOffset(px, animate) {
-      mobileOffset = px;
-      mobileCards().forEach(c => {
-        c.style.transition = animate ? "transform 0.22s ease-out" : "none";
-        c.style.transform = px ? "translateY(" + (-px) + "px)" : "";
-      });
-    }
-    function applyMobilePos() {
-      if (!mobilePosMq.matches) {
-        if (mobileOffset) setMobileOffset(0, false);
-        return false;
-      }
-      const wrap = document.getElementById("scheduleWrap");
-      if (wrap.scrollTop) wrap.scrollTop = 0;
-      const px = computeMobileOffset();
-      if (px !== mobileOffset) setMobileOffset(px, false);
-      return true;
-    }
-    (function () {
-      const wrap = document.getElementById("scheduleWrap");
-      let startCard = null;
-      wrap.addEventListener("touchstart", (e) => {
-        startCard = mobilePosMq.matches ? e.target.closest(".grp-card") : null;
-      }, { passive: true });
-      wrap.addEventListener("touchend", () => {
-        if (!startCard) return;
-        const cards = mobileCards();
-        mobilePos = startCard === cards[1] ? "bottom" : "top";
-        startCard = null;
-        const px = computeMobileOffset();
-        if (px !== mobileOffset) setMobileOffset(px, true);
-      }, { passive: true });
-      // Si el navegador intenta desplazar verticalmente por su cuenta, se anula
-      wrap.addEventListener("scroll", () => {
-        if (mobilePosMq.matches && wrap.scrollTop) wrap.scrollTop = 0;
-      }, { passive: true });
-      // Cambio de tamaño (barra del navegador, girar el celular): recalcula sin animar
-      window.addEventListener("resize", () => applyMobilePos());
-    })();
 
     // ========== PALETA DE COLORES DE LOS CT (solo admin) ==========
     const colorOverlay = document.getElementById("colorOverlay");

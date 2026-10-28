@@ -17,6 +17,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2">
   <link rel="manifest" href="manifest.webmanifest?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #f4f6f9;
@@ -855,7 +857,7 @@
       margin-right: auto;
     }
     .scroll-pad { height: 55vh; pointer-events: none; }
-    @media (orientation: landscape) {
+    @media (orientation: landscape) and (max-height: 520px) {
       .title-full { display: none; }
       .title-short { display: inline; }
       header h1 { font-size: 1rem; margin: 0; line-height: 32px; }
@@ -1087,6 +1089,13 @@
       pointer-events: none;
       z-index: 3;
     }
+    td.changed, .cal-day.changed, .cal-day-h.changed { position: relative; }
+    td.changed::before, .cal-day.changed::before, .cal-day-h.changed::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+      border-style: solid; border-width: 0 12px 12px 0;
+      border-color: transparent #2563eb transparent transparent;
+      pointer-events: none; z-index: 3;
+    }
     /* Titilar fuerte solo al editar (borde grueso + glow) */
     @keyframes titilar {
       0%, 100% {
@@ -1164,6 +1173,94 @@
     @media (orientation: landscape) {
       .month-select { height: 32px; padding: 0 6px; font-size: 0.75rem; }
     }
+
+    /* ===================== DISEÑO "TARJETAS" ===================== */
+    :root { --ink: #111827; --grid: #e5e7eb; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; background: #fff; color: var(--ink); }
+    header h1 { color: var(--ink); font-weight: 500; letter-spacing: -0.01em; font-size: 1.25rem; }
+    header h1 b { font-weight: 800; }
+    .group-body .table-wrap { padding: 4px 6px 0; }
+
+    #groupSection1.group { border: 0 !important; box-shadow: none !important; background: transparent; }
+    .m-short { display: none; }
+    @media (max-width: 520px) { header h1 { font-size: 1rem; } .m-long { display: none; } .m-short { display: inline; } }
+    @media (min-width: 900px) { header h1 { font-size: 1.6rem; } .topbar { padding: 6px 0 4px; } }
+    .grp-card {
+      width: max-content;
+      max-width: none;
+      margin: 0 auto 16px;
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      overflow: clip;
+      background: #fff;
+    }
+    .grp-card table { border-collapse: collapse; margin: 0 !important; }
+
+    /* Encabezado: blanco, día de la semana chico arriba y número grande abajo */
+    .grp-card thead th,
+    .grp-card thead th:not(.sticky-col):not(.sticky-col-2),
+    .grp-card thead th.weekend {
+      background: #fff !important;
+      color: var(--ink) !important;
+      border: 0;
+      border-left: 1px solid var(--grid);
+      border-bottom: 2px solid var(--ink) !important;
+      height: 46px !important;
+      padding: 4px 1px !important;
+      line-height: 1.1;
+    }
+    .grp-card thead th .wd {
+      display: block; font-size: 0.56rem; font-weight: 600; color: #6b7280; letter-spacing: 0.03em;
+    }
+    .grp-card thead th .day-num {
+      display: block; font-size: 1rem !important; font-weight: 600 !important; color: var(--ink); margin-top: 1px;
+    }
+    .grp-card thead th.grp-label {
+      text-align: left !important; padding-left: 10px !important;
+      font-size: 0.72rem !important; font-weight: 800; letter-spacing: 0.02em;
+      overflow: visible; white-space: nowrap;
+      border-left: 0;
+    }
+    .grp-card thead th.sticky-col-2 { border-left: 0; }
+
+    /* Columnas fijas: fondo blanco, sin rayado */
+    .grp-card td.sticky-col,
+    .grp-card td.sticky-col-2,
+    .grp-card tbody tr:nth-child(even) td.sticky-col,
+    .grp-card tbody tr:nth-child(even) td.sticky-col-2 {
+      background: #fff !important;
+      box-shadow: none !important;
+    }
+    .grp-card th.sticky-col, .grp-card th.sticky-col-2 { box-shadow: none !important; }
+    .grp-card td.sticky-col {
+      color: #6b7280; font-weight: 500; font-size: 0.68rem; padding-left: 10px; text-align: left;
+      border: 0; border-bottom: 1px solid var(--grid);
+    }
+    .grp-card td.sticky-col-2 {
+      color: var(--ink); font-weight: 700; font-size: 0.68rem;
+      border: 0; border-bottom: 1px solid var(--grid);
+    }
+    /* Línea gruesa que separa nombres de días */
+    .grp-card th.sticky-col-2, .grp-card td.sticky-col-2,
+    body.names-hidden .grp-card th.sticky-col, body.names-hidden .grp-card td.sticky-col {
+      border-right: 2px solid var(--ink) !important;
+    }
+
+    /* Celdas de turnos */
+    .grp-card tbody td:not(.sticky-col):not(.sticky-col-2) {
+      border: 1px solid var(--grid);
+      height: 32px !important;
+    }
+    .grp-card tbody tr:last-child td { border-bottom: 0 !important; }
+
+    /* Separador de semana (entre DO y LU) */
+    .grp-card .week-sep { border-left: 2px solid var(--ink) !important; }
+
+    /* Bloques (LAO, LIC, 10A, 10J, C/A): etiqueta en cursiva al inicio */
+    .grp-card td.blk-first {
+      font-style: italic; text-align: center !important;
+      overflow: visible !important; white-space: nowrap; position: relative; z-index: 1;
+    }
   </style>
 </head>
 <body class="month-view">
@@ -1203,13 +1300,18 @@
     <section class="group" id="groupSection1">
     <div class="group-body">
     <div class="table-wrap" id="scheduleWrap">
-        <table id="scheduleTable">
-          <thead>
-            <tr id="dayHeadRow"></tr>
-          </thead>
-          <tbody id="group1"></tbody>
-          <tbody id="group2"></tbody>
-        </table>
+        <div class="grp-card">
+          <table id="scheduleTable">
+            <thead><tr id="dayHeadRow"></tr></thead>
+            <tbody id="group1"></tbody>
+          </table>
+        </div>
+        <div class="grp-card">
+          <table id="scheduleTable2">
+            <thead><tr id="dayHeadRow2"></tr></thead>
+            <tbody id="group2"></tbody>
+          </table>
+        </div>
         <div class="scroll-pad" aria-hidden="true"></div>
       </div>
     </div>
@@ -1562,8 +1664,12 @@
         if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
         if (bg) {
           el.style.background = bg;
-          const hideText = code === "LIC" && !el.classList.contains("shift-option");
+          const hideText = code === "LIC" && !el.classList.contains("shift-option") && !el.classList.contains("blk-first");
           el.style.color = hideText ? bg : getTextColor(bg);
+          if (el.classList.contains("blk")) {
+            el.style.borderLeftColor = el.classList.contains("blk-first") ? "" : bg;
+            el.style.borderRightColor = el.classList.contains("blk-last") ? "" : bg;
+          }
         } else {
           el.style.background = "";
           el.style.color = "";
@@ -1610,6 +1716,20 @@
       return people[pi].codes;
     }
 
+    // Marca de una celda: "own" = cambio personal sin publicar (ámbar),
+    // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
+    function cellMark(pi, di) {
+      if (viewMode === "inicial") return "";
+      const shown = (codesFor(pi)[di] || "");
+      if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || "")) return "own";
+      const ini = INITIAL_CODES[pi];
+      if (ini && shown !== (ini[di] || "")) return "pub";
+      return "";
+    }
+    function markClass(pi, di) {
+      const m = cellMark(pi, di);
+      return m === "own" ? "edited" : (m === "pub" ? "changed" : "");
+    }
     function cellWasEdited(pi, fromDi, toDi) {
       if (viewMode !== "actual") return false;
       const end = toDi == null ? fromDi : toDi;
@@ -1653,16 +1773,20 @@
           ) {
             runEnd++;
           }
-          const runLen = runEnd - di + 1;
-          td.dataset.code = upperCode;
-          td.textContent = upperCode;
-          td.className = "lao-block";
-          if (runLen > 1) td.colSpan = runLen;
-          if (WEEK_START_DAYS.includes(di)) td.classList.add("week-sep");
-          td.style.cursor = viewMode !== "actual" ? "default" : "pointer";
-          if (cellWasEdited(pi, di, runEnd)) td.classList.add("edited");
-          markComment(td, pi, di, runEnd);
-          tr.appendChild(td);
+          for (let d = di; d <= runEnd; d++) {
+            const c = document.createElement("td");
+            c.dataset.pi = String(pi);
+            c.dataset.di = String(d);
+            c.dataset.code = upperCode;
+            c.className = "blk" + (d === di ? " blk-first" : "") + (d === runEnd ? " blk-last" : "");
+            if (d === di) c.textContent = upperCode;
+            if (WEEK_START_DAYS.includes(d)) c.classList.add("week-sep");
+            c.style.cursor = viewMode !== "actual" ? "default" : "pointer";
+            const mk = markClass(pi, d);
+            if (mk) c.classList.add(mk);
+            markComment(c, pi, d);
+            tr.appendChild(c);
+          }
           di = runEnd + 1;
           continue;
         }
@@ -1676,7 +1800,8 @@
         }
         if (WEEK_START_DAYS.includes(di)) td.classList.add("week-sep");
         td.style.cursor = viewMode !== "actual" ? "default" : "pointer";
-        if (cellWasEdited(pi, di)) td.classList.add("edited");
+        const mk = markClass(pi, di);
+        if (mk) td.classList.add(mk);
         markComment(td, pi, di);
         tr.appendChild(td);
         di++;
@@ -1739,8 +1864,6 @@
       if (selectedDay === null) {
         g1.innerHTML = "";
         g2.innerHTML = "";
-        g1.appendChild(groupTitleRow("Grupo 1", groupSplit(), DAYS + 2));
-        g2.appendChild(groupTitleRow("Grupo 2", people.length - groupSplit(), DAYS + 2));
         people.forEach((p, pi) => {
           const row = buildRow(p, pi);
           if (pi < groupSplit()) g1.appendChild(row);
@@ -1822,19 +1945,21 @@
 
     // Arma el encabezado de días según el mes (cantidad de días y día de la semana del 1)
     function renderDayHead() {
-      const row = document.getElementById("dayHeadRow");
-      row.innerHTML = '<th class="sticky-col">Legajo</th><th class="sticky-col-2">Apellido</th>';
-      for (let d = 0; d < DAYS; d++) {
-        const wd = (MES.startWd + d) % 7;
-        const th = document.createElement("th");
-        th.dataset.di = String(d);
-        const cls = [];
-        if (wd >= 5) cls.push("weekend");
-        if (wd === 0 && d > 0) cls.push("week-sep");
-        th.className = cls.join(" ");
-        th.innerHTML = WEEKDAY_ABBR[wd] + '<br><span class="day-num">' + (d + 1) + "</span>";
-        row.appendChild(th);
-      }
+      ["dayHeadRow", "dayHeadRow2"].forEach((rowId, gi) => {
+        const row = document.getElementById(rowId);
+        row.innerHTML = '<th class="sticky-col grp-label">GRUPO ' + (gi + 1) + '</th><th class="sticky-col-2"></th>';
+        for (let d = 0; d < DAYS; d++) {
+          const wd = (MES.startWd + d) % 7;
+          const th = document.createElement("th");
+          th.dataset.di = String(d);
+          const cls = [];
+          if (wd >= 5) cls.push("weekend");
+          if (wd === 0 && d > 0) cls.push("week-sep");
+          th.className = cls.join(" ");
+          th.innerHTML = '<span class="wd">' + WEEKDAY_ABBR[wd] + '</span><span class="day-num">' + (d + 1) + "</span>";
+          row.appendChild(th);
+        }
+      });
     }
 
     // Deja todo listo para mostrar un mes: fechas, título, encabezado y ediciones locales
@@ -1852,7 +1977,7 @@
         if (wd === 0 && d > 0) WEEK_START_DAYS.push(d);
       }
       document.documentElement.style.setProperty("--days-total", (DAYS * 42) + "px");
-      document.getElementById("titleFull").textContent = "PROGRAMACIÓN JEFES — " + MES.nombre + " " + MES.y;
+      document.getElementById("titleFull").innerHTML = "<b>JEFES</b> <span class=\"m-long\">" + MES.nombre + "</span><span class=\"m-short\">" + MES_ABR[MES.m - 1].toUpperCase() + "</span> " + MES.y;
       document.getElementById("titleShort").textContent = MES.m + "/" + String(MES.y).slice(2);
       document.title = "Jefes " + MES_ABR[MES.m - 1] + " " + MES.y;
       selectedDay = null;
@@ -1860,6 +1985,19 @@
       loadEdits();
     loadComments();
       renderDayHead();
+    }
+
+    // Programación inicial del mes (la del PDF), alineada por legajo con la lista actual.
+    // Prioridad: la guardada en Firebase junto a la versión oficial; si no, la semilla del HTML.
+    function initialFor(key, data) {
+      let src = null;
+      if (data && Array.isArray(data.inicial) && data.inicial.length) src = data.inicial;
+      else if (SEED_BY_MES[key]) src = SEED_BY_MES[key];
+      if (!src) return null;
+      const list = normalizePeople(src, mesInfo(key).days);
+      const byId = {};
+      list.forEach(p => { if (p.id) byId[p.id] = p.codes; });
+      return people.map((p, i) => (byId[p.id] || ORIGINAL_CODES[i] || []).slice());
     }
 
     // Muestra un mes: usa el JSON publicado si existe, si no la semilla incluida en el HTML
@@ -1874,8 +2012,9 @@
         people = normalizePeople(SEED_BY_MES[key]);
       }
       ORIGINAL_CODES = people.map(p => p.codes.slice());
-      if (SEED_BY_MES[key]) {
-        INITIAL_CODES = normalizePeople(SEED_BY_MES[key]).map(p => p.codes.slice());
+      const ini = initialFor(key, data);
+      if (ini) {
+        INITIAL_CODES = ini;
       } else {
         // Mes sin semilla: la primera versión publicada que vio este dispositivo queda como "inicial"
         let saved = null;
@@ -2094,6 +2233,8 @@
         applyCatalog(data);
         people = next;
         ORIGINAL_CODES = people.map(p => p.codes.slice());
+        const ini = initialFor(key, data);
+        if (ini) INITIAL_CODES = ini;
         resetPeopleFromOfficial();
         renderGroups();
         buildShiftGrid();
@@ -2160,7 +2301,8 @@
         version: Date.now(),
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
-        people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }))
+        people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() })),
+        inicial: people.map((p, i) => ({ id: p.id, name: p.name, codes: (INITIAL_CODES[i] || p.codes).slice() }))
       };
       try {
         await fbDb.collection("jefes").doc(currentMes).set(data);
@@ -2424,12 +2566,12 @@
       daySortByShift = !daySortByShift;
       refreshAfterEdit();
     });
-    document.getElementById("dayHeadRow").addEventListener("click", (e) => {
+    ["dayHeadRow", "dayHeadRow2"].forEach(id => document.getElementById(id).addEventListener("click", (e) => {
       const th = e.target.closest("th[data-di]");
       if (!th) return;
       e.preventDefault();
       toggleDayFilter(Number(th.dataset.di));
-    });
+    }));
     document.getElementById("btnClearDay").addEventListener("click", () => {
       selectedDay = null;
       daySortByShift = false;
@@ -2514,8 +2656,8 @@
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
-        const edited = viewMode === "actual" && (codesArr[d] || "") !== (ORIGINAL_CODES[pi][d] || "");
-        gridHtml += `<div class="cal-day${edited ? " edited" : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        const mk = markClass(pi, d);
+        gridHtml += `<div class="cal-day${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-num">${d + 1}</span>
           <span class="cal-code">${code || "·"}</span>
           ${cellComment(pi, d) ? '<span class="comment-dot"></span>' : ""}
@@ -2529,9 +2671,9 @@
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
-        const edited = viewMode === "actual" && (codesArr[d] || "") !== (ORIGINAL_CODES[pi][d] || "");
+        const mk = markClass(pi, d);
         const wd = WEEKDAY_ABBR[(MES.startWd + d) % 7];
-        rowHtml += `<div class="cal-day-h${edited ? " edited" : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        rowHtml += `<div class="cal-day-h${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-wd-h">${wd}</span>
           <span class="cal-num-h">${d + 1}</span>
           <span class="cal-code-h">${code || "·"}</span>
@@ -2579,7 +2721,7 @@
         ctx.lineTo(x + w, y);
         ctx.lineTo(x + w, y + 16);
         ctx.closePath();
-        ctx.fillStyle = "#b45309";
+        ctx.fillStyle = edited === "pub" ? "#2563eb" : "#b45309";
         ctx.fill();
         ctx.restore();
       }
@@ -2647,7 +2789,7 @@
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
-        const edited = viewMode === "actual" && (codesArr[d] || "") !== (ORIGINAL_CODES[pi][d] || "");
+        const edited = cellMark(pi, d);
         let x, y, lines;
         if (isRow) {
           x = PAD + d * (cellW + gap);

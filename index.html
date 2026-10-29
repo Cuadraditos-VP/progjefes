@@ -1261,6 +1261,20 @@
       border-right: 2px solid var(--ink) !important;
     }
 
+    /* La línea negra entre nombres y días la dibuja la propia celda fija (con una sombra interna),
+       así acompaña a la columna al moverse de costado y nunca desaparece. */
+    .grp-card th.sticky-col-2, .grp-card td.sticky-col-2,
+    .grp-card tbody tr:nth-child(even) td.sticky-col-2,
+    body.names-hidden .grp-card th.sticky-col, body.names-hidden .grp-card td.sticky-col,
+    body.names-hidden .grp-card tbody tr:nth-child(even) td.sticky-col {
+      box-shadow: inset -2px 0 0 var(--ink) !important;
+    }
+    body.names-hidden .grp-card th.sticky-col-2, body.names-hidden .grp-card td.sticky-col-2 { box-shadow: none !important; }
+    /* Igual para la línea bajo el encabezado en las celdas fijas */
+    .grp-card thead th.sticky-col { box-shadow: inset 0 -2px 0 var(--ink) !important; }
+    .grp-card thead th.sticky-col-2 { box-shadow: inset -2px 0 0 var(--ink), inset 0 -2px 0 var(--ink) !important; }
+    body.names-hidden .grp-card thead th.sticky-col { box-shadow: inset -2px 0 0 var(--ink), inset 0 -2px 0 var(--ink) !important; }
+
     /* Celdas de turnos */
     .grp-card tbody td:not(.sticky-col):not(.sticky-col-2) {
       border: 1px solid var(--grid);
@@ -2699,6 +2713,24 @@
       e.preventDefault();
       toggleDayFilter(Number(th.dataset.di));
     }));
+    // En la vista de un día ("por turno"), deslizar el dedo de costado vuelve a la grilla del mes
+    (function () {
+      const split = document.getElementById("daySplit");
+      let st = null;
+      split.addEventListener("touchstart", (e) => {
+        st = (selectedDay !== null && e.touches.length === 1)
+          ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+      }, { passive: true });
+      split.addEventListener("touchend", (e) => {
+        if (!st) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - st.x, dy = t.clientY - st.y;
+        st = null;
+        if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          document.getElementById("btnClearDay").click();
+        }
+      }, { passive: true });
+    })();
     document.getElementById("btnClearDay").addEventListener("click", () => {
       selectedDay = null;
       daySortByShift = false;

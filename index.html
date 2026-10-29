@@ -1101,6 +1101,13 @@
       border-color: transparent #2563eb transparent transparent;
       pointer-events: none; z-index: 3;
     }
+    td.cjchanged, .cal-day.cjchanged, .cal-day-h.cjchanged { position: relative; }
+    td.cjchanged::before, .cal-day.cjchanged::before, .cal-day-h.cjchanged::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+      border-style: solid; border-width: 0 12px 12px 0;
+      border-color: transparent #9333ea transparent transparent;
+      pointer-events: none; z-index: 3;
+    }
     /* Titilar fuerte solo al editar (borde grueso + glow) */
     @keyframes titilar {
       0%, 100% {
@@ -1762,6 +1769,7 @@
     // Según el modo de vista actual, de dónde sacar los códigos de una persona
     function codesFor(pi) {
       if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
+      if (viewMode === "cj") return CJ_CODES[pi] || ORIGINAL_CODES[pi] || [];
       if (viewMode === "oficial") return ORIGINAL_CODES[pi] || [];
       return people[pi].codes;
     }
@@ -1770,6 +1778,7 @@
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
     function cellMark(pi, di) {
       if (viewMode === "inicial") return "";
+      if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return "cj";
       const shown = (codesFor(pi)[di] || "");
       if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || "")) return "own";
       const ini = INITIAL_CODES[pi];
@@ -1778,7 +1787,7 @@
     }
     function markClass(pi, di) {
       const m = cellMark(pi, di);
-      return m === "own" ? "edited" : (m === "pub" ? "changed" : "");
+      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : ""));
     }
     function cellWasEdited(pi, fromDi, toDi) {
       if (viewMode !== "actual") return false;
@@ -1911,6 +1920,7 @@
     }
 
     function renderGroups() {
+      if (viewMode === "cj") rebuildCj();
       if (selectedDay === null) {
         const wrapEl = document.getElementById("scheduleWrap");
         const keepTop = wrapEl.scrollTop, keepLeft = wrapEl.scrollLeft;
@@ -2223,7 +2233,7 @@
     setAdminUI();
     const loginOverlay = document.getElementById("loginOverlay");
     function leaveInicialView() {
-      if (viewMode === "inicial") {
+      if (viewMode === "inicial" || viewMode === "cj") {
         viewMode = "actual";
         btnOriginalView.textContent = "A";
         btnOriginalView.title = "Actual (editable)";
@@ -2233,7 +2243,7 @@
     }
     document.getElementById("btnUser").addEventListener("click", () => {
       if (fbReady) {
-        if (fbAuth.currentUser) {
+        if (fbAuth.currentUser && !fbAuth.currentUser.isAnonymous) {
           if (confirm("¿Cerrar sesión de " + (fbAuth.currentUser.email || "Google") + "?")) fbAuth.signOut();
           return;
         }
@@ -2348,6 +2358,17 @@
       }
       try { localStorage.setItem(editsKey(key), JSON.stringify(em)); } catch (e) {}
       saveFbCache(key, data);
+      // las horas de los cambios que se descartaron también se van
+      try {
+        const t = loadEditTimes(key), keep = {};
+        Object.keys(em).forEach(k => {
+          const [pi, di] = k.split(":").map(Number);
+          const id = next[pi] && next[pi].id;
+          if (id && t[id + ":" + di]) keep[id + ":" + di] = t[id + ":" + di];
+        });
+        localStorage.setItem(editTimesKey(key), JSON.stringify(keep));
+      } catch (e) {}
+      setTimeout(() => syncCj(key), 0);
 
       if (!AVAILABLE_MESES.includes(key)) {
         AVAILABLE_MESES.push(key);
@@ -2382,9 +2403,13 @@
         });
       }, err => { console.warn("Firebase:", err); });
       fbAuth.onAuthStateChanged(u => {
-        const email = u && u.email ? u.email.toLowerCase() : "";
+        if (!u) {
+          // Sin sesión: entra como anónimo (invisible para el usuario) para poder mandar sus cambios
+          fbAuth.signInAnonymously().catch(() => {});
+        }
+        const email = u && !u.isAnonymous && u.email ? u.email.toLowerCase() : "";
         const isAdmin = !!email && !!ADMIN_EMAIL && email === ADMIN_EMAIL.toLowerCase();
-        if (u && !isAdmin) {
+        if (u && !u.isAnonymous && !isAdmin) {
           alert("La cuenta " + email + " no tiene permiso para publicar.");
           fbAuth.signOut();
         }
@@ -2392,6 +2417,98 @@
         if (!isAdmin) leaveInicialView();
         setAdminUI();
         updatePublishBtn();
+        if (isAdmin) startCjListener(); else stopCjListener();
+        if (u && u.isAnonymous) AVAILABLE_MESES.forEach(k => syncCj(k));
+      });
+    }
+
+    // ========== CJ: CAMBIOS DE LOS JEFES ==========
+    // Cada celular manda sus cambios personales a Firebase (colección "cj", un documento
+    // por celular y por mes). Solo el admin puede leerlos. Los comentarios NO se mandan.
+    let CJ_CODES = [];
+    let CJ_MARKS = {};
+    const cjDocs = {};
+    let cjUnsub = null;
+    const cjTimers = {};
+
+    function officialPeopleFor(key) {
+      if (key === currentMes) return people.map((p, i) => ({ id: p.id, codes: ORIGINAL_CODES[i] || [] }));
+      const src = loadFbCache(key) || MES_DATA[key] || (SEED_BY_MES[key] ? { people: SEED_BY_MES[key] } : null);
+      return src ? normalizePeople(src.people, mesInfo(key).days) : [];
+    }
+    function scheduleCjSync(key) {
+      clearTimeout(cjTimers[key]);
+      cjTimers[key] = setTimeout(() => syncCj(key), 1500);
+    }
+    function syncCj(key) {
+      if (!fbReady || !fbAuth || currentUser === "ADMIN") return;
+      const u = fbAuth.currentUser;
+      if (!u || !u.isAnonymous) return;
+      let em = {};
+      try { em = JSON.parse(localStorage.getItem(editsKey(key)) || "{}"); } catch (e) { em = {}; }
+      const times = loadEditTimes(key);
+      const list = officialPeopleFor(key);
+      const edits = {};
+      Object.keys(em).forEach(k => {
+        const [pi, di] = k.split(":").map(Number);
+        const p = list[pi];
+        if (!p || !p.id) return;
+        if ((em[k] || "") === ((p.codes || [])[di] || "")) return;
+        edits[p.id + ":" + di] = { c: em[k] || "", t: times[p.id + ":" + di] || 0 };
+      });
+      const sentKey = "ctCjSent:" + key + ":" + u.uid;
+      const payload = JSON.stringify(edits);
+      let last = null;
+      try { last = localStorage.getItem(sentKey); } catch (e) {}
+      if (last === payload) return;               // nada nuevo para mandar
+      if (last === null && payload === "{}") return; // nunca cambió nada en este mes
+      fbDb.collection("cj").doc(key + "_" + u.uid)
+        .set({ mes: key, uid: u.uid, edits, updated: Date.now() })
+        .then(() => { try { localStorage.setItem(sentKey, payload); } catch (e) {} })
+        .catch(() => {});
+    }
+
+    function startCjListener() {
+      if (cjUnsub || !fbReady) return;
+      cjUnsub = fbDb.collection("cj").onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete cjDocs[ch.doc.id];
+          else cjDocs[ch.doc.id] = ch.doc.data();
+        });
+        if (viewMode === "cj") refreshAfterEdit();
+      }, err => console.warn("CJ:", err));
+    }
+    function stopCjListener() {
+      if (cjUnsub) { cjUnsub(); cjUnsub = null; }
+      Object.keys(cjDocs).forEach(k => delete cjDocs[k]);
+    }
+
+    // Arma la vista CJ del mes actual: versión oficial + el último cambio de algún jefe en cada celda
+    function rebuildCj() {
+      const changedAt = ((loadFbCache(currentMes) || {}).changedAt) || {};
+      const latest = {};
+      Object.values(cjDocs).forEach(doc => {
+        if (!doc || doc.mes !== currentMes || !doc.edits) return;
+        Object.keys(doc.edits).forEach(k => {
+          const e = doc.edits[k];
+          if (!e) return;
+          const t = Number(e.t) || 0;
+          if (changedAt[k] && t < changedAt[k]) return; // lo pisó una publicación posterior
+          if (!latest[k] || t > latest[k].t) latest[k] = { c: String(e.c || ""), t };
+        });
+      });
+      const idx = {};
+      people.forEach((p, i) => { idx[p.id] = i; });
+      CJ_CODES = people.map((p, i) => (ORIGINAL_CODES[i] || []).slice());
+      CJ_MARKS = {};
+      Object.keys(latest).forEach(k => {
+        const cut = k.lastIndexOf(":");
+        const id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+        const pi = idx[id];
+        if (pi == null || di >= DAYS) return;
+        if (latest[k].c === ((ORIGINAL_CODES[pi] || [])[di] || "")) return;
+        CJ_CODES[pi][di] = latest[k].c;
+        CJ_MARKS[pi + ":" + di] = true;
       });
     }
 
@@ -2428,6 +2545,17 @@
         version: Date.now(),
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
+        changedAt: (function () {
+          const prev = (loadFbCache(currentMes) || {}).changedAt || {};
+          const out = Object.assign({}, prev);
+          const v = Date.now();
+          people.forEach((p, pi) => {
+            for (let d = 0; d < DAYS; d++) {
+              if ((p.codes[d] || "") !== ((ORIGINAL_CODES[pi] || [])[d] || "")) out[p.id + ":" + d] = v;
+            }
+          });
+          return out;
+        })(),
         people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() })),
         inicial: people.map((p, i) => ({ id: p.id, name: p.name, codes: (INITIAL_CODES[i] || p.codes).slice() }))
       };
@@ -2608,13 +2736,29 @@
       shiftOverlay.classList.add("open");
     }
 
+    // Hora de cada cambio personal, por legajo:día (para que el admin vea el último en "CJ")
+    function editTimesKey(mes) { return "ctEditTimes:" + mes; }
+    function loadEditTimes(mes) {
+      try { return JSON.parse(localStorage.getItem(editTimesKey(mes)) || "{}"); } catch (e) { return {}; }
+    }
+    function stampEdit(pi, di, on) {
+      const p = people[pi];
+      if (!p) return;
+      const t = loadEditTimes(currentMes);
+      if (on) t[p.id + ":" + di] = Date.now(); else delete t[p.id + ":" + di];
+      try { localStorage.setItem(editTimesKey(currentMes), JSON.stringify(t)); } catch (e) {}
+    }
     function saveEdit(pi, di, code) {
       editsMap[pi + ":" + di] = code;
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
+      stampEdit(pi, di, true);
+      scheduleCjSync(currentMes);
     }
     function removeEdit(pi, di) {
       delete editsMap[pi + ":" + di];
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
+      stampEdit(pi, di, false);
+      scheduleCjSync(currentMes);
     }
 
     function refreshAfterEdit() {
@@ -2737,17 +2881,20 @@
     //   A = Actual (editable)
     //   O = Oficial (la última que se publicó en GitHub, solo lectura)
     //   I = Inicial (la programación de arranque del mes, solo lectura)
-    const VIEW_MODE_ORDER = ["actual", "oficial", "inicial"];
-    const VIEW_MODE_LABEL = { actual: "A", oficial: "O", inicial: "I" };
+    const VIEW_MODE_ORDER = ["actual", "oficial", "inicial", "cj"];
+    const VIEW_MODE_LABEL = { actual: "A", oficial: "O", inicial: "I", cj: "CJ" };
     const VIEW_MODE_TITLE = {
       actual: "Actual (editable)",
       oficial: "Oficial (última publicada)",
-      inicial: "Programación inicial del mes"
+      inicial: "Programación inicial del mes",
+      cj: "Cambios de los jefes (último cambio de cada celda)"
     };
-    const VIEW_MODE_COLOR = { actual: "#7c3aed", oficial: "#5b21b6", inicial: "#0f766e" };
+    const VIEW_MODE_COLOR = { actual: "#7c3aed", oficial: "#5b21b6", inicial: "#0f766e", cj: "#9333ea" };
     const btnOriginalView = document.getElementById("btnOriginalView");
     btnOriginalView.addEventListener("click", () => {
-      const order = currentUser === "ADMIN" ? VIEW_MODE_ORDER : ["actual", "oficial"];
+      const order = currentUser === "ADMIN"
+        ? VIEW_MODE_ORDER.filter(m => m !== "cj" || fbReady)
+        : ["actual", "oficial"];
       const next = order[(order.indexOf(viewMode) + 1) % order.length];
       viewMode = next;
       btnOriginalView.textContent = VIEW_MODE_LABEL[next];

@@ -1276,6 +1276,26 @@
       font-style: italic; text-align: center !important;
       overflow: visible !important; white-space: nowrap; position: relative; z-index: 1;
     }
+
+    /* ===== Celular: columnas de legajo y apellido al ancho justo (medido por la app) ===== */
+    @media (max-width: 1000px), (pointer: coarse) {
+      :root { --col-legajo: var(--fit-leg, 46px); --col-nombre: var(--fit-nom, 88px); }
+      th.sticky-col, td.sticky-col {
+        width: var(--col-legajo) !important; min-width: var(--col-legajo) !important; max-width: var(--col-legajo) !important;
+      }
+      th.sticky-col-2, td.sticky-col-2 {
+        width: var(--col-nombre) !important; min-width: var(--col-nombre) !important; max-width: var(--col-nombre) !important;
+        left: var(--col-legajo) !important;
+      }
+      .grp-card td.sticky-col { padding: 0 2px 0 6px !important; }
+      .grp-card td.sticky-col-2 { padding: 0 4px !important; white-space: nowrap; overflow: hidden; }
+      .grp-card thead th.grp-label { padding-left: 6px !important; }
+      /* Sin margen lateral: así al moverse de costado no asoman días a la izquierda de los nombres */
+      #scheduleWrap { padding-left: 0 !important; padding-right: 0 !important; }
+      #scheduleWrap .grp-card { margin-left: 0; margin-right: 0; }
+      /* "GRUPO 1/2" puede pasar por encima de la columna de apellido */
+      .grp-card thead th.sticky-col { z-index: 61 !important; }
+    }
   </style>
 </head>
 <body class="month-view">
@@ -1931,8 +1951,30 @@
         }
       }
       applyDayHeaderFilter();
+      fitNameCols();
       if (typeof updatePublishBtn === "function" && fbStarted) updatePublishBtn();
     }
+    // Mide el legajo y el apellido más largos (hoy BORLANDELLI / LANCELLOTTI) y ajusta
+    // las dos columnas fijas a ese ancho justo, así en el celular entran más días.
+    let fitCanvas = null;
+    function fitNameCols() {
+      const idCell = document.querySelector(".grp-card td.sticky-col");
+      const nmCell = document.querySelector(".grp-card td.sticky-col-2");
+      if (!idCell || !nmCell || !people.length) return;
+      fitCanvas = fitCanvas || document.createElement("canvas");
+      const ctx = fitCanvas.getContext("2d");
+      const widest = (cell, texts) => {
+        const cs = getComputedStyle(cell);
+        ctx.font = cs.fontStyle + " " + cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+        return Math.max(...texts.map(t => ctx.measureText(String(t || "")).width));
+      };
+      const idW = Math.ceil(widest(idCell, people.map(p => p.id)) + 6 + 2 + 2);
+      const nmW = Math.ceil(widest(nmCell, people.map(p => p.name)) + 4 + 4 + 2 + 2);
+      const root = document.documentElement.style;
+      root.setProperty("--fit-leg", idW + "px");
+      root.setProperty("--fit-nom", nmW + "px");
+    }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitNameCols());
     function normCode(c) {
       if (c == null || c === "") return "";
       return String(c).trim().toUpperCase();

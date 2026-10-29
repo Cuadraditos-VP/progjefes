@@ -2260,15 +2260,50 @@
     }
 
     // Llega una versión oficial nueva de un mes (el admin tocó "Publicar").
-    // Regla: TODAS las ediciones personales de ese mes se descartan y todos ven
-    // exactamente la versión del admin. Los comentarios no se tocan (son personales).
+    // Regla (opción B): cada uno conserva sus ediciones personales, EXCEPTO en las
+    // celdas que el admin cambió en esta publicación: ahí gana la versión del admin.
+    // Las ediciones se siguen por legajo, así que si entra o sale un jefe no se pierden.
+    // Los comentarios no se tocan nunca (son personales).
     function applyOfficialUpdate(key, data) {
       if (!data || !Array.isArray(data.people) || !data.people.length) return;
       const days = mesInfo(key).days;
-      const prevSrc = loadFbCache(key);
-      if (prevSrc && prevSrc.version && data.version && prevSrc.version === data.version) return; // ya la tenía
+      const cached = loadFbCache(key);
+      if (cached && cached.version && data.version && cached.version === data.version) return; // ya la tenía
+      // Versión oficial que este dispositivo tenía hasta ahora (para saber qué cambió el admin)
+      const prevSrc = cached || MES_DATA[key] || (SEED_BY_MES[key] ? { people: SEED_BY_MES[key] } : null);
+      const prev = prevSrc ? normalizePeople(prevSrc.people, days) : null;
       const next = normalizePeople(data.people, days);
+
+      let old = {};
+      try { old = JSON.parse(localStorage.getItem(editsKey(key)) || "{}"); } catch (e) { old = {}; }
+      const nextIdx = {};
+      next.forEach((p, i) => { nextIdx[p.id] = i; });
       const em = {};
+      Object.keys(old).forEach(k => {
+        const [pi, di] = k.split(":").map(Number);
+        const id = prev && prev[pi] ? prev[pi].id : (next[pi] ? next[pi].id : null);
+        const ni = id != null && nextIdx[id] != null ? nextIdx[id] : null;
+        if (ni == null || di >= days) return;                        // ese jefe ya no está
+        const before = prev && prev[pi] ? (prev[pi].codes[di] || "") : null;
+        const after = next[ni].codes[di] || "";
+        if (before !== null && before !== after) return;              // el admin cambió esa celda: gana el admin
+        if (old[k] === after) return;                                 // ya coincide con la oficial
+        em[ni + ":" + di] = old[k];
+      });
+      // Comentarios: se conservan todos; si cambió la lista de jefes, se reacomodan por legajo
+      if (prev && (prev.length !== next.length || prev.some((p, i) => !next[i] || p.id !== next[i].id))) {
+        let oc = {};
+        try { oc = JSON.parse(localStorage.getItem(commentsKey(key)) || "{}"); } catch (e) { oc = {}; }
+        const nc = {};
+        Object.keys(oc).forEach(k => {
+          const [pi, di] = k.split(":").map(Number);
+          const id = prev[pi] ? prev[pi].id : null;
+          const ni = id != null ? nextIdx[id] : null;
+          if (ni != null) nc[ni + ":" + di] = oc[k];
+        });
+        try { localStorage.setItem(commentsKey(key), JSON.stringify(nc)); } catch (e) {}
+        if (key === currentMes) commentsMap = nc;
+      }
       try { localStorage.setItem(editsKey(key), JSON.stringify(em)); } catch (e) {}
       saveFbCache(key, data);
 

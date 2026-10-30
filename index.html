@@ -1383,7 +1383,7 @@
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
-        <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar para todos">⬆ Publicar</button>
+        <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar colores para todos (los turnos no se publican desde acá)">⬆ Publicar</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
@@ -2672,15 +2672,9 @@
       });
     }
 
-    // Cuántas diferencias hay entre lo que ve el admin y la versión oficial
+    // Cuántos colores cambió el admin sin publicar (los turnos no se publican desde acá)
     function pendingCount() {
-      let n = 0;
-      people.forEach((p, pi) => {
-        for (let d = 0; d < DAYS; d++) {
-          if ((p.codes[d] || "") !== ((ORIGINAL_CODES[pi] || [])[d] || "")) n++;
-        }
-      });
-      return n + Object.keys(colorOverrides).length;
+      return Object.keys(colorOverrides).length;
     }
     function updatePublishBtn() {
       const btn = document.getElementById("btnPublish");
@@ -2692,10 +2686,12 @@
 
     document.getElementById("btnPublish").addEventListener("click", async () => {
       if (!fbReady || currentUser !== "ADMIN") return;
-      const n = pendingCount();
+      // Por ahora los turnos NO se publican desde acá: se manda la programación oficial
+      // tal cual está (sin las ediciones del admin). Solo se publican los colores.
+      const n = Object.keys(colorOverrides).length;
       const msg = n
-        ? "¿Publicar " + MES.nombre + " " + MES.y + " para todos? (" + n + " cambio" + (n === 1 ? "" : "s") + ")"
-        : "No hay cambios respecto a la versión oficial. ¿Publicar " + MES.nombre + " igual?";
+        ? "¿Publicar los colores para todos? (" + n + " color" + (n === 1 ? "" : "es") + " cambiado" + (n === 1 ? "" : "s") + ")\n\nLos turnos no se publican: nadie ve tus cambios de turnos."
+        : "No hay colores distintos a los publicados. ¿Publicar igual?\n\nLos turnos no se publican.";
       if (!confirm(msg)) return;
       const btn = document.getElementById("btnPublish");
       btn.disabled = true;
@@ -2705,18 +2701,8 @@
         version: Date.now(),
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
-        changedAt: (function () {
-          const prev = (loadFbCache(currentMes) || {}).changedAt || {};
-          const out = Object.assign({}, prev);
-          const v = Date.now();
-          people.forEach((p, pi) => {
-            for (let d = 0; d < DAYS; d++) {
-              if ((p.codes[d] || "") !== ((ORIGINAL_CODES[pi] || [])[d] || "")) out[p.id + ":" + d] = v;
-            }
-          });
-          return out;
-        })(),
-        people: people.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() })),
+        changedAt: Object.assign({}, (loadFbCache(currentMes) || {}).changedAt || {}),
+        people: people.map((p, i) => ({ id: p.id, name: p.name, codes: (ORIGINAL_CODES[i] || []).slice() })),
         inicial: people.map((p, i) => ({ id: p.id, name: p.name, codes: (INITIAL_CODES[i] || p.codes).slice() }))
       };
       try {

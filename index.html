@@ -1321,8 +1321,8 @@
         <button type="button" id="btnUser" class="user-btn" title="Usuario" aria-label="Usuario">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/></svg>
         </button>
-        <button id="btnOriginalView" class="view-original-btn" title="Actual">A</button>
-        <button type="button" id="btnToggleNames" class="names-toggle-btn" title="Ocultar nombres">N</button>
+        <button id="btnOriginalView" class="view-original-btn admin-only" title="Actual">A</button>
+        <button type="button" id="btnToggleNames" class="names-toggle-btn admin-only" title="Ocultar nombres">N</button>
         <select id="monthSelect" class="month-select" title="Mes" aria-label="Mes" style="display:none"></select>
         <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
         <button type="button" id="btnDownload" class="json-btn dl-btn admin-only" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
@@ -2229,11 +2229,16 @@
     function setAdminUI() {
       document.body.classList.toggle("is-admin", currentUser === "ADMIN");
       document.getElementById("btnUser").title = currentUser === "ADMIN" ? "Admin (salir)" : "Usuario";
+      // Sin admin: siempre modo A y con nombres visibles.
+      if (currentUser !== "ADMIN") {
+        try { leaveInicialView(); } catch (e) {}
+      }
+      try { applyNamesHidden(); } catch (e) {}
     }
     setAdminUI();
     const loginOverlay = document.getElementById("loginOverlay");
     function leaveInicialView() {
-      if (viewMode === "inicial" || viewMode === "cj") {
+      if (viewMode !== "actual") {
         viewMode = "actual";
         btnOriginalView.textContent = "A";
         btnOriginalView.title = "Actual (editable)";
@@ -2264,13 +2269,6 @@
         if (confirm("¿Cerrar sesión de admin?")) {
           currentUser = "";
           sessionStorage.removeItem("jefesUser");
-          if (viewMode === "inicial") {
-            viewMode = "actual";
-            btnOriginalView.textContent = "A";
-            btnOriginalView.title = "Actual (editable)";
-            btnOriginalView.style.background = "#7c3aed";
-            refreshAfterEdit();
-          }
           setAdminUI();
         }
         return;
@@ -2892,9 +2890,8 @@
     const VIEW_MODE_COLOR = { actual: "#7c3aed", oficial: "#5b21b6", inicial: "#0f766e", cj: "#9333ea" };
     const btnOriginalView = document.getElementById("btnOriginalView");
     btnOriginalView.addEventListener("click", () => {
-      const order = currentUser === "ADMIN"
-        ? VIEW_MODE_ORDER.filter(m => m !== "cj" || fbReady)
-        : ["actual", "oficial"];
+      if (currentUser !== "ADMIN") return;
+      const order = VIEW_MODE_ORDER.filter(m => m !== "cj" || fbReady);
       const next = order[(order.indexOf(viewMode) + 1) % order.length];
       viewMode = next;
       btnOriginalView.textContent = VIEW_MODE_LABEL[next];
@@ -2908,7 +2905,7 @@
     let namesHidden = false;
     try { namesHidden = localStorage.getItem("jefesHideNames") === "1"; } catch (e) {}
     function applyNamesHidden() {
-      document.body.classList.toggle("names-hidden", namesHidden);
+      document.body.classList.toggle("names-hidden", namesHidden && currentUser === "ADMIN");
       if (btnToggleNames) {
         btnToggleNames.textContent = namesHidden ? "L" : "N";
         btnToggleNames.title = namesHidden ? "Mostrar nombres" : "Ocultar nombres";

@@ -1303,7 +1303,59 @@
       /* "GRUPO 1/2" puede pasar por encima de la columna de apellido */
       .grp-card thead th.sticky-col { z-index: 61 !important; }
     }
-  </style>
+      /* ===== PEDIDOS DE CAMBIO ===== */
+    .ped-btn { background: #ea580c; width: auto !important; height: 32px !important; padding: 0 12px !important; border-radius: 8px !important; font-size: 0.8rem !important; letter-spacing: 0; display: inline-flex; align-items: center; }
+    body.pedidos-on .ped-btn { background: #9a3412; box-shadow: 0 0 0 2px #fdba74; }
+    #pedidosBar {
+      display: none; width: 100%; max-width: 560px; margin: 0 auto 8px;
+      background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
+      border-radius: 8px; padding: 7px 10px; font-size: 0.8rem; font-weight: 600; text-align: center;
+    }
+    body.pedidos-on #pedidosBar { display: block; }
+    #pedidosBar button.ped-chip { background: #fff; color: #9a3412; border: 1px solid #fdba74; }
+    #pedidosBar button.ped-chip.on { background: #16a34a; color: #fff; border-color: #16a34a; }
+    #pedidosBar button#btnVerTodo.on { background: #9a3412; border-color: #9a3412; }
+    #pedidosVacio { display: none; max-width: 560px; margin: 4px auto 10px; padding: 12px; border-radius: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; color: #475569; font-size: 0.85rem; text-align: center; }
+    body.pedidos-on #pedidosVacio.show { display: block; }
+    #pedidosBar button {
+      margin-left: 8px; border: 0; border-radius: 6px; padding: 4px 8px;
+      background: #ea580c; color: #fff; font-weight: 700; font-size: 0.72rem; cursor: pointer;
+    }
+    body.pedidos-on .grp-card { border-color: #ea580c; }
+    body.pedidos-on .grp-card td.mi-fila { background: #fff7ed !important; }
+    .ped-info { font-size: 0.95rem; color: #1e293b; line-height: 1.6; }
+    .ped-info .pill { display: inline-block; min-width: 44px; padding: 3px 10px; border-radius: 6px; font-weight: 800; text-align: center; border: 1px solid rgba(0,0,0,.15); }
+    .ped-note { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+    .ped-note.ok { background: #dcfce7; color: #166534; }
+    .ped-note.info { background: #f1f5f9; color: #475569; }
+    .cal-day.con-resp, .cal-day-h.con-resp { box-shadow: inset 0 0 0 3px #ea580c !important; }
+    .ped-resp { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 8px 10px; border: 1px solid #fdba74; background: #fff7ed; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #7c2d12; }
+    .ped-act { border: 0; border-radius: 8px; padding: 8px 12px; font-weight: 700; font-size: 0.8rem; cursor: pointer; background: #ea580c; color: #fff; }
+    .ped-act.sec { background: #e2e8f0; color: #334155; }
+    .acu-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 0.82rem; color: #1e293b; }
+    .acu-row.done { opacity: .5; }
+    .acu-row .acu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
+    body.pedidos-on td.ped-cell { position: relative; padding-bottom: 13px !important; vertical-align: top; line-height: 1.25; }
+    td.ped-cell .ped-da {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 13px;
+      font-size: 0.58rem; font-weight: 700; line-height: 13px; text-align: center;
+      border-top: 1px solid rgba(0,0,0,.18); pointer-events: none;
+    }
+    body.pedidos-on td.te-sirve::after, body.pedidos-on td.con-resp::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4; box-sizing: border-box;
+    }
+    body.pedidos-on td.te-sirve::after { border: 3px solid #16a34a; }
+    body.pedidos-on td.con-resp::before { inset: auto; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 1.5px #fff; }
+    .fr-opt { padding: 10px 4px; border-radius: 8px; border: 2px solid #e2e8f0; background: #f8fafc; font-weight: 800; font-size: 0.85rem; text-align: center; cursor: pointer; color: #1e293b; }
+    .fr-opt.selected { background: #DF7272; border-color: #2563eb; color: #fff; box-shadow: 0 0 0 2px rgba(37,99,235,0.4); }
+    .fr-opt small { display: block; font-size: 0.6rem; font-weight: 600; opacity: .8; }
+    .ped-opc { margin-top: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.82rem; color: #1e293b; }
+    .ped-opc.ok { border-color: #86efac; background: #f0fdf4; }
+    .ped-lbl { margin: 12px 0 6px; font-size: 0.75rem; font-weight: 700; color: #334155; }
+    #yoList { display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 8px; }
+    #yoList button { text-align: left; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 9px 10px; font-size: 0.85rem; font-weight: 600; color: #1e293b; cursor: pointer; }
+    #yoList button span { color: #64748b; font-weight: 500; margin-left: 6px; font-size: 0.75rem; }
+</style>
 </head>
 <body class="month-view">
   <div id="loginOverlay">
@@ -1330,10 +1382,21 @@
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
+        <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar para todos">⬆ Publicar</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
+    <div id="pedidosBar">
+      <span id="pedidosLabel">Pedidos de cambio</span>
+      <button type="button" id="btnSirven" class="ped-chip">Me sirven</button>
+      <button type="button" id="btnVerTodo" class="ped-chip">Ver todo</button>
+      <button type="button" id="btnYo">¿Quién sos?</button>
+      <button type="button" id="btnAcuerdos" class="admin-only">Acordados</button>
+      <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
+      <button type="button" id="btnSalirPedidos">Salir</button>
+    </div>
+    <div id="pedidosVacio"></div>
     <div id="dayFilterBar">
       <span id="dayFilterLabel">Sólo un día</span>
       <button type="button" id="btnDaySort" hidden>Por turno</button>
@@ -1426,6 +1489,56 @@
         <button class="btn btn-done" id="doneColors">Listo</button>
       </div>
       <p class="color-note">Se guarda en este dispositivo. Para que lo vean todos, exportá el JSON y subilo a GitHub.</p>
+    </div>
+  </div>
+  <div class="palette-overlay" id="pedidoOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="pedidoTitle">—</h3>
+        <button class="close-btn" id="closePedido" title="Cerrar">×</button>
+      </div>
+      <div id="pedidoBody"></div>
+      <div id="pedidoTengoLbl" class="ped-lbl">Ese día tengo</div>
+      <div class="shift-grid" id="pedidoTengo"></div>
+      <div id="pedidoGridLbl" class="ped-lbl">Necesito</div>
+      <div class="shift-grid" id="pedidoGrid"></div>
+      <div id="pedidoFrancosLbl" class="ped-lbl" style="display:none">Ofrezco mi franco del día (podés marcar varios)</div>
+      <div class="shift-grid" id="pedidoFrancos" style="display:none"></div>
+      <div class="palette-actions" id="pedidoActions">
+        <button class="btn btn-clear" id="quitarPedido">Quitar pedido</button>
+        <button class="btn btn-done" id="donePedido">Listo</button>
+      </div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="acuerdosOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>Cambios acordados</h3>
+        <button class="close-btn" id="closeAcuerdos" title="Cerrar">×</button>
+      </div>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Cambios que los jefes cerraron entre ellos. Pasalos al JSON de GitHub y marcalos como pasados.</p>
+      <div id="acuerdosList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="celularesOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>Celulares registrados</h3>
+        <button class="close-btn" id="closeCelulares" title="Cerrar">×</button>
+      </div>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Qué nombre eligió cada celular. "Liberar" hace que ese celular vuelva a preguntar "¿Quién sos?" la próxima vez que abra la app.</p>
+      <div id="celularesList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="yoOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>¿Quién sos?</h3>
+        <button class="close-btn" id="closeYo" title="Cerrar">×</button>
+      </div>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es la fila donde podés pedir cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
+      <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
+      <div id="yoList"></div>
     </div>
   </div>
   <div class="palette-overlay" id="personOverlay">
@@ -1604,6 +1717,27 @@
     function saveComments() {
       try { localStorage.setItem(commentsKey(currentMes), JSON.stringify(commentsMap)); } catch (e) {}
     }
+    function getComment(pi, di) {
+      const v = commentsMap[pi + ":" + di];
+      return v ? String(v) : "";
+    }
+    function setComment(pi, di, text) {
+      const t = (text || "").trim();
+      const key = pi + ":" + di;
+      if (t) commentsMap[key] = t;
+      else delete commentsMap[key];
+      saveComments();
+    }
+    // Saca las notas automáticas de los acuerdos ("Cambio con …", "Cambio de franco con …")
+    function sinNotaCambio(text) {
+      return String(text || "").split(" · ").filter(x => !/^Cambio (de franco )?con /.test(x.trim())).join(" · ").trim();
+    }
+    function limpiarNotaCambio(pi, di) {
+      const c = getComment(pi, di);
+      if (!c) return;
+      const n = sinNotaCambio(c);
+      if (n !== c) setComment(pi, di, n);
+    }
     function cellComment(pi, di) {
       return (commentsMap[pi + ":" + di] || "").trim();
     }
@@ -1615,6 +1749,7 @@
       return false;
     }
     function markComment(el, pi, fromDi, toDi) {
+      if (pedidosMode) return;
       if (!rangeHasComment(pi, fromDi, toDi)) return;
       el.classList.add("has-comment");
       const dot = document.createElement("span");
@@ -1643,6 +1778,18 @@
     // Modo de vista: "actual" (editable), "oficial" (última publicada, solo lectura)
     // o "inicial" (la programación de arranque del mes, solo lectura)
     let viewMode = "actual";
+    // Estado de "Cambios" (pedidos de cambio de turno entre jefes)
+    let pedidosMode = false;
+    let PED_CODES = [];
+    const pedidosDocs = {};   // docId -> datos
+    let miLegajo = "";
+    try { miLegajo = localStorage.getItem("jefYo") || ""; } catch (e) {}
+    let PED_REF = {};         // PED_REF["pi:di"] = día (0-based) del pedido de franco que ofrece ese día
+    let pedCompacto = true, pedSoloSirven = false;
+    try {
+      pedCompacto = localStorage.getItem("jefPedTodo") !== "1";
+      pedSoloSirven = localStorage.getItem("jefPedSirven") === "1";
+    } catch (e) {}
     let selectedDay = null; // índice de día (0-based) o null = mes completo
     let daySortByShift = false;
     const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","IN","N/P","N","NC","F"];
@@ -1702,6 +1849,7 @@
     };
 
 
+    function fgFor(code, bg) { return getTextColor(bg); }
     function getTextColor(bg) {
       if (!bg || ["#FFFFFF","#F2F2F2","#C6EFCE","#FFC7CE","#BDD7EE","#E2D5F1","#FFD966"].includes(bg)) return "#1a1a1a";
       const hex = bg.replace("#","");
@@ -1768,6 +1916,7 @@
 
     // Según el modo de vista actual, de dónde sacar los códigos de una persona
     function codesFor(pi) {
+      if (pedidosMode) return PED_CODES[pi] || [];
       if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
       if (viewMode === "cj") return CJ_CODES[pi] || ORIGINAL_CODES[pi] || [];
       if (viewMode === "oficial") return ORIGINAL_CODES[pi] || [];
@@ -1777,6 +1926,7 @@
     // Marca de una celda: "own" = cambio personal sin publicar (ámbar),
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
     function cellMark(pi, di) {
+      if (pedidosMode) return "";
       if (viewMode === "inicial") return "";
       if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return "cj";
       const shown = (codesFor(pi)[di] || "");
@@ -1786,6 +1936,11 @@
       return "";
     }
     function markClass(pi, di) {
+      if (pedidosMode) {
+        const pp = people[pi];
+        const d = pp && pedidoDe(pp.id, di);
+        return d && d.respuestas && Object.keys(d.respuestas).length ? "con-resp" : "";
+      }
       const m = cellMark(pi, di);
       return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : ""));
     }
@@ -1806,9 +1961,10 @@
     function buildRow(person, pi) {
       const tr = document.createElement("tr");
       tr.dataset.pi = String(pi);
+      const miFila = pedidosMode && miLegajo && String(person.id) === String(miLegajo) ? " mi-fila" : "";
       tr.innerHTML = `
-        <td class="sticky-col person-id" data-pi="${pi}">${person.id}</td>
-        <td class="sticky-col-2 person-name" data-pi="${pi}">${person.name}</td>
+        <td class="sticky-col person-id${miFila}" data-pi="${pi}">${person.id}</td>
+        <td class="sticky-col-2 person-name${miFila}" data-pi="${pi}">${person.name}</td>
       `;
       const codesArr = codesFor(pi);
       const onlyDay = selectedDay !== null;
@@ -1823,7 +1979,7 @@
         td.dataset.di = String(di);
         if (onlyDay) td.classList.add("day-only");
 
-        if (isBlock && !onlyDay) {
+        if (isBlock && !onlyDay && !pedidosMode) {
           let runEnd = di;
           while (
             runEnd + 1 < codesArr.length &&
@@ -1862,6 +2018,7 @@
         const mk = markClass(pi, di);
         if (mk) td.classList.add(mk);
         markComment(td, pi, di);
+        if (pedidosMode && code) marcarCeldaPedido(td, person.id, di);
         tr.appendChild(td);
         di++;
       }
@@ -1920,7 +2077,8 @@
     }
 
     function renderGroups() {
-      if (viewMode === "cj") rebuildCj();
+      if (pedidosMode) rebuildPedidos();
+      else if (viewMode === "cj") rebuildCj();
       if (selectedDay === null) {
         const wrapEl = document.getElementById("scheduleWrap");
         const keepTop = wrapEl.scrollTop, keepLeft = wrapEl.scrollLeft;
@@ -1931,6 +2089,7 @@
           if (pi < groupSplit()) g1.appendChild(row);
           else g2.appendChild(row);
         });
+        compactarPedidos();
         // Al redibujar no se pierde la posición (antes volvía al tope un instante)
         wrapEl.scrollTop = keepTop;
         wrapEl.scrollLeft = keepLeft;
@@ -2116,6 +2275,7 @@
       renderGroups();
       buildShiftGrid();
       applyColors();
+      if (typeof aplicarAcuerdos === "function") aplicarAcuerdos();
     }
 
     // Vuelve a traer el JSON del mes que se está viendo (auto-actualización)
@@ -2234,6 +2394,7 @@
         try { leaveInicialView(); } catch (e) {}
       }
       try { applyNamesHidden(); } catch (e) {}
+      try { updatePedidosBar(); } catch (e) {}
     }
     setAdminUI();
     const loginOverlay = document.getElementById("loginOverlay");
@@ -2415,7 +2576,8 @@
         if (!isAdmin) leaveInicialView();
         setAdminUI();
         updatePublishBtn();
-        if (isAdmin) startCjListener(); else stopCjListener();
+        if (isAdmin) { startCjListener(); startCelularesListener(); } else { stopCjListener(); stopCelularesListener(); }
+        if (u) startYoSync(u);
         if (u && u.isAnonymous) AVAILABLE_MESES.forEach(k => syncCj(k));
       });
     }
@@ -2720,6 +2882,7 @@
     buildShiftGrid();
 
     function openShiftPicker(pi, di) {
+      if (pedidosMode) { openPedido(pi, di); return; }
       if (viewMode !== "actual") return;
       shiftPersonIdx = pi;
       shiftDayIdx = di;
@@ -2813,7 +2976,7 @@
     }
 
     document.addEventListener("click", (e) => {
-      if (viewMode !== "actual") return;
+      if (viewMode !== "actual" || pedidosMode) return;
       if (e.target.closest("#shiftOverlay")) return;
       if (e.target.closest("thead")) return;
       const td = e.target.closest("td[data-pi][data-di]");
@@ -3191,6 +3354,872 @@
       if (!cell) return;
       openPersonCalendar(Number(cell.dataset.pi));
     });
+
+    // ========== PEDIDOS DE CAMBIO DE TURNO ==========
+    // Colección "pedidos_jefes": un documento por pedido (mes_legajo_día). Todos leen y escriben.
+    // Cada pedido dice qué turno BUSCA el jefe; lo que OFRECE es su turno oficial de ese día.
+    // Nunca modifica la programación oficial.
+    const PED_COLLECTION = "pedidos_jefes";
+    let pedUnsub = null;
+    let pedPi = null, pedDi = null;
+
+    function pedDocId(mes, id, di) { return mes + "_" + id + "_" + (di + 1); }
+    function pedidoDe(id, di) {
+      const d = pedidosDocs[pedDocId(currentMes, id, di)];
+      return d && d.quiere && d.estado !== "acordado" ? d : null;
+    }
+    function rebuildPedidos() {
+      PED_REF = {};
+      PED_CODES = people.map((p, pi) => {
+        const arr = Array(DAYS).fill("");
+        for (let di = 0; di < DAYS; di++) {
+          const d = pedidoDe(p.id, di);
+          if (d) arr[di] = String(d.ofrece || "?").toUpperCase();
+        }
+        for (let di = 0; di < DAYS; di++) {
+          const d = pedidoDe(p.id, di);
+          if (!esFranco(d)) continue;
+          d.francos.forEach(n => {
+            const od = n - 1;
+            if (od < 0 || od >= DAYS || arr[od]) return;
+            arr[od] = "F";
+            PED_REF[pi + ":" + od] = di;
+          });
+        }
+        return arr;
+      });
+    }
+    function refDia(pi, di) {
+      const r = PED_REF[pi + ":" + di];
+      return r == null ? null : r;
+    }
+    function miPersona() {
+      if (!miLegajo) return null;
+      const pi = people.findIndex(p => String(p.id) === String(miLegajo));
+      return pi < 0 ? null : { pi, p: people[pi] };
+    }
+    function oficialDe(pi, di) { return String(((ORIGINAL_CODES[pi] || [])[di]) || "").toUpperCase(); }
+    // Lo que figura en ESTE celular (programación oficial + cambios cargados acá)
+    function actualDe(pi, di) { return String(((people[pi] && people[pi].codes) || [])[di] || "").toUpperCase(); }
+    let pedTengoSel = "";
+    let pedFrancoMode = false;
+    let pedFrancosSel = [];
+    const NO_TRABAJA = ["", "F", "LAO", "LIC", "10A", "10J", "C/A"];
+    function trabaja(code) { return NO_TRABAJA.indexOf(String(code || "").toUpperCase()) < 0; }
+    function esFranco(d) { return d && d.tipo === "franco" && Array.isArray(d.francos) && d.francos.length; }
+    // Francos ofrecidos que le sirven a quien mira: él tiene F el día pedido y trabaja ese día ofrecido
+    function francosQueSirven(d, di, me) {
+      if (!me || !esFranco(d) || actualDe(me.pi, di) !== "F") return [];
+      return d.francos.filter(n => trabaja(actualDe(me.pi, n - 1)));
+    }
+    function diaCorto(n) { return DAY_LABELS[n - 1] ? DAY_LABELS[n - 1].split(" ")[0] + " " + n + "/" + MES.m : String(n); }
+    function marcarCeldaPedido(td, id, di) {
+      let d = pedidoDe(id, di);
+      const me = miPersona();
+      if (!d) {
+        // Día de franco ofrecido: arriba F, abajo "x 11" (por el día que pide)
+        const pi = people.findIndex(pp => String(pp.id) === String(id));
+        const src = refDia(pi, di);
+        if (src == null) return;
+        d = pedidoDe(id, src);
+        if (!d) return;
+        td.classList.add("ped-cell");
+        const sp = document.createElement("span");
+        sp.className = "ped-da";
+        const cubre = String(d.ofrece || "").toUpperCase();
+        sp.textContent = (cubre ? cubre + " " : "x ") + (src + 1);
+        const bgC = colorMap[cubre] || "#e2e8f0";
+        sp.style.background = bgC;
+        sp.style.color = cubre ? fgFor(cubre, bgC) : "#334155";
+        td.appendChild(sp);
+        if (me && String(me.p.id) !== String(id) && actualDe(me.pi, src) === "F" && trabaja(actualDe(me.pi, di))) td.classList.add("te-sirve");
+        return;
+      }
+      const fr = esFranco(d);
+      const pide = String(d.quiere || "").toUpperCase();
+      td.classList.add("ped-cell");
+      const sp = document.createElement("span");
+      sp.className = "ped-da";
+      sp.textContent = pide || "·";
+      const bg = colorMap[pide] || "#f1f5f9";
+      sp.style.background = bg;
+      sp.style.color = pide ? fgFor(pide, bg) : "#94a3b8";
+      td.appendChild(sp);
+      // Verde: a quien mira le sirve (ese día tiene justo el turno que se pide)
+      if (me && String(me.p.id) !== String(id)) {
+        if (fr ? francosQueSirven(d, di, me).length : actualDe(me.pi, di) === pide) td.classList.add("te-sirve");
+      }
+    }
+    function pill(code) {
+      const c = String(code || "").toUpperCase();
+      if (!c) return '<span class="pill" style="background:#f1f5f9;color:#94a3b8">·</span>';
+      const bg = colorMap[c] || "#e2e8f0";
+      return '<span class="pill" style="background:' + bg + ';color:' + fgFor(c, bg) + '">' + c + "</span>";
+    }
+    function fechaTxt(di) {
+      return DAY_LABELS[di].split(" ")[0] + " " + (di + 1) + "/" + MES.m;
+    }
+    function updatePedidosBar() {
+      const me = miPersona();
+      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado").length;
+      const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
+      document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
+      document.getElementById("pedidosLabel").textContent =
+        n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : "");
+      const btnYo = document.getElementById("btnYo");
+      btnYo.textContent = me ? "Cambiar" : "¿Quién sos?";
+      // Una vez elegido, solo el admin (logueado en ese celular) lo puede cambiar
+      btnYo.style.display = me && currentUser !== "ADMIN" ? "none" : "";
+    }
+
+    function startPedidos() {
+      if (pedUnsub || !fbReady) return;
+      pedUnsub = fbDb.collection(PED_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete pedidosDocs[ch.doc.id];
+          else pedidosDocs[ch.doc.id] = ch.doc.data();
+        });
+        aplicarAcuerdos();
+        if (document.getElementById("acuerdosOverlay").classList.contains("open")) renderAcuerdos();
+        if (pedidosMode) {
+          refreshAfterEdit();
+          if (document.getElementById("pedidoOverlay").classList.contains("open") && pedPi !== null) openPedido(pedPi, pedDi);
+        }
+        updatePedidosBar();
+      }, err => console.warn("Pedidos:", err));
+    }
+
+    // Vista compacta: solo filas y días con algo publicado (y la fila propia)
+    function compactarPedidos() {
+      const vacio = document.getElementById("pedidosVacio");
+      if (vacio) { vacio.classList.remove("show"); vacio.textContent = ""; }
+      // Las dos tablas son fijas: primero se vuelve a mostrar todo
+      document.querySelectorAll("#scheduleWrap .grp-card").forEach(card => {
+        card.style.display = "";
+        card.querySelectorAll("th[data-di], td[data-di]").forEach(c => { c.style.display = ""; });
+        const tb = card.querySelector("table");
+        if (tb) tb.style.removeProperty("--days-total");
+      });
+      if (!pedidosMode || selectedDay !== null) return;
+      const filtrar = pedCompacto || pedSoloSirven;
+      if (!filtrar) return;
+      const me = miPersona();
+      const rows = new Set(), cols = new Set();
+      if (pedSoloSirven) {
+        document.querySelectorAll("#scheduleWrap td.te-sirve").forEach(td => {
+          rows.add(Number(td.dataset.pi)); cols.add(Number(td.dataset.di));
+        });
+      } else {
+        PED_CODES.forEach((arr, pi) => (arr || []).forEach((c, di) => {
+          if (c) { rows.add(pi); cols.add(di); }
+        }));
+        if (me) rows.add(me.pi);
+      }
+      document.querySelectorAll("#scheduleWrap .grp-card").forEach(card => {
+        let visibles = 0;
+        card.querySelectorAll("tbody tr").forEach(tr => {
+          const ok = rows.has(Number(tr.dataset.pi));
+          tr.style.display = ok ? "" : "none";
+          if (ok) visibles++;
+        });
+        card.querySelectorAll("th[data-di], td[data-di]").forEach(c => {
+          c.style.display = cols.has(Number(c.dataset.di)) ? "" : "none";
+        });
+        card.style.display = visibles ? "" : "none";
+        const tb = card.querySelector("table");
+        if (tb) tb.style.setProperty("--days-total", (cols.size * 42) + "px");
+      });
+      if (!cols.size && vacio) {
+        vacio.textContent = pedSoloSirven
+          ? "Por ahora ningún cambio publicado te sirve."
+          : "Todavía no hay cambios publicados. Para pedir uno, tocá tu nombre o \"Ver todo\".";
+        vacio.classList.add("show");
+      }
+    }
+    function updateChips() {
+      document.getElementById("btnSirven").classList.toggle("on", pedSoloSirven);
+      const vt = document.getElementById("btnVerTodo");
+      vt.classList.toggle("on", !pedCompacto);
+      vt.textContent = pedCompacto ? "Ver todo" : "Compacto";
+    }
+    document.getElementById("btnSirven").addEventListener("click", () => {
+      pedSoloSirven = !pedSoloSirven;
+      if (pedSoloSirven) pedCompacto = true;
+      try { localStorage.setItem("jefPedSirven", pedSoloSirven ? "1" : "0"); localStorage.setItem("jefPedTodo", pedCompacto ? "0" : "1"); } catch (e) {}
+      updateChips(); refreshAfterEdit();
+    });
+    document.getElementById("btnVerTodo").addEventListener("click", () => {
+      pedCompacto = !pedCompacto;
+      if (!pedCompacto) pedSoloSirven = false;
+      try { localStorage.setItem("jefPedTodo", pedCompacto ? "0" : "1"); localStorage.setItem("jefPedSirven", pedSoloSirven ? "1" : "0"); } catch (e) {}
+      updateChips(); refreshAfterEdit();
+    });
+    // Tocar tu propio nombre en modo Cambios: muestra todos tus días para poder pedir
+    document.addEventListener("click", (e) => {
+      if (!pedidosMode) return;
+      const td = e.target.closest("td.person-name.mi-fila, td.person-id.mi-fila");
+      if (!td) return;
+      e.stopPropagation();
+      pedCompacto = false; pedSoloSirven = false;
+      try { localStorage.setItem("jefPedTodo", "1"); localStorage.setItem("jefPedSirven", "0"); } catch (e) {}
+      updateChips(); refreshAfterEdit();
+      const tr = document.querySelector('#scheduleWrap tr[data-pi="' + td.dataset.pi + '"]');
+      if (tr) tr.scrollIntoView({ block: "center" });
+    }, true);
+    function setPedidosMode(on) {
+      pedidosMode = on;
+      document.body.classList.toggle("pedidos-on", on);
+      if (on) { startPedidos(); updatePedidosBar(); updateChips(); }
+      refreshAfterEdit();
+      if (on && !miPersona()) openYo();
+    }
+    document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
+    document.getElementById("btnSalirPedidos").addEventListener("click", () => setPedidosMode(false));
+
+    // --- ¿Quién sos? ---
+    const yoOverlay = document.getElementById("yoOverlay");
+    function renderYoList() {
+      const q = document.getElementById("yoSearch").value.trim().toLowerCase();
+      const list = document.getElementById("yoList");
+      list.innerHTML = "";
+      people.forEach(p => {
+        const txt = (p.name + " " + p.id).toLowerCase();
+        if (q && txt.indexOf(q) < 0) return;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = p.name + "<span>" + p.id + "</span>";
+        b.addEventListener("click", () => {
+          const msgYo = currentUser === "ADMIN"
+            ? "¿Asignar este celular a " + p.name + " (" + p.id + ")?"
+            : "¿Sos " + p.name + " (" + p.id + ")?\n\nQueda guardado en este celular y después solo lo puede cambiar el administrador.";
+          if (!confirm(msgYo)) return;
+          b.disabled = true;
+          const prevTxt = b.innerHTML;
+          b.innerHTML = "Reservando…";
+          reservarLegajo(p.id, p.name).then(ok => {
+            b.disabled = false;
+            b.innerHTML = prevTxt;
+            if (ok === null) return;
+            if (!ok) {
+              alert(p.name + " ya está en uso en otro celular.\n\nSi sos vos, pedile al administrador que lo libere.");
+              return;
+            }
+            const anterior = miLegajo;
+            miLegajo = String(p.id);
+            try { localStorage.setItem("jefYo", miLegajo); } catch (e) {}
+            if (anterior && anterior !== miLegajo) soltarLegajo(anterior);
+            registrarYo(true);
+            yoOverlay.classList.remove("open");
+            aplicarAcuerdos();
+            updatePedidosBar();
+            refreshAfterEdit();
+          });
+        });
+        list.appendChild(b);
+      });
+    }
+    function openYo() {
+      if (miPersona() && currentUser !== "ADMIN") return;
+      document.getElementById("yoSearch").value = "";
+      renderYoList();
+      yoOverlay.classList.add("open");
+    }
+    document.getElementById("yoSearch").addEventListener("input", renderYoList);
+    document.getElementById("btnYo").addEventListener("click", openYo);
+    document.getElementById("closeYo").addEventListener("click", () => yoOverlay.classList.remove("open"));
+
+    // --- Cuadro de pedido ---
+    const pedidoOverlay = document.getElementById("pedidoOverlay");
+    function openPedido(pi, di) {
+      const p = people[pi];
+      if (!p) return;
+      if (!pedidoDe(p.id, di) && refDia(pi, di) != null) di = refDia(pi, di);
+      pedPi = pi; pedDi = di;
+      const me = miPersona();
+      const esMio = me && me.pi === pi;
+      const ped = pedidoDe(p.id, di);
+      const ofrece = oficialDe(pi, di);
+      const body = document.getElementById("pedidoBody");
+      const grid = document.getElementById("pedidoGrid");
+      const acts = document.getElementById("pedidoActions");
+      document.getElementById("pedidoTitle").textContent = p.name + " · " + fechaTxt(di);
+      grid.innerHTML = "";
+
+      const tengoEl = document.getElementById("pedidoTengo");
+      tengoEl.innerHTML = "";
+      const showGrids = !!esMio;
+      ["pedidoGridLbl", "pedidoGrid"].forEach(x => {
+        document.getElementById(x).style.display = showGrids ? "" : "none";
+      });
+      // Lo que se ofrece es siempre lo que el jefe tiene cargado en su celular ese día
+      ["pedidoTengoLbl", "pedidoTengo"].forEach(x => { document.getElementById(x).style.display = "none"; });
+      const frEl = document.getElementById("pedidoFrancos");
+      frEl.innerHTML = "";
+      frEl.style.display = "none";
+      document.getElementById("pedidoFrancosLbl").style.display = "none";
+
+      if (esMio) {
+        pedTengoSel = actualDe(pi, di);
+        // Si cambió su turno en el celular después de pedir, se actualiza lo que ofrece
+        if (ped && pedTengoSel && String(ped.ofrece || "").toUpperCase() !== pedTengoSel) {
+          guardarPedido(pi, di, ped.quiere, esFranco(ped) ? ped.francos : null);
+          return;
+        }
+        pedidoOverlay.dataset.k = pi + ":" + di;
+        pedPi = pi; pedDi = di;
+        if (pedidoOverlay.dataset.fk !== pi + ":" + di) {
+          pedidoOverlay.dataset.fk = pi + ":" + di;
+          pedFrancoMode = !!esFranco(ped);
+          pedFrancosSel = esFranco(ped) ? ped.francos.slice() : [];
+        }
+        if (esFranco(ped)) {
+          body.innerHTML = '<div class="ped-info">Pedís franco y ofrecés tu franco del ' + ped.francos.join(", ") +
+            '. Te tienen que cubrir ' + pill(ped.ofrece || pedTengoSel) + '.</div>';
+        } else {
+          body.innerHTML = '<div class="ped-info">' +
+            (ped ? 'Pedís ' + pill(ped.quiere) + ' y ofrecés ' + pill(ped.ofrece || pedTengoSel) + '.'
+                 : 'Ese día tenés ' + pill(pedTengoSel) + '. Elegí lo que necesitás.') + '</div>';
+        }
+        const resps = ped && ped.respuestas ? Object.values(ped.respuestas) : [];
+        if (resps.length) {
+          const lbl = document.createElement("div");
+          lbl.className = "ped-lbl";
+          lbl.textContent = resps.length === 1 ? "Le sirve a" : "Les sirve a";
+          body.appendChild(lbl);
+          resps.sort((a, b) => (a.t || 0) - (b.t || 0)).forEach(r => {
+            const row = document.createElement("div");
+            row.className = "ped-resp";
+            row.innerHTML = esFranco(ped)
+              ? '<span>' + r.name + ': toma tu franco del ' + r.dia + ' (vos hacés su ' + r.deja + ') y te cubre ' + (ped.ofrece || pedTengoSel) + '</span>'
+              : '<span>' + r.name + ' te da ' + (r.tiene || ped.quiere) + ', vos le das ' + (ped.ofrece || pedTengoSel) + '</span>';
+            const b = document.createElement("button");
+            b.type = "button"; b.className = "ped-act"; b.textContent = "Confirmar";
+            b.addEventListener("click", () => confirmarAcuerdo(pi, di, r));
+            row.appendChild(b);
+            body.appendChild(row);
+          });
+        }
+        const opciones = ALL_SHIFT_CODES.filter(c => BLOCK_CODES.indexOf(c) < 0);
+        const mkOpt = (code, sel, fn) => {
+          const opt = document.createElement("div");
+          opt.className = "shift-option" + (sel ? " selected" : "");
+          opt.textContent = code;
+          const bg = colorMap[code];
+          if (bg) { opt.style.background = bg; opt.style.color = fgFor(code, bg); }
+          opt.addEventListener("click", fn);
+          return opt;
+        };
+        const tengoList = opciones.slice();
+        if (pedTengoSel && tengoList.indexOf(pedTengoSel) < 0) tengoList.unshift(pedTengoSel);
+        tengoList.forEach(code => tengoEl.appendChild(mkOpt(code, code === pedTengoSel, () => {
+          pedTengoSel = code;
+          if (ped && ped.quiere === code) { openPedido(pi, di); return; }
+          if (ped) guardarPedido(pi, di, ped.quiere, esFranco(ped) ? ped.francos : null); else openPedido(pi, di);
+        })));
+        opciones.forEach(code => {
+          if (code === pedTengoSel) return;
+          const sel = pedFrancoMode ? code === "F" : (ped && ped.quiere === code);
+          grid.appendChild(mkOpt(code, sel, () => {
+            if (code === "F") {
+              pedFrancoMode = true;
+              if (pedFrancosSel.length) guardarPedido(pi, di, "F", pedFrancosSel); else openPedido(pi, di);
+              return;
+            }
+            pedFrancoMode = false; pedFrancosSel = [];
+            guardarPedido(pi, di, code);
+          }));
+        });
+        if (pedFrancoMode) {
+          const misFrancos = [];
+          for (let d = 0; d < DAYS; d++) if (d !== di && actualDe(pi, d) === "F") misFrancos.push(d + 1);
+          document.getElementById("pedidoFrancosLbl").style.display = "";
+          frEl.style.display = "";
+          if (!misFrancos.length) {
+            frEl.style.display = "block";
+            frEl.innerHTML = '<div class="ped-note info">No tenés otros francos este mes para ofrecer.</div>';
+          }
+          misFrancos.forEach(n => {
+            const b = document.createElement("div");
+            b.className = "fr-opt" + (pedFrancosSel.indexOf(n) >= 0 ? " selected" : "");
+            b.innerHTML = n + "<small>" + DAY_LABELS[n - 1].split(" ")[0] + "</small>";
+            b.addEventListener("click", () => {
+              const i = pedFrancosSel.indexOf(n);
+              if (i >= 0) pedFrancosSel.splice(i, 1); else pedFrancosSel.push(n);
+              pedFrancosSel.sort((a, c) => a - c);
+              if (pedFrancosSel.length) guardarPedido(pi, di, "F", pedFrancosSel);
+              else if (ped) { quitarPedidoDoc(pi, di, true); }
+              else openPedido(pi, di);
+            });
+            frEl.appendChild(b);
+          });
+          if (!ped && misFrancos.length) {
+            body.innerHTML = '<div class="ped-info">Pedís franco el ' + fechaTxt(di) + '. Marcá qué francos tuyos ofrecés a cambio.</div>';
+          }
+        }
+        document.getElementById("quitarPedido").style.display = ped ? "" : "none";
+        acts.style.display = "flex";
+        pedidoOverlay.classList.add("open");
+        return;
+      }
+
+      if (!ped) {
+        if (!me) { openYo(); return; }
+        return; // celda vacía de otro jefe: nada para mostrar
+      }
+      if (esFranco(ped)) {
+        body.innerHTML = '<div class="ped-info">Pide franco. Hay que cubrirle ' + pill(ped.ofrece || ofrece) +
+          '<br>Ofrece su franco del ' + ped.francos.join(", ") + '</div>';
+        if (me) {
+          const yaResp = ped.respuestas && ped.respuestas[me.p.id];
+          const tieneF = actualDe(me.pi, di) === "F";
+          if (!tieneF && !yaResp) {
+            body.insertAdjacentHTML("beforeend", '<div class="ped-note info">Ese día vos tenés ' + (actualDe(me.pi, di) || "—") + ', no franco: no podés tomar este cambio.</div>');
+          }
+          ped.francos.forEach(n => {
+            const deja = actualDe(me.pi, n - 1);
+            const sirve = tieneF && trabaja(deja);
+            const elegido = yaResp && Number(yaResp.dia) === n;
+            const row = document.createElement("div");
+            row.className = "ped-opc" + (sirve || elegido ? " ok" : "");
+            row.innerHTML = "<b>Franco del " + diaCorto(n) + "</b><br>" +
+              (sirve || elegido
+                ? "Te quedás con franco el " + n + " (dejás tu " + (elegido ? yaResp.deja : deja) + "). A cambio, el " + (di + 1) + " trabajás " + (ped.ofrece || ofrece) + "."
+                : "Ese día vos tenés " + (deja || "—") + ".");
+            if (elegido || (sirve && !yaResp)) {
+              const b = document.createElement("button");
+              b.type = "button"; b.className = "ped-act" + (elegido ? " sec" : "");
+              b.textContent = elegido ? "Ya no me sirve" : "Me sirve";
+              b.style.cssText = "width:100%;margin-top:8px";
+              b.addEventListener("click", () => responderPedido(pi, di, !elegido, elegido ? null : { dia: n, deja }));
+              row.appendChild(b);
+            }
+            body.appendChild(row);
+          });
+          if (yaResp) body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve el franco del ' + yaResp.dia + '. Falta que ' + p.name + ' confirme.</div>');
+        }
+        acts.style.display = "flex";
+        document.getElementById("quitarPedido").style.display = "none";
+        pedidoOverlay.classList.add("open");
+        return;
+      }
+      let nota = "";
+      let accion = null;
+      if (me) {
+        const yoTengo = actualDe(me.pi, di);
+        const yaResp = ped.respuestas && ped.respuestas[me.p.id];
+        if (yaResp) {
+          nota = '<div class="ped-note ok">Le avisaste que te sirve. Falta que ' + p.name + ' confirme.</div>';
+          accion = { txt: "Ya no me sirve", sec: true, fn: () => responderPedido(pi, di, false) };
+        } else if (yoTengo && yoTengo === String(ped.quiere).toUpperCase()) {
+          nota = '<div class="ped-note ok">Vos tenés ' + yoTengo + ' ese día: este cambio te sirve.</div>';
+          accion = { txt: "Me sirve", fn: () => responderPedido(pi, di, true) };
+        } else {
+          nota = '<div class="ped-note info">Ese día vos tenés ' + (yoTengo || "—") + '.</div>';
+        }
+      }
+      body.innerHTML = '<div class="ped-info">Pide ' + pill(ped.quiere) + '<br>Ofrece ' + pill(ped.ofrece || ofrece) + '</div>' + nota;
+      if (accion) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ped-act" + (accion.sec ? " sec" : ""); b.textContent = accion.txt;
+        b.style.cssText = "width:100%;margin-top:10px";
+        b.addEventListener("click", accion.fn);
+        body.appendChild(b);
+      }
+      acts.style.display = "flex";
+      document.getElementById("quitarPedido").style.display = "none";
+      pedidoOverlay.classList.add("open");
+    }
+    function errPed(err) {
+      refreshAfterEdit();
+      alert(err && err.code === "permission-denied"
+        ? "Firebase no deja guardar (revisá las reglas de pedidos_jefes)."
+        : "No se pudo guardar. Revisá la conexión.");
+    }
+    // Otro jefe avisa que el pedido le sirve (o lo retira)
+    function responderPedido(pi, di, si, extra) {
+      const me = miPersona();
+      if (!me) { openYo(); return; }
+      const id = pedDocId(currentMes, people[pi].id, di);
+      const d = pedidosDocs[id];
+      if (!d) return;
+      const u = fbAuth && fbAuth.currentUser;
+      const resp = Object.assign({}, d.respuestas || {});
+      if (si) resp[me.p.id] = Object.assign({ id: String(me.p.id), name: me.p.name, tiene: actualDe(me.pi, di), uid: u ? u.uid : "", t: Date.now() }, extra || {});
+      else delete resp[me.p.id];
+      d.respuestas = resp;
+      openPedido(pi, di);
+      refreshAfterEdit();
+      fbDb.collection(PED_COLLECTION).doc(id).update({ respuestas: resp }).catch(errPed);
+    }
+    // El que pidió confirma con uno de los que respondieron: queda como acuerdo cerrado
+    function confirmarAcuerdo(pi, di, r) {
+      const p = people[pi];
+      const id = pedDocId(currentMes, p.id, di);
+      const d = pedidosDocs[id];
+      if (!d) return;
+      const ofrece = d.ofrece || actualDe(pi, di);
+      const recibe = r.tiene || d.quiere;
+      if (esFranco(d)) {
+        const n = Number(r.dia);
+        if (!confirm("¿Confirmar el cambio de franco?\n\n" +
+          "Día " + (di + 1) + ": " + p.name + " pasa a F · " + r.name + " pasa a " + ofrece + "\n" +
+          "Día " + n + ": " + p.name + " pasa a " + r.deja + " · " + r.name + " pasa a F\n\n" +
+          "Se carga en el celular de los dos. La programación oficial la actualiza el admin.")) return;
+        const t = Date.now();
+        const acuId = "acuerdo_" + id + "_" + t;
+        const acu = { tipo: "franco", mes: currentMes, dia: di + 1, dia2: n, estado: "acordado", t,
+          id: String(p.id), name: p.name, quiere: "F", ofrece, cubre: r.deja,
+          con: { id: String(r.id), name: r.name, tiene: "F", recibe: ofrece, deja: r.deja } };
+        delete pedidosDocs[id];
+        pedidosDocs[acuId] = acu;
+        closePedido();
+        aplicarAcuerdos();
+        refreshAfterEdit();
+        const batch = fbDb.batch();
+        batch.set(fbDb.collection(PED_COLLECTION).doc(acuId), acu);
+        batch.delete(fbDb.collection(PED_COLLECTION).doc(id));
+        batch.commit().then(() => showShareToast("Cambio de franco confirmado con " + r.name)).catch(errPed);
+        return;
+      }
+      if (!confirm("¿Confirmar el cambio del " + fechaTxt(di) + "?\n\n" + p.name + " pasa a " + recibe + "\n" + r.name + " pasa a " + ofrece + "\n\nSe carga en el celular de los dos. La programación oficial la actualiza el admin.")) return;
+      const t = Date.now();
+      const acuId = "acuerdo_" + id + "_" + t;
+      const acu = { mes: currentMes, dia: di + 1, estado: "acordado", t,
+        id: String(p.id), name: p.name, quiere: recibe, ofrece,
+        con: { id: String(r.id), name: r.name, tiene: recibe, recibe: ofrece } };
+      delete pedidosDocs[id];
+      pedidosDocs[acuId] = acu;
+      closePedido();
+      aplicarAcuerdos();
+      refreshAfterEdit();
+      const batch = fbDb.batch();
+      batch.set(fbDb.collection(PED_COLLECTION).doc(acuId), acu);
+      batch.delete(fbDb.collection(PED_COLLECTION).doc(id));
+      batch.commit().then(() => showShareToast("Cambio confirmado con " + r.name)).catch(errPed);
+    }
+    // Carga en ESTE celular los acuerdos donde participa quien lo usa (una sola vez cada uno)
+    function aplicarAcuerdos() {
+      if (!miLegajo) return;
+      let hecho = false;
+      Object.keys(pedidosDocs).forEach(k => {
+        const a = pedidosDocs[k];
+        if (!a || a.estado !== "acordado" || a.mes !== currentMes) return;
+        if (!a.con) return;
+        const soyYo = String(a.id) === String(miLegajo) || String(a.con.id) === String(miLegajo);
+        if (!soyYo) return;
+        const flag = "jefAcu:" + k + ":" + miLegajo;
+        try { if (localStorage.getItem(flag)) return; } catch (e) {}
+        const di = Number(a.dia) - 1;
+        if (!(di >= 0 && di < DAYS)) return;
+        // En el celular de cualquiera de los dos se cargan AMBAS filas
+        let cambios;
+        if (a.tipo === "franco") {
+          const d2 = Number(a.dia2) - 1;
+          if (!(d2 >= 0 && d2 < DAYS)) return;
+          const nA = "Cambio de franco con " + a.con.name + " (" + (di + 1) + ": " + a.ofrece + "→F · " + (d2 + 1) + ": F→" + a.cubre + ")";
+          const nB = "Cambio de franco con " + a.name + " (" + (di + 1) + ": F→" + a.ofrece + " · " + (d2 + 1) + ": " + a.cubre + "→F)";
+          cambios = [
+            { id: a.id, di, code: "F", nota: nA },
+            { id: a.id, di: d2, code: a.cubre, nota: nA },
+            { id: a.con.id, di, code: a.ofrece, nota: nB },
+            { id: a.con.id, di: d2, code: "F", nota: nB }
+          ];
+        } else {
+          cambios = [
+            { id: a.id, di, code: a.quiere, nota: "Cambio con " + a.con.name + " (" + a.ofrece + " → " + a.quiere + ")" },
+            { id: a.con.id, di, code: a.con.recibe, nota: "Cambio con " + a.name + " (" + a.con.tiene + " → " + a.con.recibe + ")" }
+          ];
+        }
+        cambios.forEach(x => {
+          const di = x.di;
+          const pi = people.findIndex(pp => String(pp.id) === String(x.id));
+          if (pi < 0 || !x.code) return;
+          people[pi].codes[di] = x.code;
+          if (x.code === ((ORIGINAL_CODES[pi] || [])[di] || "")) removeEdit(pi, di); else saveEdit(pi, di, x.code);
+          const prevC = getComment(pi, di);
+          if (prevC.indexOf(x.nota) < 0) setComment(pi, di, prevC ? prevC + " · " + x.nota : x.nota);
+        });
+        try { localStorage.setItem(flag, "1"); } catch (e) {}
+        hecho = true;
+      });
+      if (hecho) refreshAfterEdit();
+    }
+    // Lista de acordados para el admin
+    const acuerdosOverlay = document.getElementById("acuerdosOverlay");
+    function renderAcuerdos() {
+      const list = document.getElementById("acuerdosList");
+      const items = Object.keys(pedidosDocs).map(k => ({ k, a: pedidosDocs[k] }))
+        .filter(x => x.a && x.a.estado === "acordado" && x.a.mes === currentMes)
+        .sort((x, y) => (x.a.pasado ? 1 : 0) - (y.a.pasado ? 1 : 0) || x.a.dia - y.a.dia);
+      list.innerHTML = items.length ? "" : '<div class="ped-note info">No hay cambios acordados en ' + MES.nombre.toLowerCase() + '.</div>';
+      items.forEach(({ k, a }) => {
+        const row = document.createElement("div");
+        row.className = "acu-row" + (a.pasado ? " done" : "");
+        const di = Number(a.dia) - 1;
+        row.innerHTML = '<div class="acu-top"><span>' + (DAY_LABELS[di] ? fechaTxt(di) : a.dia) + '</span></div>' +
+          (a.tipo === "franco"
+            ? '<div>Cambio de franco · días ' + a.dia + ' y ' + a.dia2 + '</div>' +
+              '<div>' + a.name + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' F → ' + a.cubre + '</div>' +
+              '<div>' + a.con.name + ': ' + a.dia + ' F → ' + a.ofrece + ' · ' + a.dia2 + ' ' + a.cubre + ' → F</div>'
+            : '<div>' + a.name + ': ' + a.ofrece + ' → ' + a.quiere + '</div>' +
+              '<div>' + a.con.name + ': ' + a.con.tiene + ' → ' + a.con.recibe + '</div>');
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ped-act" + (a.pasado ? " sec" : "");
+        b.textContent = a.pasado ? "Pasado ✓" : "Ya lo pasé";
+        b.addEventListener("click", () => {
+          a.pasado = !a.pasado;
+          renderAcuerdos(); updatePedidosBar();
+          fbDb.collection(PED_COLLECTION).doc(k).update({ pasado: a.pasado }).catch(errPed);
+        });
+        const del = document.createElement("button");
+        del.type = "button"; del.className = "ped-act sec"; del.textContent = "Eliminar";
+        del.addEventListener("click", () => {
+          if (!confirm("¿Eliminar este acuerdo de la lista?\n\nLo que ya se cargó en los celulares de " + a.name + " y " + a.con.name + " queda como está.")) return;
+          const prev = pedidosDocs[k];
+          delete pedidosDocs[k];
+          // En este dispositivo, se borra la nota automática del acuerdo
+          [a.id, a.con && a.con.id].forEach(id => {
+            const pi = people.findIndex(pp => String(pp.id) === String(id));
+            if (pi < 0) return;
+            [a.dia, a.dia2].forEach(n => { if (n) limpiarNotaCambio(pi, Number(n) - 1); });
+          });
+          refreshAfterEdit();
+          renderAcuerdos(); updatePedidosBar();
+          fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
+        });
+        const btns = document.createElement("span");
+        btns.style.cssText = "display:flex;gap:6px";
+        btns.appendChild(b); btns.appendChild(del);
+        row.querySelector(".acu-top").appendChild(btns);
+        list.appendChild(row);
+      });
+    }
+    document.getElementById("btnAcuerdos").addEventListener("click", () => { renderAcuerdos(); acuerdosOverlay.classList.add("open"); });
+    document.getElementById("closeAcuerdos").addEventListener("click", () => acuerdosOverlay.classList.remove("open"));
+    acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
+
+    function guardarPedido(pi, di, code, francos) {
+      const p = people[pi];
+      const id = pedDocId(currentMes, p.id, di);
+      const u = fbAuth && fbAuth.currentUser;
+      const data = { mes: currentMes, id: String(p.id), name: p.name, dia: di + 1, quiere: code, tipo: francos && francos.length ? "franco" : "turno", francos: francos && francos.length ? francos.slice() : null, ofrece: pedTengoSel || actualDe(pi, di), uid: u ? u.uid : "", t: Date.now() };
+      pedidosDocs[id] = data;
+      openPedido(pi, di);
+      refreshAfterEdit();
+      fbDb.collection(PED_COLLECTION).doc(id).set(data).catch(err => {
+        delete pedidosDocs[id];
+        refreshAfterEdit();
+        alert(err && err.code === "permission-denied"
+          ? "Firebase no deja guardar el pedido (faltan las reglas de pedidos_jefes)."
+          : "No se pudo guardar el pedido. Revisá la conexión.");
+      });
+    }
+    function quitarPedidoDoc(pi, di, mantenerAbierto) {
+      const id = pedDocId(currentMes, people[pi].id, di);
+      const prev = pedidosDocs[id];
+      delete pedidosDocs[id];
+      refreshAfterEdit();
+      if (mantenerAbierto) openPedido(pi, di);
+      fbDb.collection(PED_COLLECTION).doc(id).delete().catch(() => {
+        if (prev) pedidosDocs[id] = prev;
+        refreshAfterEdit();
+        alert("No se pudo quitar el pedido.");
+      });
+    }
+    document.getElementById("quitarPedido").addEventListener("click", () => {
+      if (pedPi === null) return;
+      const id = pedDocId(currentMes, people[pedPi].id, pedDi);
+      const prev = pedidosDocs[id];
+      delete pedidosDocs[id];
+      refreshAfterEdit();
+      closePedido();
+      fbDb.collection(PED_COLLECTION).doc(id).delete().catch(() => {
+        if (prev) pedidosDocs[id] = prev;
+        refreshAfterEdit();
+        alert("No se pudo quitar el pedido.");
+      });
+    });
+    function closePedido() { pedidoOverlay.classList.remove("open"); pedPi = null; pedDi = null; pedTengoSel = ""; pedidoOverlay.dataset.k = ""; pedidoOverlay.dataset.fk = ""; pedFrancoMode = false; pedFrancosSel = []; }
+    document.getElementById("closePedido").addEventListener("click", closePedido);
+    document.getElementById("donePedido").addEventListener("click", closePedido);
+    pedidoOverlay.addEventListener("click", (e) => { if (e.target === pedidoOverlay) closePedido(); });
+
+    // En modo pedidos, tocar una celda de día abre el cuadro del pedido
+    document.addEventListener("click", (e) => {
+      if (!pedidosMode) return;
+      if (e.target.closest(".palette-overlay")) return;
+      if (e.target.closest("thead")) return;
+      const td = e.target.closest("td[data-pi][data-di]");
+      if (!td) return;
+      openPedido(Number(td.dataset.pi), Number(td.dataset.di));
+    });
+
+    // ========== REGISTRO DE CADA CELULAR (yo_jefes) ==========
+    // Un documento por celular (id = uid de Firebase) con el nombre que eligió.
+    // Si el admin lo borra ("Liberar"), ese celular vuelve a preguntar "¿Quién sos?".
+    const YO_COLLECTION = "yo_jefes";
+    // Reserva de cada legajo: un solo celular por nombre (legajos_jefes/{legajo} = { uid, ... })
+    const LEG_COLLECTION = "legajos_jefes";
+    function dispositivo() {
+      const ua = navigator.userAgent || "";
+      const so = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android"
+        : /Windows/.test(ua) ? "Windows" : /Mac OS X|Macintosh/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "Otro";
+      const nav = /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera"
+        : /Firefox|FxiOS/.test(ua) ? "Firefox" : /CriOS|Chrome/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "otro navegador";
+      return so + " · " + nav;
+    }
+    // true = reservado para este celular · false = lo tiene otro · null = no se pudo (error / sin conexión)
+    async function reservarLegajo(id, name) {
+      if (!fbReady) return true;
+      if (!yoUid) { alert("Esperá unos segundos a que cargue y probá de nuevo."); return null; }
+      const ref = fbDb.collection(LEG_COLLECTION).doc(String(id));
+      try {
+        const d = await ref.get();
+        if (d.exists && d.data() && d.data().uid !== yoUid) return false;
+      } catch (e) {}
+      try {
+        await ref.set({ uid: yoUid, id: String(id), name: name, t: Date.now() });
+        return true;
+      } catch (err) {
+        if (err && err.code === "permission-denied") return false;
+        alert("No se pudo guardar tu nombre. Revisá la conexión y probá de nuevo.");
+        return null;
+      }
+    }
+    function soltarLegajo(id) {
+      if (!fbReady || !yoUid || !id) return;
+      const ref = fbDb.collection(LEG_COLLECTION).doc(String(id));
+      ref.get().then(d => { if (d.exists && d.data() && d.data().uid === yoUid) return ref.delete(); }).catch(() => {});
+    }
+    // Celulares que eligieron nombre antes del bloqueo: se reserva al abrir. Si ya lo tiene otro, se pierde.
+    async function asegurarReserva() {
+      if (!miLegajo || !yoUid) return;
+      const me = miPersona();
+      const ok = await reservarLegajo(miLegajo, me ? me.p.name : miLegajo);
+      if (ok === false) {
+        try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
+        miLegajo = "";
+        updatePedidosBar();
+        refreshAfterEdit();
+        showShareToast("Tu nombre ya está en uso en otro celular. Avisale al administrador.");
+        return;
+      }
+      if (ok) registrarYo(false);
+    }
+    let yoUid = "", yoUnsub = null;
+    function yoRegKey(uid) { return "jefYoReg:" + uid; }
+    function registrarYo(forzar) {
+      if (!fbReady || !yoUid || !miLegajo) return;
+      let reg = null;
+      try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
+      if (!forzar && reg === String(miLegajo)) return;
+      const me = miPersona();
+      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : String(miLegajo), disp: dispositivo(), t: Date.now() };
+      fbDb.collection(YO_COLLECTION).doc(yoUid).set(data)
+        .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} })
+        .catch(err => console.warn("yo_jefes:", err));
+    }
+    function startYoSync(u) {
+      if (!fbReady || !u || u.uid === yoUid) return;
+      if (yoUnsub) { yoUnsub(); yoUnsub = null; }
+      yoUid = u.uid;
+      asegurarReserva();
+      yoUnsub = fbDb.collection(YO_COLLECTION).doc(yoUid).onSnapshot(d => {
+        if (d.exists) return;
+        let reg = null;
+        try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
+        if (!reg || !miLegajo) return; // nunca se registró: no es una liberación
+        // El admin liberó este celular
+        try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
+        miLegajo = "";
+        updatePedidosBar();
+        refreshAfterEdit();
+        showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos en Pedidos.");
+      }, err => console.warn("yo_jefes:", err));
+    }
+
+    const celularesDocs = {};
+    let celUnsub = null;
+    function startCelularesListener() {
+      if (celUnsub || !fbReady) return;
+      celUnsub = fbDb.collection(YO_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete celularesDocs[ch.doc.id];
+          else celularesDocs[ch.doc.id] = ch.doc.data();
+        });
+        if (celularesOverlay.classList.contains("open")) renderCelulares();
+        updateCelularesBtn();
+      }, err => console.warn("Celulares:", err));
+    }
+    function stopCelularesListener() {
+      if (celUnsub) { celUnsub(); celUnsub = null; }
+      Object.keys(celularesDocs).forEach(k => delete celularesDocs[k]);
+    }
+    function repetidos() {
+      const cnt = {};
+      Object.values(celularesDocs).forEach(d => { if (d && d.id) cnt[d.id] = (cnt[d.id] || 0) + 1; });
+      return cnt;
+    }
+    function updateCelularesBtn() {
+      const cnt = repetidos();
+      const dup = Object.keys(cnt).filter(k => cnt[k] > 1).length;
+      const b = document.getElementById("btnCelulares");
+      if (b) b.textContent = "Celulares" + (dup ? " (" + dup + " ⚠)" : "");
+    }
+    const celularesOverlay = document.getElementById("celularesOverlay");
+    function renderCelulares() {
+      const list = document.getElementById("celularesList");
+      const cnt = repetidos();
+      const items = Object.keys(celularesDocs).map(k => ({ k, d: celularesDocs[k] })).filter(x => x.d)
+        .sort((a, b) => (cnt[b.d.id] > 1) - (cnt[a.d.id] > 1) || String(a.d.name).localeCompare(String(b.d.name)));
+      list.innerHTML = items.length ? "" : '<div class="ped-note info">Todavía ningún celular eligió nombre.</div>';
+      items.forEach(({ k, d }) => {
+        const row = document.createElement("div");
+        row.className = "acu-row";
+        const dup = cnt[d.id] > 1;
+        const f = d.t ? new Date(d.t) : null;
+        const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
+        row.innerHTML = '<div class="acu-top"><span>' + d.name + ' · ' + d.id + '</span></div>' +
+          '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
+          (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ped-act"; b.textContent = "Liberar";
+        b.addEventListener("click", () => {
+          if (!confirm("¿Liberar el celular de " + d.name + "?\n\nLa próxima vez que abra la app le va a preguntar de nuevo quién es.")) return;
+          delete celularesDocs[k];
+          renderCelulares(); updateCelularesBtn();
+          // Se borra la reserva del legajo (si es de este celular) y el registro del celular
+          const legRef = fbDb.collection(LEG_COLLECTION).doc(String(d.id));
+          legRef.get().then(x => { if (x.exists && x.data() && x.data().uid === k) return legRef.delete(); }).catch(() => {});
+          fbDb.collection(YO_COLLECTION).doc(k).delete().catch(err => {
+            celularesDocs[k] = d; renderCelulares(); updateCelularesBtn();
+            alert(err && err.code === "permission-denied"
+              ? "Firebase no deja liberar (faltan las reglas de yo_jefes)."
+              : "No se pudo liberar. Revisá la conexión.");
+          });
+        });
+        row.querySelector(".acu-top").appendChild(b);
+        list.appendChild(row);
+      });
+    }
+    document.getElementById("btnCelulares").addEventListener("click", () => { renderCelulares(); celularesOverlay.classList.add("open"); });
+    document.getElementById("closeCelulares").addEventListener("click", () => celularesOverlay.classList.remove("open"));
+    celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) celularesOverlay.classList.remove("open"); });
+
+
+    function showShareToast(msg) {
+      let t = document.getElementById("shareToast");
+      if (!t) {
+        t = document.createElement("div");
+        t.id = "shareToast";
+        t.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2000;background:#1e293b;color:#fff;padding:10px 16px;border-radius:10px;font-size:0.85rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw;text-align:center;transition:opacity .3s";
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.style.opacity = "1";
+      clearTimeout(t._h);
+      t._h = setTimeout(() => { t.style.opacity = "0"; }, 3500);
+    }
 
     // ========== DESCARGAR EL MES COMO IMAGEN O PDF ==========
     // Dibuja la versión oficial del mes (no las ediciones personales) con el diseño de tarjetas.

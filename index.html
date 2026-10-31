@@ -1402,6 +1402,11 @@
     .fr-opt small { display: block; font-size: 0.6rem; font-weight: 600; opacity: .8; }
     .ped-opc { margin-top: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.82rem; color: #1e293b; }
     .ped-opc.ok { border-color: #86efac; background: #f0fdf4; }
+    #btnPedidos { position: relative; overflow: visible; }
+    #btnPedidos[data-n]::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #dc2626; color: #fff; font-size: 0.65rem; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px #fff; }
+    .aviso-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.85rem; color: #1e293b; line-height: 1.4; }
+    .aviso-row.aviso-r { border-color: #fdba74; background: #fff7ed; }
+    .aviso-row.aviso-c, .aviso-row.aviso-p { border-color: #86efac; background: #f0fdf4; }
     .ped-lbl { margin: 12px 0 6px; font-size: 0.75rem; font-weight: 700; color: #334155; }
     #yoList { display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 8px; }
     #yoList button { text-align: left; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 9px 10px; font-size: 0.85rem; font-weight: 600; color: #1e293b; cursor: pointer; }
@@ -1556,6 +1561,18 @@
       <div class="palette-actions" id="pedidoActions">
         <button class="btn btn-clear" id="quitarPedido">Quitar pedido</button>
         <button class="btn btn-done" id="donePedido">Listo</button>
+      </div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="avisosOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>Novedades de tus cambios</h3>
+        <button class="close-btn" id="closeAvisos" title="Cerrar">×</button>
+      </div>
+      <div id="avisosList"></div>
+      <div class="palette-actions">
+        <button class="btn btn-done" id="okAvisos">Entendido</button>
       </div>
     </div>
   </div>
@@ -3570,6 +3587,7 @@
           if (document.getElementById("pedidoOverlay").classList.contains("open") && pedPi !== null) openPedido(pedPi, pedDi);
         }
         updatePedidosBar();
+        revisarAvisos();
       }, err => console.warn("Pedidos:", err));
     }
 
@@ -3667,6 +3685,7 @@
             aplicarAcuerdos();
             updatePedidosBar();
             refreshAfterEdit();
+            revisarAvisos();
           });
         });
         list.appendChild(b);
@@ -3738,6 +3757,7 @@
             '. Marcá todo lo que aceptarías a cambio.</div>';
         }
         const resps = ped && ped.respuestas ? Object.values(ped.respuestas) : [];
+        if (resps.length) vistosDePedido(pedDocId(currentMes, p.id, di));
         if (resps.length) {
           const lbl = document.createElement("div");
           lbl.className = "ped-lbl";
@@ -3909,6 +3929,7 @@
       refreshAfterEdit();
       fbDb.collection(PED_COLLECTION).doc(id).update({ respuestas: resp }).catch(errPed);
     }
+    function otrosResp(d, r) { return Object.keys(d.respuestas || {}).filter(x => String(x) !== String(r.id)); }
     // El que pidió confirma con uno de los que respondieron: queda como acuerdo cerrado
     function confirmarAcuerdo(pi, di, r) {
       const p = people[pi];
@@ -3925,7 +3946,7 @@
           "Se carga en el celular de los dos. La programación oficial la actualiza el admin.")) return;
         const t = Date.now();
         const acuId = "acuerdo_" + id + "_" + t;
-        const acu = { tipo: "franco", mes: currentMes, dia: di + 1, dia2: n, estado: "acordado", t,
+        const acu = { tipo: "franco", mes: currentMes, dia: di + 1, dia2: n, estado: "acordado", t, descartados: otrosResp(d, r),
           id: String(p.id), name: p.name, quiere: "F", ofrece, cubre: r.deja,
           con: { id: String(r.id), name: r.name, tiene: "F", recibe: ofrece, deja: r.deja } };
         delete pedidosDocs[id];
@@ -3942,7 +3963,7 @@
       if (!confirm("¿Confirmar el cambio del " + fechaTxt(di) + "?\n\n" + p.name + " pasa a " + recibe + "\n" + r.name + " pasa a " + ofrece + "\n\nSe carga en el celular de los dos. La programación oficial la actualiza el admin.")) return;
       const t = Date.now();
       const acuId = "acuerdo_" + id + "_" + t;
-      const acu = { mes: currentMes, dia: di + 1, estado: "acordado", t,
+      const acu = { mes: currentMes, dia: di + 1, estado: "acordado", t, descartados: otrosResp(d, r),
         id: String(p.id), name: p.name, quiere: recibe, ofrece,
         con: { id: String(r.id), name: r.name, tiene: recibe, recibe: ofrece } };
       delete pedidosDocs[id];
@@ -3955,6 +3976,116 @@
       batch.delete(fbDb.collection(PED_COLLECTION).doc(id));
       batch.commit().then(() => showShareToast("Cambio confirmado con " + r.name)).catch(errPed);
     }
+    // ========== AVISOS DE CAMBIOS ==========
+    // Avisos para quien usa este celular. Se muestran al abrir la app (o en el momento, si está abierta):
+    //  - alguien respondió "Me sirve" a su pedido (antes de confirmar)
+    //  - el otro confirmó el cambio
+    //  - el pedido al que respondió se cerró con otra persona
+    //  - el admin pasó el cambio a la programación oficial
+    // Lo ya visto se guarda en este celular.
+    const AVISOS_KEY = "jefAvisos:";
+    let avisosVistos = null, avisosLeg = null;
+    function cargarVistos() {
+      if (avisosLeg === miLegajo) return;
+      avisosLeg = miLegajo; avisosVistos = null;
+      try { const s = localStorage.getItem(AVISOS_KEY + miLegajo); if (s) avisosVistos = JSON.parse(s); } catch (e) {}
+    }
+    function guardarVistos() {
+      try { localStorage.setItem(AVISOS_KEY + miLegajo, JSON.stringify(avisosVistos)); } catch (e) {}
+    }
+    function fechaAviso(mes, dia) {
+      return mes === currentMes && DAY_LABELS[dia - 1] ? fechaTxt(dia - 1) : dia + "/" + Number(String(mes).slice(5));
+    }
+    function calcAvisos() {
+      const yo = String(miLegajo), out = [];
+      Object.keys(pedidosDocs).forEach(k => {
+        const d = pedidosDocs[k];
+        if (!d) return;
+        if (d.estado !== "acordado") {
+          if (String(d.id) !== yo || !d.respuestas) return;
+          Object.values(d.respuestas).forEach(r => {
+            if (!r || String(r.id) === yo) return;
+            out.push({ k: "r:" + k + ":" + r.id + ":" + (r.t || 0), doc: k, tipo: "r", t: r.t || 0, mes: d.mes, id: d.id, dia: d.dia,
+              txt: "<b>" + r.name + "</b> está interesado en tu pedido del " + fechaAviso(d.mes, d.dia) + ": " +
+                (r.dia ? "te cubre " + d.ofrece + " y se queda con tu franco del " + r.dia + "."
+                       : "te da " + (r.tiene || d.quiere) + " por tu " + d.ofrece + ".") + " Falta que confirmes." });
+          });
+          return;
+        }
+        if (!d.con) return;
+        const soyPide = String(d.id) === yo, soyCon = String(d.con.id) === yo;
+        const f = fechaAviso(d.mes, d.dia);
+        if (soyCon) out.push({ k: "c:" + k, tipo: "c", t: d.t || 0,
+          txt: "<b>" + d.name + "</b> confirmó el cambio" + (d.tipo === "franco"
+            ? " de franco: el " + f + " trabajás " + d.ofrece + " y el " + d.dia2 + " tenés franco."
+            : " del " + f + ": pasás a " + d.con.recibe + ".") });
+        if ((soyPide || soyCon) && d.pasado) out.push({ k: "p:" + k, tipo: "p", t: (d.t || 0) + 1,
+          txt: "El admin pasó a la programación oficial tu cambio del " + f + " con <b>" + (soyPide ? d.con.name : d.name) + "</b>." });
+        if (!soyPide && !soyCon && Array.isArray(d.descartados) && d.descartados.map(String).indexOf(yo) >= 0)
+          out.push({ k: "o:" + k, tipo: "o", t: d.t || 0, txt: "<b>" + d.name + "</b> cerró su pedido del " + f + " con otra persona." });
+      });
+      return out.sort((a, b) => a.t - b.t);
+    }
+    // El que pidió abrió ese pedido: ya vio a los interesados
+    function vistosDePedido(docId) {
+      if (!miLegajo) return;
+      cargarVistos();
+      if (!avisosVistos) return;
+      let cambio = false;
+      calcAvisos().forEach(a => { if (a.doc === docId && !avisosVistos[a.k]) { avisosVistos[a.k] = 1; cambio = true; } });
+      if (cambio) { guardarVistos(); revisarAvisos(); }
+    }
+    let avisosMostrados = [];
+    function revisarAvisos() {
+      const bp = document.getElementById("btnPedidos");
+      if (!miLegajo) { delete bp.dataset.n; return; }
+      cargarVistos();
+      const todos = calcAvisos();
+      if (!avisosVistos) {
+        // Primera vez en este celular: lo viejo no se avisa (los interesados pendientes sí)
+        avisosVistos = {};
+        todos.forEach(a => { if (a.tipo !== "r") avisosVistos[a.k] = 1; });
+        guardarVistos();
+      }
+      const abierto = pedidoOverlay.classList.contains("open") && pedPi !== null && people[pedPi] &&
+        String(people[pedPi].id) === String(miLegajo) ? pedDocId(currentMes, people[pedPi].id, pedDi) : "";
+      const nuevos = todos.filter(a => !avisosVistos[a.k] && a.doc !== abierto);
+      if (nuevos.length) bp.dataset.n = nuevos.length; else delete bp.dataset.n;
+      const ov = document.getElementById("avisosOverlay");
+      if (!nuevos.length) { if (ov.classList.contains("open")) ov.classList.remove("open"); return; }
+      avisosMostrados = nuevos;
+      const list = document.getElementById("avisosList");
+      list.innerHTML = "";
+      nuevos.forEach(a => {
+        const row = document.createElement("div");
+        row.className = "aviso-row aviso-" + a.tipo;
+        row.innerHTML = "<div>" + a.txt + "</div>";
+        if (a.tipo === "r" && a.mes === currentMes) {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "ped-act"; b.textContent = "Ver";
+          b.addEventListener("click", () => {
+            cerrarAvisos();
+            const pi = people.findIndex(p => String(p.id) === String(a.id));
+            if (pi < 0) return;
+            if (!pedidosMode) setPedidosMode(true);
+            openPedido(pi, a.dia - 1);
+          });
+          row.appendChild(b);
+        }
+        list.appendChild(row);
+      });
+      ov.classList.add("open");
+    }
+    function cerrarAvisos() {
+      document.getElementById("avisosOverlay").classList.remove("open");
+      if (!avisosVistos) return;
+      avisosMostrados.forEach(a => { avisosVistos[a.k] = 1; });
+      avisosMostrados = [];
+      guardarVistos();
+      delete document.getElementById("btnPedidos").dataset.n;
+    }
+    document.getElementById("okAvisos").addEventListener("click", cerrarAvisos);
+    document.getElementById("closeAvisos").addEventListener("click", cerrarAvisos);
     // Carga en ESTE celular los acuerdos donde participa quien lo usa (una sola vez cada uno)
     function aplicarAcuerdos() {
       if (!miLegajo) return;

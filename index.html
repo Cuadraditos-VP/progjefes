@@ -1549,7 +1549,7 @@
       <div id="pedidoBody"></div>
       <div id="pedidoTengoLbl" class="ped-lbl">Ese día tengo</div>
       <div class="shift-grid" id="pedidoTengo"></div>
-      <div id="pedidoGridLbl" class="ped-lbl">Necesito</div>
+      <div id="pedidoGridLbl" class="ped-lbl">Acepto a cambio (podés marcar varios)</div>
       <div class="shift-grid" id="pedidoGrid"></div>
       <div id="pedidoFrancosLbl" class="ped-lbl" style="display:none">Ofrezco mi franco del día (podés marcar varios)</div>
       <div class="shift-grid" id="pedidoFrancos" style="display:none"></div>
@@ -3413,7 +3413,8 @@
 
     // ========== PEDIDOS DE CAMBIO DE TURNO ==========
     // Colección "pedidos_jefes": un documento por pedido (mes_legajo_día). Todos leen y escriben.
-    // Cada pedido dice qué turno BUSCA el jefe; lo que OFRECE es su turno oficial de ese día.
+    // Cada pedido dice qué ACEPTA el jefe a cambio (uno o varios turnos, "*" = cualquiera, o F
+    // ofreciendo sus francos); lo que OFRECE es su turno de ese día.
     // Nunca modifica la programación oficial.
     const PED_COLLECTION = "pedidos_jefes";
     let pedUnsub = null;
@@ -3460,9 +3461,36 @@
     let pedTengoSel = "";
     let pedFrancoMode = false;
     let pedFrancosSel = [];
+    let pedAceptaSel = [];
     const NO_TRABAJA = ["", "F", "LAO", "LIC", "10A", "10J", "C/A"];
     function trabaja(code) { return NO_TRABAJA.indexOf(String(code || "").toUpperCase()) < 0; }
-    function esFranco(d) { return d && d.tipo === "franco" && Array.isArray(d.francos) && d.francos.length; }
+    // Lo que acepta un pedido a cambio (puede ser varias cosas). "*" = cualquier turno.
+    // Los pedidos viejos solo tienen "quiere".
+    function aceptaDe(d) {
+      if (!d) return [];
+      if (Array.isArray(d.acepta) && d.acepta.length) return d.acepta.map(c => String(c).toUpperCase());
+      return d.quiere ? [String(d.quiere).toUpperCase()] : [];
+    }
+    // Acepta F: ofrece a cambio alguno de sus francos
+    function esFranco(d) { return !!d && aceptaDe(d).indexOf("F") >= 0 && Array.isArray(d.francos) && d.francos.length > 0; }
+    function turnosDe(d) { return aceptaDe(d).filter(c => c !== "F"); }
+    // ¿Le sirve a alguien que ese día tiene "code"?
+    function aceptaTurno(d, code) {
+      const c = String(code || "").toUpperCase();
+      if (!d || !trabaja(c) || c === String(d.ofrece || "").toUpperCase()) return false;
+      const t = turnosDe(d);
+      return t.indexOf("*") >= 0 || t.indexOf(c) >= 0;
+    }
+    function aceptaTxt(d) {
+      const l = aceptaDe(d).filter(c => c !== "F" || esFranco(d)).map(c => c === "*" ? "cualquier turno" : pill(c));
+      return l.length > 1 ? l.slice(0, -1).join(", ") + " o " + l[l.length - 1] : (l[0] || "—");
+    }
+    // Texto corto para la celda: "M", "M/N", "M+2", "Todo"
+    function aceptaCorto(d) {
+      const l = aceptaDe(d).filter(c => c !== "F" || esFranco(d)).map(c => c === "*" ? "Todo" : c);
+      if (l.length <= 2) return l.join("/");
+      return l[0] + "+" + (l.length - 1);
+    }
     // Francos ofrecidos que le sirven a quien mira: él tiene F el día pedido y trabaja ese día ofrecido
     function francosQueSirven(d, di, me) {
       if (!me || !esFranco(d) || actualDe(me.pi, di) !== "F") return [];
@@ -3491,19 +3519,19 @@
         if (me && String(me.p.id) !== String(id) && actualDe(me.pi, src) === "F" && trabaja(actualDe(me.pi, di))) td.classList.add("te-sirve");
         return;
       }
-      const fr = esFranco(d);
-      const pide = String(d.quiere || "").toUpperCase();
+      const acepta = aceptaDe(d).filter(c => c !== "F" || esFranco(d));
+      const pide = acepta.length === 1 && acepta[0] !== "*" ? acepta[0] : "";
       td.classList.add("ped-cell");
       const sp = document.createElement("span");
       sp.className = "ped-da";
-      sp.textContent = pide || "·";
-      const bg = colorMap[pide] || "#f1f5f9";
+      sp.textContent = aceptaCorto(d) || "·";
+      const bg = pide ? (colorMap[pide] || "#f1f5f9") : (acepta.length ? "#fef3c7" : "#f1f5f9");
       sp.style.background = bg;
-      sp.style.color = pide ? fgFor(pide, bg) : "#94a3b8";
+      sp.style.color = pide ? fgFor(pide, bg) : (acepta.length ? "#78350f" : "#94a3b8");
       td.appendChild(sp);
-      // Verde: a quien mira le sirve (ese día tiene justo el turno que se pide)
+      // Verde: a quien mira le sirve (ese día tiene alguno de los turnos que acepta, o franco)
       if (me && String(me.p.id) !== String(id)) {
-        if (fr ? francosQueSirven(d, di, me).length : actualDe(me.pi, di) === pide) td.classList.add("te-sirve");
+        if (francosQueSirven(d, di, me).length || aceptaTurno(d, actualDe(me.pi, di))) td.classList.add("te-sirve");
       }
     }
     function pill(code) {
@@ -3688,23 +3716,26 @@
         pedTengoSel = actualDe(pi, di);
         // Si cambió su turno en el celular después de pedir, se actualiza lo que ofrece
         if (ped && pedTengoSel && String(ped.ofrece || "").toUpperCase() !== pedTengoSel) {
-          guardarPedido(pi, di, ped.quiere, esFranco(ped) ? ped.francos : null);
+          const sigue = aceptaDe(ped).filter(c => c !== pedTengoSel);
+          if (sigue.length) guardarPedido(pi, di, sigue, esFranco(ped) ? ped.francos : null);
+          else quitarPedidoDoc(pi, di, true);
           return;
         }
         pedidoOverlay.dataset.k = pi + ":" + di;
         pedPi = pi; pedDi = di;
         if (pedidoOverlay.dataset.fk !== pi + ":" + di) {
           pedidoOverlay.dataset.fk = pi + ":" + di;
-          pedFrancoMode = !!esFranco(ped);
+          pedAceptaSel = ped ? aceptaDe(ped).filter(c => c !== "F" || esFranco(ped)) : [];
           pedFrancosSel = esFranco(ped) ? ped.francos.slice() : [];
         }
-        if (esFranco(ped)) {
-          body.innerHTML = '<div class="ped-info">Pedís franco y ofrecés tu franco del ' + ped.francos.join(", ") +
-            '. Te tienen que cubrir ' + pill(ped.ofrece || pedTengoSel) + '.</div>';
+        pedFrancoMode = pedAceptaSel.indexOf("F") >= 0;
+        const doy = ped ? (ped.ofrece || pedTengoSel) : pedTengoSel;
+        if (ped) {
+          body.innerHTML = '<div class="ped-info">Das ' + pill(doy) + ' y aceptás ' + aceptaTxt(ped) + '.' +
+            (esFranco(ped) ? '<br>Por franco ofrecés tu franco del ' + ped.francos.join(", ") + '.' : '') + '</div>';
         } else {
-          body.innerHTML = '<div class="ped-info">' +
-            (ped ? 'Pedís ' + pill(ped.quiere) + ' y ofrecés ' + pill(ped.ofrece || pedTengoSel) + '.'
-                 : 'Ese día tenés ' + pill(pedTengoSel) + '. Elegí lo que necesitás.') + '</div>';
+          body.innerHTML = '<div class="ped-info">Ese día tenés ' + pill(pedTengoSel) +
+            '. Marcá todo lo que aceptarías a cambio.</div>';
         }
         const resps = ped && ped.respuestas ? Object.values(ped.respuestas) : [];
         if (resps.length) {
@@ -3715,9 +3746,9 @@
           resps.sort((a, b) => (a.t || 0) - (b.t || 0)).forEach(r => {
             const row = document.createElement("div");
             row.className = "ped-resp";
-            row.innerHTML = esFranco(ped)
-              ? '<span>' + r.name + ': toma tu franco del ' + r.dia + ' (vos hacés su ' + r.deja + ') y te cubre ' + (ped.ofrece || pedTengoSel) + '</span>'
-              : '<span>' + r.name + ' te da ' + (r.tiene || ped.quiere) + ', vos le das ' + (ped.ofrece || pedTengoSel) + '</span>';
+            row.innerHTML = r.dia
+              ? '<span>' + r.name + ': toma tu franco del ' + r.dia + ' (vos hacés su ' + r.deja + ') y te cubre ' + doy + '</span>'
+              : '<span>' + r.name + ' te da ' + (r.tiene || ped.quiere) + ', vos le das ' + doy + '</span>';
             const b = document.createElement("button");
             b.type = "button"; b.className = "ped-act"; b.textContent = "Confirmar";
             b.addEventListener("click", () => confirmarAcuerdo(pi, di, r));
@@ -3726,34 +3757,51 @@
           });
         }
         const opciones = ALL_SHIFT_CODES.filter(c => BLOCK_CODES.indexOf(c) < 0);
-        const mkOpt = (code, sel, fn) => {
+        const mkOpt = (code, sel, fn, label) => {
           const opt = document.createElement("div");
           opt.className = "shift-option" + (sel ? " selected" : "");
-          opt.textContent = code;
+          opt.textContent = label || code;
           const bg = colorMap[code];
           if (bg) { opt.style.background = bg; opt.style.color = fgFor(code, bg); }
           opt.addEventListener("click", fn);
           return opt;
         };
+        // Guarda lo marcado. F solo cuenta si ofrece al menos un franco (regla de francos).
+        const guardarSel = () => {
+          const acepta = pedAceptaSel.filter(c => c !== "F" || pedFrancosSel.length);
+          if (acepta.length) guardarPedido(pi, di, acepta, acepta.indexOf("F") >= 0 ? pedFrancosSel : null);
+          else if (ped) quitarPedidoDoc(pi, di, true);
+          else openPedido(pi, di);
+        };
+        const orden = c => c === "*" ? -1 : opciones.indexOf(c);
+        const toggle = code => {
+          const i = pedAceptaSel.indexOf(code);
+          if (i >= 0) pedAceptaSel.splice(i, 1);
+          else {
+            // "Cualquiera" reemplaza a los turnos sueltos (F va aparte)
+            if (code === "*") pedAceptaSel = pedAceptaSel.filter(c => c === "F");
+            else if (code !== "F") pedAceptaSel = pedAceptaSel.filter(c => c !== "*");
+            pedAceptaSel.push(code);
+          }
+          pedAceptaSel.sort((a, b) => orden(a) - orden(b));
+          if (pedAceptaSel.indexOf("F") < 0) pedFrancosSel = [];
+          guardarSel();
+        };
         const tengoList = opciones.slice();
         if (pedTengoSel && tengoList.indexOf(pedTengoSel) < 0) tengoList.unshift(pedTengoSel);
         tengoList.forEach(code => tengoEl.appendChild(mkOpt(code, code === pedTengoSel, () => {
           pedTengoSel = code;
-          if (ped && ped.quiere === code) { openPedido(pi, di); return; }
-          if (ped) guardarPedido(pi, di, ped.quiere, esFranco(ped) ? ped.francos : null); else openPedido(pi, di);
+          pedAceptaSel = pedAceptaSel.filter(c => c !== code);
+          if (ped) guardarSel(); else openPedido(pi, di);
         })));
+        const todo = pedAceptaSel.indexOf("*") >= 0;
+        grid.appendChild(mkOpt("*", todo, () => toggle("*"), "Cualquiera"));
         opciones.forEach(code => {
           if (code === pedTengoSel) return;
-          const sel = pedFrancoMode ? code === "F" : (ped && ped.quiere === code);
-          grid.appendChild(mkOpt(code, sel, () => {
-            if (code === "F") {
-              pedFrancoMode = true;
-              if (pedFrancosSel.length) guardarPedido(pi, di, "F", pedFrancosSel); else openPedido(pi, di);
-              return;
-            }
-            pedFrancoMode = false; pedFrancosSel = [];
-            guardarPedido(pi, di, code);
-          }));
+          const sel = pedAceptaSel.indexOf(code) >= 0;
+          const opt = mkOpt(code, sel, () => toggle(code));
+          if (todo && code !== "F" && trabaja(code)) opt.style.opacity = ".45";
+          grid.appendChild(opt);
         });
         if (pedFrancoMode) {
           const misFrancos = [];
@@ -3772,14 +3820,12 @@
               const i = pedFrancosSel.indexOf(n);
               if (i >= 0) pedFrancosSel.splice(i, 1); else pedFrancosSel.push(n);
               pedFrancosSel.sort((a, c) => a - c);
-              if (pedFrancosSel.length) guardarPedido(pi, di, "F", pedFrancosSel);
-              else if (ped) { quitarPedidoDoc(pi, di, true); }
-              else openPedido(pi, di);
+              guardarSel();
             });
             frEl.appendChild(b);
           });
-          if (!ped && misFrancos.length) {
-            body.innerHTML = '<div class="ped-info">Pedís franco el ' + fechaTxt(di) + '. Marcá qué francos tuyos ofrecés a cambio.</div>';
+          if (!pedFrancosSel.length && misFrancos.length) {
+            body.insertAdjacentHTML("beforeend", '<div class="ped-note info">Para aceptar franco el ' + fechaTxt(di) + ', marcá abajo qué francos tuyos ofrecés a cambio.</div>');
           }
         }
         document.getElementById("quitarPedido").style.display = ped ? "" : "none";
@@ -3792,15 +3838,32 @@
         if (!me) { openYo(); return; }
         return; // celda vacía de otro jefe: nada para mostrar
       }
-      if (esFranco(ped)) {
-        body.innerHTML = '<div class="ped-info">Pide franco. Hay que cubrirle ' + pill(ped.ofrece || ofrece) +
-          '<br>Ofrece su franco del ' + ped.francos.join(", ") + '</div>';
-        if (me) {
-          const yaResp = ped.respuestas && ped.respuestas[me.p.id];
-          const tieneF = actualDe(me.pi, di) === "F";
-          if (!tieneF && !yaResp) {
-            body.insertAdjacentHTML("beforeend", '<div class="ped-note info">Ese día vos tenés ' + (actualDe(me.pi, di) || "—") + ', no franco: no podés tomar este cambio.</div>');
-          }
+      const fr = esFranco(ped);
+      const da = ped.ofrece || ofrece;
+      body.innerHTML = '<div class="ped-info">Da ' + pill(da) + '<br>Acepta ' + aceptaTxt(ped) +
+        (fr ? '<br>Por franco ofrece su franco del ' + ped.francos.join(", ") : '') + '</div>';
+      if (me) {
+        const yoTengo = actualDe(me.pi, di);
+        const yaResp = ped.respuestas && ped.respuestas[me.p.id];
+        const tieneF = yoTengo === "F";
+        const mkBtn = (txt, sec, fn, mt) => {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "ped-act" + (sec ? " sec" : ""); b.textContent = txt;
+          b.style.cssText = "width:100%;margin-top:" + (mt || 10) + "px";
+          b.addEventListener("click", fn);
+          return b;
+        };
+        if (yaResp && !yaResp.dia) {
+          body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve (le das ' + (yaResp.tiene || "—") + '). Falta que ' + p.name + ' confirme.</div>');
+          body.appendChild(mkBtn("Ya no me sirve", true, () => responderPedido(pi, di, false)));
+        } else if (!yaResp && aceptaTurno(ped, yoTengo)) {
+          body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Vos tenés ' + yoTengo + ' ese día: este cambio te sirve.</div>');
+          body.appendChild(mkBtn("Me sirve", false, () => responderPedido(pi, di, true)));
+        } else if (!yaResp && !(fr && tieneF)) {
+          body.insertAdjacentHTML("beforeend", '<div class="ped-note info">Ese día vos tenés ' + (yoTengo || "—") + ': no te sirve.</div>');
+        }
+        // Franco: solo si quien mira tiene F ese día (o ya eligió uno)
+        if (fr && (tieneF || (yaResp && yaResp.dia))) {
           ped.francos.forEach(n => {
             const deja = actualDe(me.pi, n - 1);
             const sirve = tieneF && trabaja(deja);
@@ -3809,47 +3872,16 @@
             row.className = "ped-opc" + (sirve || elegido ? " ok" : "");
             row.innerHTML = "<b>Franco del " + diaCorto(n) + "</b><br>" +
               (sirve || elegido
-                ? "Te quedás con franco el " + n + " (dejás tu " + (elegido ? yaResp.deja : deja) + "). A cambio, el " + (di + 1) + " trabajás " + (ped.ofrece || ofrece) + "."
+                ? "Te quedás con franco el " + n + " (dejás tu " + (elegido ? yaResp.deja : deja) + "). A cambio, el " + (di + 1) + " trabajás " + da + "."
                 : "Ese día vos tenés " + (deja || "—") + ".");
             if (elegido || (sirve && !yaResp)) {
-              const b = document.createElement("button");
-              b.type = "button"; b.className = "ped-act" + (elegido ? " sec" : "");
-              b.textContent = elegido ? "Ya no me sirve" : "Me sirve";
-              b.style.cssText = "width:100%;margin-top:8px";
-              b.addEventListener("click", () => responderPedido(pi, di, !elegido, elegido ? null : { dia: n, deja }));
-              row.appendChild(b);
+              row.appendChild(mkBtn(elegido ? "Ya no me sirve" : "Me sirve", elegido,
+                () => responderPedido(pi, di, !elegido, elegido ? null : { dia: n, deja }), 8));
             }
             body.appendChild(row);
           });
-          if (yaResp) body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve el franco del ' + yaResp.dia + '. Falta que ' + p.name + ' confirme.</div>');
+          if (yaResp && yaResp.dia) body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve el franco del ' + yaResp.dia + '. Falta que ' + p.name + ' confirme.</div>');
         }
-        acts.style.display = "flex";
-        document.getElementById("quitarPedido").style.display = "none";
-        pedidoOverlay.classList.add("open");
-        return;
-      }
-      let nota = "";
-      let accion = null;
-      if (me) {
-        const yoTengo = actualDe(me.pi, di);
-        const yaResp = ped.respuestas && ped.respuestas[me.p.id];
-        if (yaResp) {
-          nota = '<div class="ped-note ok">Le avisaste que te sirve. Falta que ' + p.name + ' confirme.</div>';
-          accion = { txt: "Ya no me sirve", sec: true, fn: () => responderPedido(pi, di, false) };
-        } else if (yoTengo && yoTengo === String(ped.quiere).toUpperCase()) {
-          nota = '<div class="ped-note ok">Vos tenés ' + yoTengo + ' ese día: este cambio te sirve.</div>';
-          accion = { txt: "Me sirve", fn: () => responderPedido(pi, di, true) };
-        } else {
-          nota = '<div class="ped-note info">Ese día vos tenés ' + (yoTengo || "—") + '.</div>';
-        }
-      }
-      body.innerHTML = '<div class="ped-info">Pide ' + pill(ped.quiere) + '<br>Ofrece ' + pill(ped.ofrece || ofrece) + '</div>' + nota;
-      if (accion) {
-        const b = document.createElement("button");
-        b.type = "button"; b.className = "ped-act" + (accion.sec ? " sec" : ""); b.textContent = accion.txt;
-        b.style.cssText = "width:100%;margin-top:10px";
-        b.addEventListener("click", accion.fn);
-        body.appendChild(b);
       }
       acts.style.display = "flex";
       document.getElementById("quitarPedido").style.display = "none";
@@ -3885,7 +3917,7 @@
       if (!d) return;
       const ofrece = d.ofrece || actualDe(pi, di);
       const recibe = r.tiene || d.quiere;
-      if (esFranco(d)) {
+      if (r.dia) {
         const n = Number(r.dia);
         if (!confirm("¿Confirmar el cambio de franco?\n\n" +
           "Día " + (di + 1) + ": " + p.name + " pasa a F · " + r.name + " pasa a " + ofrece + "\n" +
@@ -4024,11 +4056,26 @@
     document.getElementById("closeAcuerdos").addEventListener("click", () => acuerdosOverlay.classList.remove("open"));
     acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
 
-    function guardarPedido(pi, di, code, francos) {
+    // acepta: lista de lo que acepta a cambio ("*" = cualquier turno). F solo vale con francos ofrecidos.
+    function guardarPedido(pi, di, acepta, francos) {
       const p = people[pi];
       const id = pedDocId(currentMes, p.id, di);
       const u = fbAuth && fbAuth.currentUser;
-      const data = { mes: currentMes, id: String(p.id), name: p.name, dia: di + 1, quiere: code, tipo: francos && francos.length ? "franco" : "turno", francos: francos && francos.length ? francos.slice() : null, ofrece: pedTengoSel || actualDe(pi, di), uid: u ? u.uid : "", t: Date.now() };
+      let lista = (Array.isArray(acepta) ? acepta : [acepta]).map(c => String(c || "").toUpperCase()).filter(Boolean);
+      const fr = lista.indexOf("F") >= 0 && francos && francos.length ? francos.slice() : null;
+      const ofrece = pedTengoSel || actualDe(pi, di);
+      lista = lista.filter(c => c !== ofrece && (c !== "F" || fr));
+      const data = { mes: currentMes, id: String(p.id), name: p.name, dia: di + 1, quiere: lista[0] || "", acepta: lista, tipo: fr ? "franco" : "turno", francos: fr, ofrece, uid: u ? u.uid : "", t: Date.now() };
+      // Al sumar o sacar opciones se mantienen las respuestas que siguen valiendo
+      const prev = pedidosDocs[id];
+      if (prev && prev.respuestas && String(prev.ofrece || "").toUpperCase() === ofrece) {
+        const resp = {};
+        Object.keys(prev.respuestas).forEach(k => {
+          const r = prev.respuestas[k];
+          if (r.dia ? (fr && fr.indexOf(Number(r.dia)) >= 0) : aceptaTurno(data, r.tiene)) resp[k] = r;
+        });
+        if (Object.keys(resp).length) data.respuestas = resp;
+      }
       pedidosDocs[id] = data;
       openPedido(pi, di);
       refreshAfterEdit();
@@ -4065,7 +4112,7 @@
         alert("No se pudo quitar el pedido.");
       });
     });
-    function closePedido() { pedidoOverlay.classList.remove("open"); pedPi = null; pedDi = null; pedTengoSel = ""; pedidoOverlay.dataset.k = ""; pedidoOverlay.dataset.fk = ""; pedFrancoMode = false; pedFrancosSel = []; }
+    function closePedido() { pedidoOverlay.classList.remove("open"); pedPi = null; pedDi = null; pedTengoSel = ""; pedidoOverlay.dataset.k = ""; pedidoOverlay.dataset.fk = ""; pedFrancoMode = false; pedFrancosSel = []; pedAceptaSel = []; }
     document.getElementById("closePedido").addEventListener("click", closePedido);
     document.getElementById("donePedido").addEventListener("click", closePedido);
     pedidoOverlay.addEventListener("click", (e) => { if (e.target === pedidoOverlay) closePedido(); });

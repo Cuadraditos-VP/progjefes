@@ -1201,7 +1201,7 @@
       width: max-content;
       max-width: none;
       margin: 0 auto 16px;
-      border: 2px solid var(--ink);
+      border: 1px solid var(--ink);
       border-radius: 12px;
       overflow: clip;
       background: #fff;
@@ -1217,7 +1217,7 @@
       color: var(--ink) !important;
       border: 0;
       border-left: 1px solid var(--grid);
-      border-bottom: 2px solid var(--ink) !important;
+      border-bottom: 1px solid var(--ink) !important;
       height: 46px !important;
       padding: 4px 1px !important;
       line-height: 1.1;
@@ -1265,8 +1265,15 @@
     /* Línea gruesa que separa nombres de días */
     .grp-card th.sticky-col-2, .grp-card td.sticky-col-2,
     body.names-hidden .grp-card th.sticky-col, body.names-hidden .grp-card td.sticky-col {
-      border-right: 2px solid var(--ink) !important;
+      border-right: 1px solid var(--ink) !important;
     }
+    /* Esa línea, además, como rayita propia por encima: así las líneas grises horizontales no la cortan */
+    .grp-card td.sticky-col-2, body.names-hidden .grp-card td.sticky-col { overflow: visible !important; }
+    .grp-card td.sticky-col-2::after, body.names-hidden .grp-card td.sticky-col::after {
+      content: ""; position: absolute; right: -1px; top: -1px; bottom: -1px; width: 1px;
+      background: var(--ink); z-index: 1; pointer-events: none;
+    }
+    body.names-hidden .grp-card td.sticky-col-2::after { content: none; }
 
     /* Celdas de turnos */
     .grp-card tbody td:not(.sticky-col):not(.sticky-col-2) {
@@ -1276,13 +1283,35 @@
     .grp-card tbody tr:last-child td { border-bottom: 0 !important; }
 
     /* Separador de semana (entre DO y LU) */
-    .grp-card .week-sep { border-left: 2px solid var(--ink) !important; }
+    /* Línea DO/LU de 1px. No es un borde: es una rayita propia (.ws-line, la agrega
+       pintarLineasSemana) que va por encima de la grilla, así las líneas grises horizontales
+       no la cortan. En el medio de un bloque LIC no se pone: el bloque pasa por encima. */
+    .grp-card .week-sep { border-left: 1px solid var(--grid) !important; }
+    .grp-card td.week-sep { position: relative; overflow: visible !important; }
+    .grp-card th.week-sep { overflow: visible !important; }
+    .grp-card .week-sep > .ws-line {
+      position: absolute; left: -1px; top: -1px; bottom: -1px; width: 1px;
+      background: var(--ink); z-index: 3; pointer-events: none;
+    }
 
     /* Bloques (LAO, LIC, 10A, 10J, C/A): etiqueta en cursiva al inicio */
     .grp-card td.blk-first {
       font-style: italic; text-align: center !important;
       overflow: visible !important; white-space: nowrap; position: relative; z-index: 1;
     }
+
+    /* Bloque LIC: un solo bloque continuo. La línea negra de arriba y abajo se dibuja con un
+       pseudo-elemento que se estira 1px a cada lado, así tapa las uniones entre días; y por
+       dentro del bloque las líneas verticales (incluida la de DO/LU) toman el color del bloque. */
+    .grp-card tbody td.blk[data-code="LIC"] { position: relative; box-shadow: none !important; overflow: visible !important; }
+    .grp-card tbody td.blk[data-code="LIC"]::after {
+      content: ""; position: absolute; top: -1px; bottom: -1px; left: -2px; right: -2px; z-index: 2;
+      border-top: 1px solid #111827; border-bottom: 1px solid #111827; pointer-events: none;
+    }
+    .grp-card tbody td.blk-first[data-code="LIC"]::after { left: 0; }
+    .grp-card tbody td.blk-last[data-code="LIC"]::after { right: 0; }
+    .grp-card tbody td.blk[data-code="LIC"]:not(.blk-first) { border-left: 1px solid var(--blk-bg, transparent) !important; }
+    .grp-card tbody td.blk[data-code="LIC"]:not(.blk-last) { border-right: 1px solid var(--blk-bg, transparent) !important; }
 
     /* ===== Celular: columnas de legajo y apellido al ancho justo (medido por la app) ===== */
     @media (max-width: 1000px), (pointer: coarse) {
@@ -1392,7 +1421,6 @@
       <button type="button" id="btnYo">¿Quién sos?</button>
       <button type="button" id="btnAcuerdos" class="admin-only">Acordados</button>
       <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
-      <button type="button" id="btnSalirPedidos">Salir</button>
     </div>
     <div id="pedidosVacio"></div>
     <div id="dayFilterBar">
@@ -1871,6 +1899,7 @@
           const hideText = code === "LIC" && !el.classList.contains("shift-option") && !el.classList.contains("blk-first");
           el.style.color = hideText ? bg : getTextColor(bg);
           if (el.classList.contains("blk")) {
+            el.style.setProperty("--blk-bg", bg);
             el.style.borderLeftColor = el.classList.contains("blk-first") ? "" : bg;
             el.style.borderRightColor = el.classList.contains("blk-last") ? "" : bg;
           }
@@ -2088,6 +2117,7 @@
           if (pi < groupSplit()) g1.appendChild(row);
           else g2.appendChild(row);
         });
+        pintarLineasSemana(document.getElementById("scheduleWrap"));
         compactarPedidos();
         // Al redibujar no se pierde la posición (antes volvía al tope un instante)
         wrapEl.scrollTop = keepTop;
@@ -2189,6 +2219,16 @@
     }
 
     // Arma el encabezado de días según el mes (cantidad de días y día de la semana del 1)
+    // Línea DO/LU: agrega la rayita (ver .ws-line en el CSS) en las celdas del lunes
+    function pintarLineasSemana(root) {
+      (root || document).querySelectorAll(".week-sep").forEach(el => {
+        if (!el.closest(".grp-card") || el.querySelector(":scope > .ws-line")) return;
+        if (el.matches('td.blk[data-code="LIC"]:not(.blk-first)')) return;
+        const ln = document.createElement("i");
+        ln.className = "ws-line";
+        el.appendChild(ln);
+      });
+    }
     function renderDayHead() {
       ["dayHeadRow", "dayHeadRow2"].forEach((rowId, gi) => {
         const row = document.getElementById(rowId);
@@ -2204,6 +2244,7 @@
           th.innerHTML = '<span class="wd">' + WEEKDAY_ABBR[wd] + '</span><span class="day-num">' + (d + 1) + "</span>";
           row.appendChild(th);
         }
+        pintarLineasSemana(row);
       });
     }
 
@@ -3521,12 +3562,15 @@
     function setPedidosMode(on) {
       pedidosMode = on;
       document.body.classList.toggle("pedidos-on", on);
+      // El mismo botón sirve para entrar y para volver a la grilla (ya no hay botón "Salir")
+      const bp = document.getElementById("btnPedidos");
+      bp.textContent = on ? "Volver" : "Cambios";
+      bp.title = on ? "Volver a la grilla" : "Pedidos de cambio de turno";
       if (on) { startPedidos(); updatePedidosBar(); updateChips(); }
       refreshAfterEdit();
       if (on && !miPersona()) openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
-    document.getElementById("btnSalirPedidos").addEventListener("click", () => setPedidosMode(false));
 
     // --- ¿Quién sos? ---
     const yoOverlay = document.getElementById("yoOverlay");

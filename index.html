@@ -1580,6 +1580,9 @@
       if (FIREBASE_CONFIG && window.firebase) {
         firebase.initializeApp(FIREBASE_CONFIG);
         fbDb = firebase.firestore();
+        // Copia local de Firebase: sin red se sigue viendo lo último, y lo que se
+        // guarde sin conexión se manda solo cuando vuelve internet.
+        try { fbDb.enablePersistence({ synchronizeTabs: true }).catch(() => {}); } catch (e) {}
         fbAuth = firebase.auth();
         fbReady = true;
       }
@@ -4492,5 +4495,11 @@
     document.getElementById("doneColors").addEventListener("click", closeColors);
     colorOverlay.addEventListener("click", (e) => { if (e.target === colorOverlay) closeColors(); });
 </script>
+  <script>
+    // Copia de la app en el celular para poder abrirla sin internet (ver sw.js)
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+    }
+  </script>
 </body>
 </html>

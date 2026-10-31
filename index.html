@@ -1274,6 +1274,14 @@
       background: var(--ink); z-index: 1; pointer-events: none;
     }
     body.names-hidden .grp-card td.sticky-col-2::after { content: none; }
+    /* Legajo y nombre dibujan por encima su propia línea gris de abajo: así, al moverse de costado,
+       el borde negro de un LIC que pasa por debajo no se asoma por la línea entre filas */
+    .grp-card td.sticky-col { overflow: visible !important; }
+    .grp-card td.sticky-col::before, .grp-card td.sticky-col-2::before {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+      background: var(--grid); pointer-events: none;
+    }
+    .grp-card tbody tr:last-child td.sticky-col::before, .grp-card tbody tr:last-child td.sticky-col-2::before { content: none; }
 
     /* Celdas de turnos */
     .grp-card tbody td:not(.sticky-col):not(.sticky-col-2) {
@@ -1293,6 +1301,21 @@
       position: absolute; left: -1px; top: -1px; bottom: -1px; width: 1px;
       background: var(--ink); z-index: 3; pointer-events: none;
     }
+    /* Bloques (LAO, LIC, 10A, 10J, C/A): en celulares con densidad "fraccionaria" (2,75, 2,625…)
+       quedaba una costura clara entre día y día. Una franjita del color del bloque (.blk-seam,
+       la agrega pintarLineasSemana) la tapa. */
+    .grp-card tbody td.blk:not(.blk-first) { position: relative; overflow: visible !important; }
+    .grp-card td.blk > .blk-seam {
+      position: absolute; left: -2px; width: 4px; top: -1px; bottom: -1px; box-sizing: border-box;
+      background: var(--blk-bg, transparent); background-clip: padding-box;
+      /* lleva su pedacito de línea gris arriba y abajo, así la línea de la grilla no queda dentada */
+      border-top: 1px solid var(--grid); border-bottom: 1px solid var(--grid);
+      z-index: 0; pointer-events: none;
+    }
+    .grp-card tbody tr:first-child td.blk > .blk-seam { border-top-color: var(--ink); }
+    .grp-card tbody tr:last-child td.blk > .blk-seam { border-bottom-color: transparent; }
+    /* En el LIC las líneas de arriba y abajo son negras y las dibuja su propio ::after */
+    .grp-card td.blk[data-code="LIC"] > .blk-seam { border: 0; top: 0; bottom: 0; }
 
     /* Bloques (LAO, LIC, 10A, 10J, C/A): etiqueta en cursiva al inicio */
     .grp-card td.blk-first {
@@ -1305,7 +1328,7 @@
        dentro del bloque las líneas verticales (incluida la de DO/LU) toman el color del bloque. */
     .grp-card tbody td.blk[data-code="LIC"] { position: relative; box-shadow: none !important; overflow: visible !important; }
     .grp-card tbody td.blk[data-code="LIC"]::after {
-      content: ""; position: absolute; top: -1px; bottom: -1px; left: -2px; right: -2px; z-index: 2;
+      content: ""; position: absolute; top: -1px; bottom: -1px; left: -1.5px; right: 0; z-index: 2;
       border-top: 1px solid #111827; border-bottom: 1px solid #111827; pointer-events: none;
     }
     .grp-card tbody td.blk-first[data-code="LIC"]::after { left: 0; }
@@ -2227,6 +2250,13 @@
         const ln = document.createElement("i");
         ln.className = "ws-line";
         el.appendChild(ln);
+      });
+      // Tapa las costuras entre los días de un bloque (ver .blk-seam en el CSS)
+      (root || document).querySelectorAll("td.blk:not(.blk-first)").forEach(el => {
+        if (!el.closest(".grp-card") || el.querySelector(":scope > .blk-seam")) return;
+        const sm = document.createElement("i");
+        sm.className = "blk-seam";
+        el.insertBefore(sm, el.firstChild);
       });
     }
     function renderDayHead() {

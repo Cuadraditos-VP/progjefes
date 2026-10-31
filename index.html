@@ -1404,8 +1404,14 @@
     .ped-opc.ok { border-color: #86efac; background: #f0fdf4; }
     #btnPedidos { position: relative; overflow: visible; }
     #btnPedidos[data-n]::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #dc2626; color: #fff; font-size: 0.65rem; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px #fff; }
+    .info-body { font-size: 0.85rem; color: #1e293b; line-height: 1.45; max-height: 60vh; overflow-y: auto; }
+    .info-body p { margin: 6px 0; }
+    .info-body ul { margin: 6px 0; padding-left: 20px; }
+    #yoNota:not(:empty) { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; font-size: 0.8rem; font-weight: 600; }
+    #yoList button b.yo-hint { display: block; color: #c2410c; font-size: 0.72rem; font-weight: 700; margin-top: 2px; }
     .aviso-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.85rem; color: #1e293b; line-height: 1.4; }
     .aviso-row.aviso-r { border-color: #fdba74; background: #fff7ed; }
+    .aviso-row.aviso-x { border-color: #fca5a5; background: #fef2f2; }
     .aviso-row.aviso-c, .aviso-row.aviso-p { border-color: #86efac; background: #f0fdf4; }
     .ped-lbl { margin: 12px 0 6px; font-size: 0.75rem; font-weight: 700; color: #334155; }
     #yoList { display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 8px; }
@@ -1439,7 +1445,7 @@
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
-        <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar colores para todos (los turnos no se publican desde acá)">⬆ Publicar</button>
+        <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
@@ -1564,6 +1570,18 @@
       </div>
     </div>
   </div>
+  <div class="palette-overlay" id="infoOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="infoTitle">—</h3>
+        <button class="close-btn" id="closeInfo" title="Cerrar">×</button>
+      </div>
+      <div id="infoBody" class="info-body"></div>
+      <div class="palette-actions">
+        <button class="btn btn-done" id="okInfo">Entendido</button>
+      </div>
+    </div>
+  </div>
   <div class="palette-overlay" id="avisosOverlay">
     <div class="palette-modal">
       <div class="palette-header">
@@ -1603,6 +1621,7 @@
         <button class="close-btn" id="closeYo" title="Cerrar">×</button>
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es la fila donde podés pedir cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
+      <div id="yoNota"></div>
       <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
       <div id="yoList"></div>
     </div>
@@ -1827,6 +1846,7 @@
     }
 
     function applyLocalEdits() {
+      aplicarPropios();
       Object.keys(editsMap).forEach(key => {
         const [pi, di] = key.split(":").map(Number);
         if (people[pi] && ORIGINAL_CODES[pi]) {
@@ -1998,7 +2018,9 @@
       if (viewMode === "inicial") return "";
       if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return "cj";
       const shown = (codesFor(pi)[di] || "");
-      if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || "")) return "own";
+      // Distinto de lo oficial: azul si ya está publicado por su dueño, ámbar si es solo de este celular
+      if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || ""))
+        return propCode(currentMes, (people[pi] || {}).id, di) === shown ? "pub" : "own";
       const ini = INITIAL_CODES[pi];
       if (ini && shown !== (ini[di] || "")) return "pub";
       return "";
@@ -2584,7 +2606,8 @@
         if (ni == null || di >= days) return;                        // ese jefe ya no está
         const before = prev && prev[pi] ? (prev[pi].codes[di] || "") : null;
         const after = next[ni].codes[di] || "";
-        if (before !== null && before !== after) return;              // el admin cambió esa celda: gana el admin
+        const esMia = typeof miLegajo !== "undefined" && String(next[ni].id) === String(miLegajo);
+        if (before !== null && before !== after && !esMia) return;    // el admin cambió esa celda: gana el admin (salvo en tu propia fila)
         if (old[k] === after) return;                                 // ya coincide con la oficial
         em[ni + ":" + di] = old[k];
       });
@@ -2641,6 +2664,8 @@
     function startFirebase() {
       if (!fbReady || fbStarted) return;
       fbStarted = true;
+      startPropios();
+      startPedidos();
       document.body.classList.add("fb-on");
       fbDb.collection("jefes").onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
@@ -2665,6 +2690,7 @@
         updatePublishBtn();
         if (isAdmin) { startCjListener(); startCelularesListener(); } else { stopCjListener(); stopCelularesListener(); }
         if (u) startYoSync(u);
+        if (u) propTrasAuth();
         if (u && u.isAnonymous) AVAILABLE_MESES.forEach(k => syncCj(k));
       });
     }
@@ -2703,6 +2729,7 @@
         if ((em[k] || "") === ((p.codes || [])[di] || "")) return;
         edits[p.id + ":" + di] = { c: em[k] || "", t: times[p.id + ":" + di] || 0 };
       });
+      Object.entries(leerJson(ajenosKey(key), {})).forEach(([k, v]) => { if (!edits[k]) edits[k] = v; });
       const sentKey = "ctCjSent:" + key + ":" + u.uid;
       const payload = JSON.stringify(edits);
       let last = null;
@@ -2759,9 +2786,24 @@
       });
     }
 
-    // Cuántos colores cambió el admin sin publicar (los turnos no se publican desde acá)
+    // Turnos que cambió el admin y todavía no publicó (programación oficial + sus cambios)
+    function turnosAPublicar() {
+      const codes = people.map((p, i) => (ORIGINAL_CODES[i] || []).slice());
+      const cambiados = [];
+      Object.keys(editsMap).forEach(k => {
+        const [pi, di] = k.split(":").map(Number);
+        if (!codes[pi] || di >= codes[pi].length) return;
+        const c = editsMap[k] || "";
+        if (c === (codes[pi][di] || "")) return;
+        codes[pi][di] = c;
+        cambiados.push(people[pi].id + ":" + di);
+      });
+      return { codes, cambiados };
+    }
+    // Cuántos colores y turnos cambió el admin sin publicar
     function pendingCount() {
-      return Object.keys(colorOverrides).length;
+      const turnos = currentUser === "ADMIN" ? turnosAPublicar().cambiados.length : 0;
+      return Object.keys(colorOverrides).length + turnos;
     }
     function updatePublishBtn() {
       const btn = document.getElementById("btnPublish");
@@ -2773,12 +2815,16 @@
 
     document.getElementById("btnPublish").addEventListener("click", async () => {
       if (!fbReady || currentUser !== "ADMIN") return;
-      // Por ahora los turnos NO se publican desde acá: se manda la programación oficial
-      // tal cual está (sin las ediciones del admin). Solo se publican los colores.
+      // Se publica la programación oficial + los cambios de turnos del admin, y los colores.
+      // Lo que cada jefe publicó en su propia fila sigue mandando por encima.
       const n = Object.keys(colorOverrides).length;
-      const msg = n
-        ? "¿Publicar los colores para todos? (" + n + " color" + (n === 1 ? "" : "es") + " cambiado" + (n === 1 ? "" : "s") + ")\n\nLos turnos no se publican: nadie ve tus cambios de turnos."
-        : "No hay colores distintos a los publicados. ¿Publicar igual?\n\nLos turnos no se publican.";
+      const tp = turnosAPublicar();
+      const nt = tp.cambiados.length;
+      const partes = [];
+      if (nt) partes.push(nt + (nt === 1 ? " turno cambiado" : " turnos cambiados"));
+      if (n) partes.push(n + (n === 1 ? " color cambiado" : " colores cambiados"));
+      const msg = (partes.length ? "¿Publicar para todos?\n\n" + partes.join("\n") : "No hay turnos ni colores distintos a los publicados. ¿Publicar igual?") +
+        "\n\nLo que cada jefe cambió en su propia fila sigue mandando sobre lo que publiques.";
       if (!confirm(msg)) return;
       const btn = document.getElementById("btnPublish");
       btn.disabled = true;
@@ -2789,9 +2835,10 @@
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
         changedAt: Object.assign({}, (loadFbCache(currentMes) || {}).changedAt || {}),
-        people: people.map((p, i) => ({ id: p.id, name: p.name, codes: (ORIGINAL_CODES[i] || []).slice() })),
+        people: people.map((p, i) => ({ id: p.id, name: p.name, codes: tp.codes[i] })),
         inicial: people.map((p, i) => ({ id: p.id, name: p.name, codes: (INITIAL_CODES[i] || p.codes).slice() }))
       };
+      tp.cambiados.forEach(k => { data.changedAt[k] = data.version; });
       try {
         await fbDb.collection("jefes").doc(currentMes).set(data);
         colorOverrides = {};
@@ -2957,6 +3004,7 @@
     function openShiftPicker(pi, di) {
       if (pedidosMode) { openPedido(pi, di); return; }
       if (viewMode !== "actual") return;
+      if (!puedeEditar(pi, di)) return;
       shiftPersonIdx = pi;
       shiftDayIdx = di;
       const person = people[pi];
@@ -2987,12 +3035,14 @@
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
       stampEdit(pi, di, true);
       scheduleCjSync(currentMes);
+      schedulePropSync(currentMes);
     }
     function removeEdit(pi, di) {
       delete editsMap[pi + ":" + di];
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
       stampEdit(pi, di, false);
       scheduleCjSync(currentMes);
+      schedulePropSync(currentMes);
     }
 
     function refreshAfterEdit() {
@@ -3654,12 +3704,16 @@
       const q = document.getElementById("yoSearch").value.trim().toLowerCase();
       const list = document.getElementById("yoList");
       list.innerHTML = "";
+      const nLoc = miPersona() ? {} : editsLocalesPorId();
+      document.getElementById("yoNota").textContent = Object.keys(nLoc).length
+        ? "Ahora cada uno cambia solo su propia fila. Elegí tu nombre: los cambios que cargaste en tu fila se publican para todos." : "";
       people.forEach(p => {
         const txt = (p.name + " " + p.id).toLowerCase();
         if (q && txt.indexOf(q) < 0) return;
         const b = document.createElement("button");
         b.type = "button";
-        b.innerHTML = p.name + "<span>" + p.id + "</span>";
+        b.innerHTML = p.name + "<span>" + p.id + "</span>" +
+          (nLoc[p.id] ? '<b class="yo-hint">' + nLoc[p.id] + (nLoc[p.id] === 1 ? " cambio cargado" : " cambios cargados") + " en este celular</b>" : "");
         b.addEventListener("click", () => {
           const msgYo = currentUser === "ADMIN"
             ? "¿Asignar este celular a " + p.name + " (" + p.id + ")?"
@@ -3684,8 +3738,12 @@
             yoOverlay.classList.remove("open");
             aplicarAcuerdos();
             updatePedidosBar();
+            procesarMisPropios();
+            migrarAjenos();
+            resetPeopleFromOfficial();
             refreshAfterEdit();
             revisarAvisos();
+            syncTodosPropios();
           });
         });
         list.appendChild(b);
@@ -4024,6 +4082,18 @@
         if (!soyPide && !soyCon && Array.isArray(d.descartados) && d.descartados.map(String).indexOf(yo) >= 0)
           out.push({ k: "o:" + k, tipo: "o", t: d.t || 0, txt: "<b>" + d.name + "</b> cerró su pedido del " + f + " con otra persona." });
       });
+      Object.keys(propDocs).forEach(k => {
+        const d = propDocs[k];
+        if (!d || String(d.id) !== yo || !d.descartados) return;
+        const list = officialPeopleFor(d.mes);
+        const p = list.find(x => String(x.id) === yo);
+        Object.keys(d.descartados).forEach(dk => {
+          const ds = d.descartados[dk] || {}, di = Number(dk.slice(1));
+          const ofi = p ? ((p.codes || [])[di] || "") : "";
+          out.push({ k: "x:" + k + ":" + dk + ":" + (ds.t || 0), tipo: "x", t: ds.t || 0,
+            txt: "El admin descartó tu cambio del " + fechaAviso(d.mes, di + 1) + " (" + (ds.c || "vacío") + "). Vuelve a " + (ofi || "vacío") + "." });
+        });
+      });
       return out.sort((a, b) => a.t - b.t);
     }
     // El que pidió abrió ese pedido: ya vio a los interesados
@@ -4086,6 +4156,269 @@
     }
     document.getElementById("okAvisos").addEventListener("click", cerrarAvisos);
     document.getElementById("closeAvisos").addEventListener("click", cerrarAvisos);
+    // ========== CAMBIOS PROPIOS PUBLICADOS ==========
+    // Cada uno cambia solo SU fila, y eso se publica para todos (colección "propios_X":
+    // un documento por mes y legajo). Lo que publica el usuario manda sobre la programación oficial.
+    // El admin puede descartarlo: vuelve a lo oficial y al usuario le llega un aviso.
+    // Claves de los días: "d0", "d1", … (día 0-based).
+    const PROP_COLLECTION = "propios_jefes";
+    const PROP_PREF = "jefProp";
+    const propDocs = {};     // docId (mes_legajo) -> datos
+    let propUnsub = null, propListo = false, authListo = false;
+    const propTimers = {};
+    function propDe(mes, id) { return propDocs[mes + "_" + id] || null; }
+    function propCode(mes, id, di) {
+      const d = propDe(mes, id);
+      const e = d && d.edits;
+      return e && Object.prototype.hasOwnProperty.call(e, "d" + di) ? String(e["d" + di] || "") : null;
+    }
+    // Pone arriba de la oficial lo que publicó cada uno en su fila
+    function aplicarPropios() {
+      people.forEach(p => {
+        const d = propDe(currentMes, p.id);
+        if (!d || !d.edits) return;
+        Object.keys(d.edits).forEach(k => {
+          const di = Number(k.slice(1));
+          if (di >= 0 && di < p.codes.length) p.codes[di] = String(d.edits[k] || "");
+        });
+      });
+    }
+    function nombreDe(id, p) {
+      const q = people.find(x => String(x.id) === String(id));
+      return (q && q.name) || (p && p.name) || String(id);
+    }
+    function leerJson(key, def) { try { return JSON.parse(localStorage.getItem(key) || "null") || def; } catch (e) { return def; } }
+    function grabarJson(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+
+    function schedulePropSync(mes) {
+      clearTimeout(propTimers[mes]);
+      propTimers[mes] = setTimeout(() => syncPropios(mes), 1200);
+    }
+    function mismosEdits(a, b) {
+      const ka = Object.keys(a || {}).sort(), kb = Object.keys(b || {}).sort();
+      return ka.length === kb.length && ka.every((k, i) => k === kb[i] && String(a[k]) === String(b[k]));
+    }
+    // Publica los cambios de MI fila de ese mes
+    function syncPropios(mes) {
+      if (!fbReady || !fbAuth || !propListo || !miLegajo) return;
+      const u = fbAuth.currentUser;
+      if (!u) return;
+      const list = officialPeopleFor(mes);
+      const pi = list.findIndex(p => String(p.id) === String(miLegajo));
+      if (pi < 0) return;
+      const em = leerJson(editsKey(mes), {});
+      const times = loadEditTimes(mes);
+      const docId = mes + "_" + miLegajo;
+      const prev = propDocs[docId];
+      const desc = (prev && prev.descartados) || {};
+      const edits = {}, t = {};
+      Object.keys(em).forEach(k => {
+        const [a, di] = k.split(":").map(Number);
+        if (a !== pi) return;
+        const c = em[k] || "";
+        if (c === ((list[pi].codes || [])[di] || "")) return;
+        const tm = times[miLegajo + ":" + di] || 0;
+        const ds = desc["d" + di];
+        if (ds && (ds.t || 0) >= tm) return; // el admin lo descartó después
+        edits["d" + di] = c;
+        t["d" + di] = tm;
+      });
+      if (prev ? mismosEdits(prev.edits, edits) : !Object.keys(edits).length) return;
+      const data = { mes, id: String(miLegajo), name: nombreDe(miLegajo, list[pi]), uid: u.uid, edits, t, updated: Date.now() };
+      propDocs[docId] = Object.assign({}, prev || {}, data);
+      fbDb.collection(PROP_COLLECTION).doc(docId)
+        .set(data, { mergeFields: ["mes", "id", "name", "uid", "edits", "t", "updated"] })
+        .catch(err => {
+          console.warn("Propios:", err);
+          if (err && err.code === "permission-denied") showShareToast("No se pudo publicar tu cambio (permiso de Firebase).");
+        });
+    }
+    function syncTodosPropios() { AVAILABLE_MESES.forEach(k => schedulePropSync(k)); }
+
+    // En MI celular: aplica lo que descartó el admin y recupera lo publicado si este celular no lo tenía
+    function procesarMisPropios() {
+      if (!miLegajo) return;
+      Object.keys(propDocs).forEach(docId => {
+        const d = propDocs[docId];
+        if (!d || String(d.id) !== String(miLegajo)) return;
+        const mes = d.mes;
+        const list = officialPeopleFor(mes);
+        const pi = list.findIndex(p => String(p.id) === String(miLegajo));
+        if (pi < 0) return;
+        const em = leerJson(editsKey(mes), {});
+        const times = loadEditTimes(mes);
+        let cambio = false;
+        Object.keys(d.descartados || {}).forEach(k => {
+          const di = Number(k.slice(1)), key = pi + ":" + di, tk = miLegajo + ":" + di;
+          if (!(key in em)) return;
+          if ((times[tk] || 0) > (d.descartados[k].t || 0)) return; // lo volvió a cambiar después
+          delete em[key]; delete times[tk]; cambio = true;
+        });
+        const flag = PROP_PREF + "Adop:" + docId;
+        let adoptado = false;
+        try { adoptado = !!localStorage.getItem(flag); } catch (e) {}
+        if (!adoptado) {
+          Object.keys(d.edits || {}).forEach(k => {
+            const di = Number(k.slice(1)), key = pi + ":" + di;
+            if (key in em) return;
+            em[key] = String(d.edits[k] || "");
+            times[miLegajo + ":" + di] = (d.t && d.t[k]) || Date.now();
+            cambio = true;
+          });
+          try { localStorage.setItem(flag, "1"); } catch (e) {}
+        }
+        if (!cambio) return;
+        grabarJson(editsKey(mes), em);
+        grabarJson(editTimesKey(mes), times);
+        if (mes === currentMes) loadEdits();
+        scheduleCjSync(mes);
+      });
+    }
+
+    function startPropios() {
+      if (propUnsub || !fbReady) return;
+      propUnsub = fbDb.collection(PROP_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete propDocs[ch.doc.id];
+          else propDocs[ch.doc.id] = ch.doc.data();
+        });
+        const primera = !propListo;
+        propListo = true;
+        procesarMisPropios();
+        if (authListo) migrarAjenos();
+        resetPeopleFromOfficial();
+        refreshAfterEdit();
+        if (typeof revisarAvisos === "function") revisarAvisos();
+        if (primera) syncTodosPropios();
+      }, err => console.warn("Propios:", err));
+    }
+    // Cuando ya se sabe si es admin o no
+    function propTrasAuth() {
+      authListo = true;
+      migrarAjenos();
+      syncTodosPropios();
+      if (!miLegajo && currentUser !== "ADMIN" && hayEditsLocales()) openYo();
+    }
+
+    // ---- Cambios cargados antes en filas de otros ----
+    // Se sacan de la vista, pero quedan guardados en este celular y se le siguen mandando al admin (CJ).
+    function ajenosKey(mes) { return PROP_PREF + "Ajenos:" + mes; }
+    function hayEditsLocales() {
+      return AVAILABLE_MESES.some(mes => Object.keys(leerJson(editsKey(mes), {})).length > 0);
+    }
+    // Cuántos cambios tiene cargados este celular en la fila de cada legajo
+    function editsLocalesPorId() {
+      const out = {};
+      AVAILABLE_MESES.forEach(mes => {
+        const list = officialPeopleFor(mes);
+        const em = leerJson(editsKey(mes), {});
+        Object.keys(em).forEach(k => {
+          const [pi, di] = k.split(":").map(Number);
+          const p = list[pi];
+          if (!p || (em[k] || "") === ((p.codes || [])[di] || "")) return;
+          out[p.id] = (out[p.id] || 0) + 1;
+        });
+      });
+      return out;
+    }
+    function migrarAjenos() {
+      if (!miLegajo || !authListo || currentUser === "ADMIN") return;
+      const movidos = [];
+      AVAILABLE_MESES.forEach(mes => {
+        const list = officialPeopleFor(mes);
+        if (!list.length) return;
+        const em = leerJson(editsKey(mes), {});
+        const times = loadEditTimes(mes);
+        const backup = leerJson(ajenosKey(mes), {});
+        let cambio = false;
+        Object.keys(em).forEach(k => {
+          const [pi, di] = k.split(":").map(Number);
+          const p = list[pi];
+          if (!p || String(p.id) === String(miLegajo)) return;
+          const tk = p.id + ":" + di;
+          const off = (p.codes || [])[di] || "";
+          if ((em[k] || "") !== off) {
+            backup[tk] = { c: em[k] || "", t: times[tk] || 0 };
+            movidos.push({ mes, name: nombreDe(p.id, p), di, de: off, a: em[k] || "" });
+          }
+          delete em[k]; delete times[tk]; cambio = true;
+        });
+        if (!cambio) return;
+        grabarJson(editsKey(mes), em);
+        grabarJson(editTimesKey(mes), times);
+        grabarJson(ajenosKey(mes), backup);
+        if (mes === currentMes) loadEdits();
+      });
+      if (!movidos.length) return;
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      const filas = movidos.map(m => "<li><b>" + m.name + "</b> · " + fechaAviso(m.mes, m.di + 1) + ": " +
+        (m.de || "—") + " → " + (m.a || "vacío") + "</li>").join("");
+      mostrarInfo("Cambios en filas de otros",
+        "<p>Ahora cada uno cambia solo su propia fila, y lo que cambia lo ven todos.</p>" +
+        "<p>En este celular tenías cargados estos cambios en filas de otros. Ya no se muestran:</p><ul>" + filas + "</ul>" +
+        "<p>Si eran cambios reales, avisale a esa persona que los cargue en su celular. El administrador igual los sigue viendo.</p>");
+    }
+    function mostrarInfo(titulo, html) {
+      document.getElementById("infoTitle").textContent = titulo;
+      document.getElementById("infoBody").innerHTML = html;
+      document.getElementById("infoOverlay").classList.add("open");
+    }
+    ["okInfo", "closeInfo"].forEach(id => document.getElementById(id).addEventListener("click", () => {
+      document.getElementById("infoOverlay").classList.remove("open");
+    }));
+
+    // ---- Quién puede cambiar cada celda ----
+    function puedeEditar(pi, di) {
+      const p = people[pi];
+      if (!p) return false;
+      if (currentUser === "ADMIN") {
+        if (String(p.id) !== String(miLegajo) && propCode(currentMes, p.id, di) != null) { ofrecerDescartar(pi, di); return false; }
+        return true;
+      }
+      const me = miPersona();
+      if (!me) {
+        showShareToast("Primero elegí quién sos: cada uno cambia solo su fila.");
+        if (fbReady) openYo();
+        return false;
+      }
+      if (me.pi !== pi) { showShareToast("Solo podés cambiar tu propia fila."); return false; }
+      return true;
+    }
+    function ofrecerDescartar(pi, di) {
+      const p = people[pi];
+      const code = propCode(currentMes, p.id, di);
+      const ofi = (ORIGINAL_CODES[pi] || [])[di] || "";
+      if (!confirm(p.name + " publicó " + (code || "vacío") + " el " + fechaTxt(di) + ".\n\n" +
+        "¿Descartar este cambio? Vuelve a lo oficial (" + (ofi || "vacío") + ") para todos y a " + p.name + " le llega un aviso.")) return;
+      descartarPropio(currentMes, p.id, di);
+    }
+    function descartarPropio(mes, id, di) {
+      const docId = mes + "_" + id;
+      const d = propDocs[docId];
+      if (!d || !d.edits) return;
+      const k = "d" + di;
+      const c = String(d.edits[k] || "");
+      const nd = JSON.parse(JSON.stringify(d));
+      delete nd.edits[k];
+      if (nd.t) delete nd.t[k];
+      nd.descartados = Object.assign({}, nd.descartados || {}, { [k]: { c, t: Date.now() } });
+      propDocs[docId] = nd;
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      const FV = firebase.firestore.FieldValue;
+      fbDb.collection(PROP_COLLECTION).doc(docId).update({
+        ["edits." + k]: FV.delete(), ["t." + k]: FV.delete(), ["descartados." + k]: nd.descartados[k]
+      }).then(() => showShareToast("Cambio descartado. Se le avisa a " + (d.name || "la persona") + "."))
+        .catch(err => {
+          propDocs[docId] = d;
+          resetPeopleFromOfficial();
+          refreshAfterEdit();
+          alert(err && err.code === "permission-denied"
+            ? "Firebase no deja descartar (revisá las reglas de " + PROP_COLLECTION + ")."
+            : "No se pudo descartar. Revisá la conexión.");
+        });
+    }
     // Carga en ESTE celular los acuerdos donde participa quien lo usa (una sola vez cada uno)
     function aplicarAcuerdos() {
       if (!miLegajo) return;
@@ -4121,6 +4454,7 @@
         }
         cambios.forEach(x => {
           const di = x.di;
+          if (String(x.id) !== String(miLegajo)) return; // la fila del otro la publica su celular
           const pi = people.findIndex(pp => String(pp.id) === String(x.id));
           if (pi < 0 || !x.code) return;
           people[pi].codes[di] = x.code;

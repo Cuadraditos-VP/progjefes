@@ -93,6 +93,12 @@ function chequear(nombre, cond, detalle) {
     chequear("B NO ve lo que A cambió en la fila de C", (await B.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) !== "MD" ||
       (await B.evaluate(([s, d2]) => ORIGINAL_CODES[s.c][d2], [s, d2])) === "MD");
     chequear("A sí ve lo que cambió en la fila de C", (await A.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) === "MD");
+    const N = await cel("uN");
+    const ofiA = await N.evaluate(([s, d2]) => ORIGINAL_CODES[s.a][d2], [s, d2]);
+    chequear("sin nombre NO ve el cambio que publicó A", ofiA === "X" || (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === ofiA);
+    await N.evaluate(([k, v]) => localStorage.setItem(k, v), [YOKEY, s.idb]); await N.reload(); await wait(2500);
+    chequear("al elegir su nombre ya lo ve", (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === "X");
+    await N.close();
 
     console.log("\nExterna (Valeria): cambia en su celular, no publica nada");
     const V = await cel("uV", "ext-valeria");
@@ -147,6 +153,18 @@ function chequear(nombre, cond, detalle) {
     }, s);
     if (fr) chequear('abajo dice "F el ' + (fr.dd + 1) + '"', fr.txt === "F el " + (fr.dd + 1), fr.txt);
     else console.log("  (sin días para probar)");
+    if (fr) {
+      await wait(1500);
+      const N2 = await cel("uN2");
+      const vista = await N2.evaluate(() => {
+        document.getElementById("yoOverlay").classList.remove("open");
+        setPedidosMode(true);
+        document.getElementById("yoOverlay").classList.remove("open");
+        return { celdas: document.querySelectorAll("td .ped-da").length, label: document.getElementById("pedidosLabel").textContent };
+      });
+      chequear("sin nombre no ve los pedidos de cambio de los demás", vista.celdas === 0 && /quién sos/i.test(vista.label), vista);
+      await N2.close();
+    }
 
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);

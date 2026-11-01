@@ -3511,6 +3511,8 @@
     }
     function rebuildPedidos() {
       PED_REF = {};
+      // Sin nombre elegido no se ven los pedidos de los demás
+      if (!veCambiosAjenos()) { PED_CODES = people.map(() => Array(DAYS).fill("")); return; }
       PED_CODES = people.map((p, pi) => {
         const arr = Array(DAYS).fill("");
         for (let di = 0; di < DAYS; di++) {
@@ -3649,8 +3651,9 @@
       const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado").length;
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
       document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
-      document.getElementById("pedidosLabel").textContent =
-        n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : soyExterno() ? " · " + externoDe(miLegajo).name : "");
+      document.getElementById("pedidosLabel").textContent = !veCambiosAjenos()
+        ? "Elegí quién sos para ver los pedidos"
+        : n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : soyExterno() ? " · " + externoDe(miLegajo).name : "");
       const btnYo = document.getElementById("btnYo");
       const elegido = me || soyExterno();
       btnYo.textContent = elegido ? "Cambiar" : "¿Quién sos?";
@@ -3832,6 +3835,7 @@
     function openPedido(pi, di) {
       const p = people[pi];
       if (!p) return;
+      if (!veCambiosAjenos()) { openYo(); return; }
       const diTocado = di;
       if (!pedidoDe(p.id, di) && refDia(pi, di) != null) di = refDia(pi, di);
       pedPi = pi; pedDi = di; pedDiTocado = diTocado;
@@ -4255,8 +4259,15 @@
       const e = d && d.edits;
       return e && Object.prototype.hasOwnProperty.call(e, "d" + di) ? String(e["d" + di] || "") : null;
     }
+    // Quien no eligió su nombre ("¿Quién sos?") no ve los cambios que publicaron los demás:
+    // ve la programación oficial y solo lo que él cambió en su celular. El admin ve todo.
+    function veCambiosAjenos() {
+      try { if (currentUser === "ADMIN") return true; } catch (e) {}
+      try { return !!miLegajo; } catch (e) { return false; }
+    }
     // Pone arriba de la oficial lo que publicó cada uno en su fila
     function aplicarPropios() {
+      if (!veCambiosAjenos()) return;
       people.forEach(p => {
         const d = propDe(currentMes, p.id);
         if (!d || !d.edits) return;
@@ -4378,6 +4389,9 @@
     // Cuando ya se sabe si es admin o no
     function propTrasAuth() {
       authListo = true;
+      // Ya se sabe si es admin: mostrar (o no) los cambios publicados por los demás
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
       migrarAjenos();
       syncTodosPropios();
       // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
@@ -4761,6 +4775,7 @@
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         miLegajo = "";
         updatePedidosBar();
+        resetPeopleFromOfficial();
         refreshAfterEdit();
         showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos.");
         if (currentUser !== "ADMIN") openYo();

@@ -4014,7 +4014,10 @@
       d.respuestas = resp;
       openPedido(pi, di);
       refreshAfterEdit();
-      fbDb.collection(PED_COLLECTION).doc(id).update({ respuestas: resp }).catch(errPed);
+      // Solo se toca la respuesta propia: así dos que responden a la vez no se pisan
+      const campo = "respuestas." + me.p.id;
+      fbDb.collection(PED_COLLECTION).doc(id)
+        .update({ [campo]: si ? resp[me.p.id] : firebase.firestore.FieldValue.delete() }).catch(errPed);
     }
     function otrosResp(d, r) { return Object.keys(d.respuestas || {}).filter(x => String(x) !== String(r.id)); }
     // El que pidió confirma con uno de los que respondieron: queda como acuerdo cerrado

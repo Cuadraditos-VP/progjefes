@@ -85,6 +85,19 @@ function chequear(nombre, cond, detalle) {
       (await B.evaluate(([s, d2]) => ORIGINAL_CODES[s.c][d2], [s, d2])) === "MD");
     chequear("A sí ve lo que cambió en la fila de C", (await A.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) === "MD");
 
+    console.log("\nExterna (Valeria): cambia en su celular, no publica nada");
+    const V = await cel("uV", "ext-valeria");
+    chequear("a Valeria no le pregunta \"¿Quién sos?\"", !(await V.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    const d4 = (s.d + 7) % 28;
+    const antesV = Object.keys(be.st["propios_" + APP] || {}).length;
+    await V.evaluate(([s, d4]) => { openShiftPicker(s.b, d4); applyShift("MD"); document.getElementById("closeShift").click(); }, [s, d4]);
+    await wait(2500);
+    chequear("Valeria ve su cambio", (await V.evaluate(([s, d4]) => people[s.b].codes[d4], [s, d4])) === "MD");
+    chequear("B no ve el cambio de Valeria", (await B.evaluate(([s, d4]) => people[s.b].codes[d4], [s, d4])) !== "MD" ||
+      (await B.evaluate(([s, d4]) => ORIGINAL_CODES[s.b][d4], [s, d4])) === "MD");
+    chequear("Valeria no publica nada", Object.keys(be.st["propios_" + APP] || {}).length === antesV);
+    await V.close();
+
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));

@@ -1274,6 +1274,10 @@
       background: var(--ink); z-index: 1; pointer-events: none;
     }
     body.names-hidden .grp-card td.sticky-col-2::after { content: none; }
+    /* Al desplazar de costado, legajo y nombre se pegan al borde de la pantalla (no después del
+       margen de 10px de la grilla), así no asoma una franja de días a la izquierda (como en cajeros) */
+    .grp-card th.sticky-col, .grp-card td.sticky-col { left: -10px !important; }
+    .grp-card th.sticky-col-2, .grp-card td.sticky-col-2 { left: calc(var(--col-legajo) - 10px) !important; }
     /* Legajo y nombre dibujan por encima su propia línea gris de abajo: así, al moverse de costado,
        el borde negro de un LIC que pasa por debajo no se asoma por la línea entre filas */
     .grp-card td.sticky-col { overflow: visible !important; }
@@ -1349,9 +1353,6 @@
       .grp-card td.sticky-col { padding: 0 2px 0 6px !important; }
       .grp-card td.sticky-col-2 { padding: 0 4px !important; white-space: nowrap; overflow: hidden; }
       .grp-card thead th.grp-label { padding-left: 6px !important; }
-      /* Sin margen lateral: así al moverse de costado no asoman días a la izquierda de los nombres */
-      #scheduleWrap { padding-left: 0 !important; padding-right: 0 !important; }
-      #scheduleWrap .grp-card { margin-left: 0; margin-right: 0; }
       /* "GRUPO 1/2" puede pasar por encima de la columna de apellido */
       .grp-card thead th.sticky-col { z-index: 61 !important; }
     }

@@ -3582,7 +3582,7 @@
       let d = pedidoDe(id, di);
       const me = miPersona();
       if (!d) {
-        // Día de franco ofrecido: arriba F, abajo "⇄ 11" (el día que pide), del color del turno a cubrir
+        // Día de franco ofrecido: arriba F (lo que da), abajo "F el 11" (lo que busca: franco el día que pide)
         const pi = people.findIndex(pp => String(pp.id) === String(id));
         const src = refDia(pi, di);
         if (src == null) return;
@@ -3592,12 +3592,12 @@
         const sp = document.createElement("span");
         sp.className = "ped-da";
         const cubre = String(d.ofrece || "").toUpperCase();
-        // "⇄ 2": este franco se cambia con el día 2 (pintado del turno que hay que cubrir ese día)
-        sp.textContent = "⇄ " + (src + 1);
-        sp.title = "Se cambia con el día " + (src + 1) + (cubre ? " (cubrir " + cubre + ")" : "");
-        const bgC = colorMap[cubre] || "#e2e8f0";
+        // Abajo va lo que busca: el franco del día que pide ("F el 2"). El turno a cubrir está en el detalle.
+        sp.textContent = "F el " + (src + 1);
+        sp.title = "Busca franco el " + (src + 1) + (cubre ? " (hay que cubrirle " + cubre + ")" : "");
+        const bgC = colorMap["F"] || "#e2e8f0";
         sp.style.background = bgC;
-        sp.style.color = cubre ? fgFor(cubre, bgC) : "#334155";
+        sp.style.color = fgFor("F", bgC);
         td.appendChild(sp);
         if (me && String(me.p.id) !== String(id) && actualDe(me.pi, src) === "F" && trabaja(actualDe(me.pi, di))) td.classList.add("te-sirve");
         return;

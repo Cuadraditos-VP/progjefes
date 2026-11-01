@@ -153,6 +153,18 @@ function chequear(nombre, cond, detalle) {
     }, s);
     if (fr) chequear('abajo dice "F el ' + (fr.dd + 1) + '"', fr.txt === "F el " + (fr.dd + 1), fr.txt);
     else console.log("  (sin días para probar)");
+    if (fr) {
+      await wait(1500);
+      const N2 = await cel("uN2");
+      const vista = await N2.evaluate(() => {
+        document.getElementById("yoOverlay").classList.remove("open");
+        setPedidosMode(true);
+        document.getElementById("yoOverlay").classList.remove("open");
+        return { celdas: document.querySelectorAll("td .ped-da").length, label: document.getElementById("pedidosLabel").textContent };
+      });
+      chequear("sin nombre no ve los pedidos de cambio de los demás", vista.celdas === 0 && /quién sos/i.test(vista.label), vista);
+      await N2.close();
+    }
 
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);

@@ -93,6 +93,12 @@ function chequear(nombre, cond, detalle) {
     chequear("B NO ve lo que A cambió en la fila de C", (await B.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) !== "MD" ||
       (await B.evaluate(([s, d2]) => ORIGINAL_CODES[s.c][d2], [s, d2])) === "MD");
     chequear("A sí ve lo que cambió en la fila de C", (await A.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) === "MD");
+    const N = await cel("uN");
+    const ofiA = await N.evaluate(([s, d2]) => ORIGINAL_CODES[s.a][d2], [s, d2]);
+    chequear("sin nombre NO ve el cambio que publicó A", ofiA === "X" || (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === ofiA);
+    await N.evaluate(([k, v]) => localStorage.setItem(k, v), [YOKEY, s.idb]); await N.reload(); await wait(2500);
+    chequear("al elegir su nombre ya lo ve", (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === "X");
+    await N.close();
 
     console.log("\nExterna (Valeria): cambia en su celular, no publica nada");
     const V = await cel("uV", "ext-valeria");

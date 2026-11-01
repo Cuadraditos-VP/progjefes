@@ -4255,8 +4255,15 @@
       const e = d && d.edits;
       return e && Object.prototype.hasOwnProperty.call(e, "d" + di) ? String(e["d" + di] || "") : null;
     }
+    // Quien no eligió su nombre ("¿Quién sos?") no ve los cambios que publicaron los demás:
+    // ve la programación oficial y solo lo que él cambió en su celular. El admin ve todo.
+    function veCambiosAjenos() {
+      try { if (currentUser === "ADMIN") return true; } catch (e) {}
+      try { return !!miLegajo; } catch (e) { return false; }
+    }
     // Pone arriba de la oficial lo que publicó cada uno en su fila
     function aplicarPropios() {
+      if (!veCambiosAjenos()) return;
       people.forEach(p => {
         const d = propDe(currentMes, p.id);
         if (!d || !d.edits) return;
@@ -4378,6 +4385,9 @@
     // Cuando ya se sabe si es admin o no
     function propTrasAuth() {
       authListo = true;
+      // Ya se sabe si es admin: mostrar (o no) los cambios publicados por los demás
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
       migrarAjenos();
       syncTodosPropios();
       // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
@@ -4761,6 +4771,7 @@
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         miLegajo = "";
         updatePedidosBar();
+        resetPeopleFromOfficial();
         refreshAfterEdit();
         showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos.");
         if (currentUser !== "ADMIN") openYo();

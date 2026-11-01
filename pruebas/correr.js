@@ -101,6 +101,10 @@ function chequear(nombre, cond, detalle) {
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    const celTxt = () => AD.evaluate(() => document.getElementById("btnCelulares").textContent);
+    chequear("el admin ve registrados nuevos en Celulares", /\d+ nuevos?/.test(await celTxt()), await celTxt());
+    await AD.evaluate(() => { document.getElementById("btnCelulares").click(); document.getElementById("closeCelulares").click(); });
+    chequear("al abrir Celulares dejan de contarse", !/nuevo/.test(await celTxt()), await celTxt());
     chequear("el admin ve el cambio de A", (await AD.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === "X");
     await AD.evaluate(([s, d2]) => openShiftPicker(s.a, d2), [s, d2]);
     await wait(2500);

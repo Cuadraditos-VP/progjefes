@@ -4783,18 +4783,28 @@
       Object.values(celularesDocs).forEach(d => { if (d && d.id) cnt[d.id] = (cnt[d.id] || 0) + 1; });
       return cnt;
     }
+    // Registrados nuevos: los que eligieron nombre después de la última vez que el admin abrió Celulares
+    const CEL_VISTOS_KEY = PROP_PREF + "CelVistos";
+    let celVistos = 0, celVistosAntes = 0;
+    try { celVistos = Number(localStorage.getItem(CEL_VISTOS_KEY)) || 0; } catch (e) {}
+    function esNuevoCel(d, desde) { return !!d && (d.t || 0) > desde; }
     function updateCelularesBtn() {
       const cnt = repetidos();
       const dup = Object.keys(cnt).filter(k => cnt[k] > 1).length;
+      const nuevos = Object.values(celularesDocs).filter(d => esNuevoCel(d, celVistos)).length;
+      const extra = [];
+      if (nuevos) extra.push(nuevos + (nuevos === 1 ? " nuevo" : " nuevos"));
+      if (dup) extra.push(dup + " ⚠");
       const b = document.getElementById("btnCelulares");
-      if (b) b.textContent = "Celulares" + (dup ? " (" + dup + " ⚠)" : "");
+      if (b) b.textContent = "Celulares" + (extra.length ? " (" + extra.join(", ") + ")" : "");
     }
     const celularesOverlay = document.getElementById("celularesOverlay");
     function renderCelulares() {
       const list = document.getElementById("celularesList");
       const cnt = repetidos();
       const items = Object.keys(celularesDocs).map(k => ({ k, d: celularesDocs[k] })).filter(x => x.d)
-        .sort((a, b) => (cnt[b.d.id] > 1) - (cnt[a.d.id] > 1) || String(a.d.name).localeCompare(String(b.d.name)));
+        .sort((a, b) => (cnt[b.d.id] > 1) - (cnt[a.d.id] > 1) ||
+          esNuevoCel(b.d, celVistosAntes) - esNuevoCel(a.d, celVistosAntes) || String(a.d.name).localeCompare(String(b.d.name)));
       list.innerHTML = items.length ? "" : '<div class="ped-note info">Todavía ningún celular eligió nombre.</div>';
       items.forEach(({ k, d }) => {
         const row = document.createElement("div");
@@ -4802,7 +4812,8 @@
         const dup = cnt[d.id] > 1;
         const f = d.t ? new Date(d.t) : null;
         const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
-        row.innerHTML = '<div class="acu-top"><span>' + d.name + (externoDe(d.id) ? '' : ' · ' + d.id) + '</span></div>' +
+        row.innerHTML = '<div class="acu-top"><span>' + d.name + (externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
+          (esNuevoCel(d, celVistosAntes) ? '<span style="color:#059669;font-weight:700">nuevo</span>' : '') + '</div>' +
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
           (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
         const b = document.createElement("button");
@@ -4825,7 +4836,14 @@
         list.appendChild(row);
       });
     }
-    document.getElementById("btnCelulares").addEventListener("click", () => { renderCelulares(); celularesOverlay.classList.add("open"); });
+    document.getElementById("btnCelulares").addEventListener("click", () => {
+      // Se marcan como "nuevo" en la lista y desde ahora dejan de contarse en el botón
+      celVistosAntes = celVistos;
+      celVistos = Math.max(Date.now(), ...Object.values(celularesDocs).map(d => (d && d.t) || 0));
+      try { localStorage.setItem(CEL_VISTOS_KEY, String(celVistos)); } catch (e) {}
+      renderCelulares(); updateCelularesBtn();
+      celularesOverlay.classList.add("open");
+    });
     document.getElementById("closeCelulares").addEventListener("click", () => celularesOverlay.classList.remove("open"));
     celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) celularesOverlay.classList.remove("open"); });
 

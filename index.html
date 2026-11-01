@@ -3493,7 +3493,7 @@
     // Nunca modifica la programación oficial.
     const PED_COLLECTION = "pedidos_jefes";
     let pedUnsub = null;
-    let pedPi = null, pedDi = null;
+    let pedPi = null, pedDi = null, pedDiTocado = null; // pedDiTocado: el día que se tocó (puede ser un franco ofrecido)
 
     function pedDocId(mes, id, di) { return mes + "_" + id + "_" + (di + 1); }
     function pedidoDe(id, di) {
@@ -3559,6 +3559,12 @@
     function aceptaTxt(d) {
       const l = aceptaDe(d).filter(c => c !== "F" || esFranco(d)).map(c => c === "*" ? "cualquier turno" : pill(c));
       return l.length > 1 ? l.slice(0, -1).join(", ") + " o " + l[l.length - 1] : (l[0] || "—");
+    }
+    // "Busca" si quiere una sola cosa; "Acepta" si son varias (o cualquier turno)
+    function verboAcepta(d, vos) {
+      const l = aceptaDe(d).filter(c => c !== "F" || esFranco(d));
+      const una = l.length === 1 && l[0] !== "*";
+      return vos ? (una ? "buscás" : "aceptás") : (una ? "Busca" : "Acepta");
     }
     // Texto corto para la celda: "M", "M/N", "M+2", "Todo"
     function aceptaCorto(d) {
@@ -3642,7 +3648,7 @@
         if (document.getElementById("acuerdosOverlay").classList.contains("open")) renderAcuerdos();
         if (pedidosMode) {
           refreshAfterEdit();
-          if (document.getElementById("pedidoOverlay").classList.contains("open") && pedPi !== null) openPedido(pedPi, pedDi);
+          if (document.getElementById("pedidoOverlay").classList.contains("open") && pedPi !== null) openPedido(pedPi, pedDiTocado != null ? pedDiTocado : pedDi);
         }
         updatePedidosBar();
         revisarAvisos();
@@ -3772,8 +3778,9 @@
     function openPedido(pi, di) {
       const p = people[pi];
       if (!p) return;
+      const diTocado = di;
       if (!pedidoDe(p.id, di) && refDia(pi, di) != null) di = refDia(pi, di);
-      pedPi = pi; pedDi = di;
+      pedPi = pi; pedDi = di; pedDiTocado = diTocado;
       const me = miPersona();
       const esMio = me && me.pi === pi;
       const ped = pedidoDe(p.id, di);
@@ -3816,7 +3823,7 @@
         pedFrancoMode = pedAceptaSel.indexOf("F") >= 0;
         const doy = ped ? (ped.ofrece || pedTengoSel) : pedTengoSel;
         if (ped) {
-          body.innerHTML = '<div class="ped-info">Das ' + pill(doy) + ' y aceptás ' + aceptaTxt(ped) + '.' +
+          body.innerHTML = '<div class="ped-info">Das ' + pill(doy) + ' y ' + verboAcepta(ped, true) + ' ' + aceptaTxt(ped) + '.' +
             (esFranco(ped) ? '<br>Por franco ofrecés tu franco del ' + ped.francos.join(", ") + '.' : '') + '</div>';
         } else {
           body.innerHTML = '<div class="ped-info">Ese día tenés ' + pill(pedTengoSel) +
@@ -3926,8 +3933,18 @@
       }
       const fr = esFranco(ped);
       const da = ped.ofrece || ofrece;
-      body.innerHTML = '<div class="ped-info">Da ' + pill(da) + '<br>Acepta ' + aceptaTxt(ped) +
-        (fr ? '<br>Por franco ofrece su franco del ' + ped.francos.join(", ") : '') + '</div>';
+      // Tocó uno de los francos que ofrece: se explica desde ese día
+      const desdeFranco = fr && diTocado !== di && ped.francos.map(Number).indexOf(diTocado + 1) >= 0;
+      if (desdeFranco) {
+        document.getElementById("pedidoTitle").textContent = p.name + " · " + fechaTxt(diTocado);
+        const otros = turnosDe(ped);
+        body.innerHTML = '<div class="ped-info">Da ' + pill("F") + ' el ' + fechaTxt(diTocado) +
+          '<br>Busca ' + pill("F") + ' el ' + fechaTxt(di) + ' (ese día tiene ' + pill(da) + ')' +
+          (otros.length ? '<br><small>El ' + (di + 1) + ' también acepta ' + aceptaTxt({ acepta: otros, ofrece: da }) + '</small>' : '') + '</div>';
+      } else {
+        body.innerHTML = '<div class="ped-info">Da ' + pill(da) + '<br>' + verboAcepta(ped) + ' ' + aceptaTxt(ped) +
+          (fr ? '<br>Por franco ofrece su franco del ' + ped.francos.join(", ") : '') + '</div>';
+      }
       if (me) {
         const yoTengo = actualDe(me.pi, di);
         const yaResp = ped.respuestas && ped.respuestas[me.p.id];
@@ -3950,7 +3967,8 @@
         }
         // Franco: solo si quien mira tiene F ese día (o ya eligió uno)
         if (fr && (tieneF || (yaResp && yaResp.dia))) {
-          ped.francos.forEach(n => {
+          const francosOrden = ped.francos.slice().sort((a, b) => (b === diTocado + 1) - (a === diTocado + 1));
+          francosOrden.forEach(n => {
             const deja = actualDe(me.pi, n - 1);
             const sirve = tieneF && trabaja(deja);
             const elegido = yaResp && Number(yaResp.dia) === n;

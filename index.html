@@ -4446,6 +4446,12 @@
     function puedeEditar(pi, di) {
       const p = people[pi];
       if (!p) return false;
+      // Para cambiar turnos hay que estar registrado ("¿Quién sos?"), salvo el admin
+      if (currentUser !== "ADMIN" && !miPersona() && !soyExterno()) {
+        alert("Para cambiar turnos primero tenés que decir quién sos.");
+        openYo();
+        return false;
+      }
       // Admin: si toca algo que publicó otro, primero se le ofrece descartarlo
       if (currentUser === "ADMIN" && String(p.id) !== String(miLegajo) && propCode(currentMes, p.id, di) != null) {
         if (ofrecerDescartar(pi, di)) return false;

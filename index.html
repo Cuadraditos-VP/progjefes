@@ -1371,6 +1371,8 @@
     body.pedidos-on #pedidosBar { display: block; }
     #pedidosBar button.ped-chip { background: #fff; color: #9a3412; border: 1px solid #fdba74; }
     #pedidosBar button.ped-chip.on { background: #16a34a; color: #fff; border-color: #16a34a; }
+    #pedidosBar button#btnPedir { padding: 6px 12px; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+    #pedidoOverlay, #yoOverlay, #avisosOverlay, #infoOverlay { z-index: 1200; }
     #pedidosVacio { display: none; max-width: 560px; margin: 4px auto 10px; padding: 12px; border-radius: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; color: #475569; font-size: 0.85rem; text-align: center; }
     body.pedidos-on #pedidosVacio.show { display: block; }
     #pedidosBar button {
@@ -1460,6 +1462,7 @@
     <div id="pedidosBar">
       <span id="pedidosLabel">Pedidos de cambio</span>
       <button type="button" id="btnSirven" class="ped-chip">Me sirven</button>
+      <button type="button" id="btnPedir">＋ Pedir cambio</button>
       <button type="button" id="btnYo">¿Quién sos?</button>
       <button type="button" id="btnAcuerdos" class="admin-only">Acordados</button>
       <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
@@ -3243,8 +3246,8 @@
     function openPersonCalendar(pi) {
       currentCalPi = pi;
       const person = people[pi];
-      const codesArr = codesFor(pi);
-      personCalTitle.textContent = person.name + " · " + person.id;
+      const codesArr = calModoPedir ? (person.codes || []) : codesFor(pi);
+      personCalTitle.textContent = calModoPedir ? "Tocá el día que querés cambiar" : person.name + " · " + person.id;
 
       // Vista almanaque (grilla de 7 columnas)
       let gridHtml = WEEKDAY_ABBR.map(d => `<div class="cal-wd">${d}</div>`).join("");
@@ -3253,7 +3256,7 @@
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
-        const mk = markClass(pi, d);
+        const mk = marcaCal(pi, d);
         gridHtml += `<div class="cal-day${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-num">${d + 1}</span>
           <span class="cal-code">${code || "·"}</span>
@@ -3268,7 +3271,7 @@
         const code = codesArr[d] || "";
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
-        const mk = markClass(pi, d);
+        const mk = marcaCal(pi, d);
         const wd = WEEKDAY_ABBR[(MES.startWd + d) % 7];
         rowHtml += `<div class="cal-day-h${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-wd-h">${wd}</span>
@@ -3284,6 +3287,7 @@
     }
     function closePersonCalendar() {
       personOverlay.classList.remove("open");
+      calModoPedir = false;
     }
 
     // ========== COMPARTIR ALMANAQUE POR WHATSAPP (imagen, sin puntitos de comentario) ==========
@@ -3674,11 +3678,17 @@
         if (tb) tb.style.removeProperty("--days-total");
       });
       if (!pedidosMode || selectedDay !== null) return;
-      if (!pedSoloSirven) return;
+      // Vista compacta: solo filas y días con algo publicado (y tu fila), o solo lo que te sirve
       const rows = new Set(), cols = new Set();
-      document.querySelectorAll("#scheduleWrap td.te-sirve").forEach(td => {
-        rows.add(Number(td.dataset.pi)); cols.add(Number(td.dataset.di));
-      });
+      if (pedSoloSirven) {
+        document.querySelectorAll("#scheduleWrap td.te-sirve").forEach(td => {
+          rows.add(Number(td.dataset.pi)); cols.add(Number(td.dataset.di));
+        });
+      } else {
+        PED_CODES.forEach((arr, pi) => (arr || []).forEach((c, di) => { if (c) { rows.add(pi); cols.add(di); } }));
+        const me = miPersona();
+        if (me) rows.add(me.pi);
+      }
       document.querySelectorAll("#scheduleWrap .grp-card").forEach(card => {
         let visibles = 0;
         card.querySelectorAll("tbody tr").forEach(tr => {
@@ -3694,7 +3704,9 @@
         if (tb) tb.style.setProperty("--days-total", (cols.size * 42) + "px");
       });
       if (!cols.size && vacio) {
-        vacio.textContent = "Por ahora ningún cambio publicado te sirve.";
+        vacio.textContent = pedSoloSirven
+          ? "Por ahora ningún cambio publicado te sirve."
+          : "Todavía no hay pedidos. Para pedir uno, tocá \"Pedir cambio\".";
         vacio.classList.add("show");
       }
     }
@@ -3706,6 +3718,29 @@
       try { localStorage.setItem("jefPedSirven", pedSoloSirven ? "1" : "0"); } catch (e) {}
       updateChips(); refreshAfterEdit();
     });
+    // ---- Pedir cambio: abre tu almanaque con tus turnos; tocás el día y cargás el pedido ----
+    let calModoPedir = false;
+    function abrirPedirCambio() {
+      const me = miPersona();
+      if (!me) { openYo(); return; }
+      calModoPedir = true;
+      openPersonCalendar(me.pi);
+    }
+    document.getElementById("btnPedir").addEventListener("click", abrirPedirCambio);
+    // Tocar tu propio nombre en modo Cambios también abre tu almanaque para pedir
+    document.addEventListener("click", (e) => {
+      if (!pedidosMode) return;
+      const td = e.target.closest("td.person-name.mi-fila, td.person-id.mi-fila");
+      if (!td) return;
+      e.stopPropagation();
+      abrirPedirCambio();
+    }, true);
+    // En el almanaque de "Pedir cambio": borde naranja en los días donde ya tenés un pedido
+    function marcaCal(pi, d) {
+      if (!calModoPedir) return markClass(pi, d);
+      const p = people[pi];
+      return p && (pedidoDe(p.id, d) || refDia(pi, d) != null) ? "con-resp" : "";
+    }
     function setPedidosMode(on) {
       pedidosMode = on;
       document.body.classList.toggle("pedidos-on", on);
@@ -4606,7 +4641,10 @@
         alert("No se pudo quitar el pedido.");
       });
     });
-    function closePedido() { pedidoOverlay.classList.remove("open"); pedPi = null; pedDi = null; pedTengoSel = ""; pedidoOverlay.dataset.k = ""; pedidoOverlay.dataset.fk = ""; pedFrancoMode = false; pedFrancosSel = []; pedAceptaSel = []; }
+    function closePedido() {
+      // Si se vino desde "Pedir cambio", el almanaque se redibuja (para marcar el día pedido)
+      if (calModoPedir && personOverlay.classList.contains("open") && currentCalPi != null) setTimeout(() => openPersonCalendar(currentCalPi), 0);
+      pedidoOverlay.classList.remove("open"); pedPi = null; pedDi = null; pedTengoSel = ""; pedidoOverlay.dataset.k = ""; pedidoOverlay.dataset.fk = ""; pedFrancoMode = false; pedFrancosSel = []; pedAceptaSel = []; }
     document.getElementById("closePedido").addEventListener("click", closePedido);
     document.getElementById("donePedido").addEventListener("click", closePedido);
     pedidoOverlay.addEventListener("click", (e) => { if (e.target === pedidoOverlay) closePedido(); });

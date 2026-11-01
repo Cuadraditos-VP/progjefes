@@ -3534,6 +3534,15 @@
       const r = PED_REF[pi + ":" + di];
       return r == null ? null : r;
     }
+    // Externos: pueden usar la app y hacer cambios en su celular, pero no tienen fila propia
+    // (no publican nada, no piden cambios y no tienen ningún permiso extra).
+    const EXTERNOS = [{ id: "ext-valeria", name: "Valeria" }];
+    function externoDe(id) { return EXTERNOS.find(e => e.id === String(id)) || null; }
+    function soyExterno() { return !!externoDe(miLegajo); }
+    function pedirYo() {
+      if (soyExterno()) showShareToast("No tenés fila propia: no podés pedir ni responder cambios.");
+      else openYo();
+    }
     function miPersona() {
       if (!miLegajo) return null;
       const pi = people.findIndex(p => String(p.id) === String(miLegajo));
@@ -3641,11 +3650,12 @@
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
       document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
       document.getElementById("pedidosLabel").textContent =
-        n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : "");
+        n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : soyExterno() ? " · " + externoDe(miLegajo).name : "");
       const btnYo = document.getElementById("btnYo");
-      btnYo.textContent = me ? "Cambiar" : "¿Quién sos?";
+      const elegido = me || soyExterno();
+      btnYo.textContent = elegido ? "Cambiar" : "¿Quién sos?";
       // Una vez elegido, solo el admin (logueado en ese celular) lo puede cambiar
-      btnYo.style.display = me && currentUser !== "ADMIN" ? "none" : "";
+      btnYo.style.display = elegido && currentUser !== "ADMIN" ? "none" : "";
     }
 
     function startPedidos() {
@@ -3722,7 +3732,7 @@
     let calModoPedir = false;
     function abrirPedirCambio() {
       const me = miPersona();
-      if (!me) { openYo(); return; }
+      if (!me) { pedirYo(); return; }
       calModoPedir = true;
       openPersonCalendar(me.pi);
     }
@@ -3750,7 +3760,7 @@
       bp.title = on ? "Volver a la grilla" : "Pedidos de cambio de turno";
       if (on) { startPedidos(); updatePedidosBar(); updateChips(); }
       refreshAfterEdit();
-      if (on && !miPersona()) openYo();
+      if (on && !miPersona() && !soyExterno()) openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
 
@@ -3763,22 +3773,24 @@
       const nLoc = miPersona() ? {} : editsLocalesPorId();
       document.getElementById("yoNota").textContent = Object.keys(nLoc).length
         ? "Elegí tu nombre: los cambios que cargaste en tu fila se publican para todos." : "";
-      people.forEach(p => {
-        const txt = (p.name + " " + p.id).toLowerCase();
+      people.concat(EXTERNOS).forEach(p => {
+        const ext = !!externoDe(p.id);
+        const txt = (p.name + " " + (ext ? "" : p.id)).toLowerCase();
         if (q && txt.indexOf(q) < 0) return;
         const b = document.createElement("button");
         b.type = "button";
-        b.innerHTML = p.name + "<span>" + p.id + "</span>" +
+        b.innerHTML = p.name + "<span>" + (ext ? "" : p.id) + "</span>" +
           (nLoc[p.id] ? '<b class="yo-hint">' + nLoc[p.id] + (nLoc[p.id] === 1 ? " cambio cargado" : " cambios cargados") + " en este celular</b>" : "");
         b.addEventListener("click", () => {
           const msgYo = currentUser === "ADMIN"
-            ? "¿Asignar este celular a " + p.name + " (" + p.id + ")?"
-            : "¿Sos " + p.name + " (" + p.id + ")?\n\nQueda guardado en este celular y después solo lo puede cambiar el administrador.";
+            ? "¿Asignar este celular a " + p.name + (ext ? "" : " (" + p.id + ")") + "?"
+            : "¿Sos " + p.name + (ext ? "" : " (" + p.id + ")") + "?\n\nQueda guardado en este celular y después solo lo puede cambiar el administrador.";
           if (!confirm(msgYo)) return;
           b.disabled = true;
           const prevTxt = b.innerHTML;
           b.innerHTML = "Reservando…";
-          reservarLegajo(p.id, p.name).then(ok => {
+          // Los externos no tienen fila: no hace falta reservar el nombre
+          (ext ? Promise.resolve(true) : reservarLegajo(p.id, p.name)).then(ok => {
             b.disabled = false;
             b.innerHTML = prevTxt;
             if (ok === null) return;
@@ -3806,7 +3818,7 @@
       });
     }
     function openYo() {
-      if (miPersona() && currentUser !== "ADMIN") return;
+      if ((miPersona() || soyExterno()) && currentUser !== "ADMIN") return;
       document.getElementById("yoSearch").value = "";
       renderYoList();
       yoOverlay.classList.add("open");
@@ -3970,7 +3982,7 @@
       }
 
       if (!ped) {
-        if (!me) { openYo(); return; }
+        if (!me) { pedirYo(); return; }
         return; // celda vacía de otro jefe: nada para mostrar
       }
       const fr = esFranco(ped);
@@ -4042,7 +4054,7 @@
     // Otro jefe avisa que el pedido le sirve (o lo retira)
     function responderPedido(pi, di, si, extra) {
       const me = miPersona();
-      if (!me) { openYo(); return; }
+      if (!me) { pedirYo(); return; }
       const id = pedDocId(currentMes, people[pi].id, di);
       const d = pedidosDocs[id];
       if (!d) return;
@@ -4445,6 +4457,7 @@
       const me = miPersona();
       if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
       if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar (salvo lo que esa persona publicó en su fila)." };
+      if (soyExterno()) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }
@@ -4700,6 +4713,7 @@
     // Celulares que eligieron nombre antes del bloqueo: se reserva al abrir. Si ya lo tiene otro, se pierde.
     async function asegurarReserva() {
       if (!miLegajo || !yoUid) return;
+      if (soyExterno()) { registrarYo(false); return; }
       const me = miPersona();
       const ok = await reservarLegajo(miLegajo, me ? me.p.name : miLegajo);
       if (ok === false) {
@@ -4721,7 +4735,8 @@
       try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
       if (!forzar && reg === String(miLegajo)) return;
       const me = miPersona();
-      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : String(miLegajo), disp: dispositivo(), t: Date.now() };
+      const ex = externoDe(miLegajo);
+      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : String(miLegajo), disp: dispositivo(), t: Date.now() };
       fbDb.collection(YO_COLLECTION).doc(yoUid).set(data)
         .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} })
         .catch(err => console.warn("yo_jefes:", err));
@@ -4787,7 +4802,7 @@
         const dup = cnt[d.id] > 1;
         const f = d.t ? new Date(d.t) : null;
         const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
-        row.innerHTML = '<div class="acu-top"><span>' + d.name + ' · ' + d.id + '</span></div>' +
+        row.innerHTML = '<div class="acu-top"><span>' + d.name + (externoDe(d.id) ? '' : ' · ' + d.id) + '</span></div>' +
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
           (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
         const b = document.createElement("button");

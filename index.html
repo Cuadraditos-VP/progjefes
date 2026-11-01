@@ -1404,6 +1404,9 @@
     .ped-opc.ok { border-color: #86efac; background: #f0fdf4; }
     #btnPedidos { position: relative; overflow: visible; }
     #btnPedidos[data-n]::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #dc2626; color: #fff; font-size: 0.65rem; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px #fff; }
+    #shiftAlcance { margin: -4px 0 10px; padding: 7px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; text-align: left; }
+    #shiftAlcance.alc-pub { background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a; }
+    #shiftAlcance.alc-priv { background: #fffbeb; border: 1px solid #fcd34d; color: #78350f; }
     .info-body { font-size: 0.85rem; color: #1e293b; line-height: 1.45; max-height: 60vh; overflow-y: auto; }
     .info-body p { margin: 6px 0; }
     .info-body ul { margin: 6px 0; padding-left: 20px; }
@@ -1504,6 +1507,7 @@
         <h3 id="shiftPersonDay">—</h3>
         <button class="close-btn" id="closeShift" title="Cerrar">×</button>
       </div>
+      <div id="shiftAlcance"></div>
       <div class="shift-grid" id="shiftGrid"></div>
       <div id="shiftCommentWrap">
         <label for="shiftComment">Comentario</label>
@@ -3005,6 +3009,10 @@
       if (pedidosMode) { openPedido(pi, di); return; }
       if (viewMode !== "actual") return;
       if (!puedeEditar(pi, di)) return;
+      const alc = alcanceDe(pi);
+      const alcEl = document.getElementById("shiftAlcance");
+      alcEl.className = "alc-" + alc.cls;
+      alcEl.textContent = alc.txt;
       shiftPersonIdx = pi;
       shiftDayIdx = di;
       const person = people[pi];
@@ -4321,43 +4329,33 @@
       });
       return out;
     }
+    // Los cambios en filas de otros valen solo en este celular. Si una versión anterior los había
+    // guardado aparte, se vuelven a poner (salvo que esa celda se haya cambiado después).
     function migrarAjenos() {
-      if (!miLegajo || !authListo || currentUser === "ADMIN") return;
-      const movidos = [];
+      let hubo = false;
       AVAILABLE_MESES.forEach(mes => {
+        const backup = leerJson(ajenosKey(mes), null);
+        if (!backup) return;
         const list = officialPeopleFor(mes);
         if (!list.length) return;
+        const idx = {};
+        list.forEach((q, i) => { idx[String(q.id)] = i; });
         const em = leerJson(editsKey(mes), {});
         const times = loadEditTimes(mes);
-        const backup = leerJson(ajenosKey(mes), {});
-        let cambio = false;
-        Object.keys(em).forEach(k => {
-          const [pi, di] = k.split(":").map(Number);
-          const p = list[pi];
-          if (!p || String(p.id) === String(miLegajo)) return;
-          const tk = p.id + ":" + di;
-          const off = (p.codes || [])[di] || "";
-          if ((em[k] || "") !== off) {
-            backup[tk] = { c: em[k] || "", t: times[tk] || 0 };
-            movidos.push({ mes, name: nombreDe(p.id, p), di, de: off, a: em[k] || "" });
-          }
-          delete em[k]; delete times[tk]; cambio = true;
+        Object.keys(backup).forEach(tk => {
+          const cut = tk.lastIndexOf(":");
+          const pi = idx[tk.slice(0, cut)], di = Number(tk.slice(cut + 1));
+          if (pi == null || (pi + ":" + di) in em) return;
+          em[pi + ":" + di] = backup[tk].c || "";
+          if (backup[tk].t) times[tk] = backup[tk].t;
+          hubo = true;
         });
-        if (!cambio) return;
         grabarJson(editsKey(mes), em);
         grabarJson(editTimesKey(mes), times);
-        grabarJson(ajenosKey(mes), backup);
+        try { localStorage.removeItem(ajenosKey(mes)); } catch (e) {}
         if (mes === currentMes) loadEdits();
       });
-      if (!movidos.length) return;
-      resetPeopleFromOfficial();
-      refreshAfterEdit();
-      const filas = movidos.map(m => "<li><b>" + m.name + "</b> · " + fechaAviso(m.mes, m.di + 1) + ": " +
-        (m.de || "—") + " → " + (m.a || "vacío") + "</li>").join("");
-      mostrarInfo("Cambios en filas de otros",
-        "<p>Ahora cada uno cambia solo su propia fila, y lo que cambia lo ven todos.</p>" +
-        "<p>En este celular tenías cargados estos cambios en filas de otros. Ya no se muestran:</p><ul>" + filas + "</ul>" +
-        "<p>Si eran cambios reales, avisale a esa persona que los cargue en su celular. El administrador igual los sigue viendo.</p>");
+      if (hubo) { resetPeopleFromOfficial(); refreshAfterEdit(); }
     }
     function mostrarInfo(titulo, html) {
       document.getElementById("infoTitle").textContent = titulo;
@@ -4372,26 +4370,29 @@
     function puedeEditar(pi, di) {
       const p = people[pi];
       if (!p) return false;
-      if (currentUser === "ADMIN") {
-        if (String(p.id) !== String(miLegajo) && propCode(currentMes, p.id, di) != null) { ofrecerDescartar(pi, di); return false; }
-        return true;
+      // Admin: si toca algo que publicó otro, primero se le ofrece descartarlo
+      if (currentUser === "ADMIN" && String(p.id) !== String(miLegajo) && propCode(currentMes, p.id, di) != null) {
+        if (ofrecerDescartar(pi, di)) return false;
       }
-      const me = miPersona();
-      if (!me) {
-        showShareToast("Primero elegí quién sos: cada uno cambia solo su fila.");
-        if (fbReady) openYo();
-        return false;
-      }
-      if (me.pi !== pi) { showShareToast("Solo podés cambiar tu propia fila."); return false; }
       return true;
+    }
+    // Dónde va a quedar el cambio de esa fila
+    function alcanceDe(pi) {
+      const me = miPersona();
+      if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
+      if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar (salvo lo que esa persona publicó en su fila)." };
+      if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
+      return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }
     function ofrecerDescartar(pi, di) {
       const p = people[pi];
       const code = propCode(currentMes, p.id, di);
       const ofi = (ORIGINAL_CODES[pi] || [])[di] || "";
       if (!confirm(p.name + " publicó " + (code || "vacío") + " el " + fechaTxt(di) + ".\n\n" +
-        "¿Descartar este cambio? Vuelve a lo oficial (" + (ofi || "vacío") + ") para todos y a " + p.name + " le llega un aviso.")) return;
+        "¿Descartar este cambio? Vuelve a lo oficial (" + (ofi || "vacío") + ") para todos y a " + p.name + " le llega un aviso.\n\n" +
+        "(Cancelar = cambiarlo solo para vos)")) return false;
       descartarPropio(currentMes, p.id, di);
+      return true;
     }
     function descartarPropio(mes, id, di) {
       const docId = mes + "_" + id;

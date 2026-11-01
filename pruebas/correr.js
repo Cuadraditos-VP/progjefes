@@ -35,6 +35,8 @@ function chequear(nombre, cond, detalle) {
   try {
     // Busca tres personas y un día donde A y B trabajan con turnos distintos
     const P = await cel("u0");
+    console.log("¿Quién sos?");
+    chequear("un celular sin nombre ve \"¿Quién sos?\" al abrir", await P.evaluate(() => document.getElementById("yoOverlay").classList.contains("open")));
     const s = await P.evaluate(() => {
       for (let d = 0; d < DAYS; d++) for (let a = 0; a < people.length; a++) {
         const x = actualDe(a, d); if (!trabaja(x)) continue;
@@ -46,8 +48,9 @@ function chequear(nombre, cond, detalle) {
     await P.close();
     console.log("Mes " + s.mes + ", día " + (s.d + 1) + ": A=" + s.ida + " (" + s.x + "), B=" + s.idb + " (" + s.y + "), C=" + s.idc + " (" + s.z + ")\n");
 
-    console.log("Cambios (pedidos)");
+    console.log("\nCambios (pedidos)");
     const A = await cel("uA", s.ida), B = await cel("uB", s.idb), C = await cel("uC", s.idc);
+    chequear("con nombre elegido ya no pregunta", !(await A.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     await A.evaluate(s => { pedTengoSel = actualDe(s.a, s.d); guardarPedido(s.a, s.d, [s.y, s.z]); closePedido(); }, s);
     await wait(800);
     const ped = be.st["pedidos_" + APP] && be.st["pedidos_" + APP][s.mes + "_" + s.ida + "_" + (s.d + 1)];
@@ -84,6 +87,7 @@ function chequear(nombre, cond, detalle) {
 
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
+    chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     chequear("el admin ve el cambio de A", (await AD.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === "X");
     await AD.evaluate(([s, d2]) => openShiftPicker(s.a, d2), [s, d2]);
     await wait(2500);

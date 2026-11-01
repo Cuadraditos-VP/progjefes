@@ -1632,7 +1632,7 @@
         <h3>¿Quién sos?</h3>
         <button class="close-btn" id="closeYo" title="Cerrar">×</button>
       </div>
-      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es la fila donde podés pedir cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
       <div id="yoNota"></div>
       <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
       <div id="yoList"></div>
@@ -3762,7 +3762,7 @@
       list.innerHTML = "";
       const nLoc = miPersona() ? {} : editsLocalesPorId();
       document.getElementById("yoNota").textContent = Object.keys(nLoc).length
-        ? "Ahora cada uno cambia solo su propia fila. Elegí tu nombre: los cambios que cargaste en tu fila se publican para todos." : "";
+        ? "Elegí tu nombre: los cambios que cargaste en tu fila se publican para todos." : "";
       people.forEach(p => {
         const txt = (p.name + " " + p.id).toLowerCase();
         if (q && txt.indexOf(q) < 0) return;
@@ -4368,7 +4368,8 @@
       authListo = true;
       migrarAjenos();
       syncTodosPropios();
-      if (!miLegajo && currentUser !== "ADMIN" && hayEditsLocales()) openYo();
+      // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
+      if (!miLegajo && currentUser !== "ADMIN") openYo();
     }
 
     // ---- Cambios cargados antes en filas de otros ----
@@ -4707,6 +4708,7 @@
         updatePedidosBar();
         refreshAfterEdit();
         showShareToast("Tu nombre ya está en uso en otro celular. Avisale al administrador.");
+        if (currentUser !== "ADMIN") openYo();
         return;
       }
       if (ok) registrarYo(false);
@@ -4739,7 +4741,8 @@
         miLegajo = "";
         updatePedidosBar();
         refreshAfterEdit();
-        showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos en Pedidos.");
+        showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos.");
+        if (currentUser !== "ADMIN") openYo();
       }, err => console.warn("yo_jefes:", err));
     }
 

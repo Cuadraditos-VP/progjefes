@@ -37,6 +37,15 @@ function chequear(nombre, cond, detalle) {
     const P = await cel("u0");
     console.log("¿Quién sos?");
     chequear("un celular sin nombre ve \"¿Quién sos?\" al abrir", await P.evaluate(() => document.getElementById("yoOverlay").classList.contains("open")));
+    const sinNombre = await P.evaluate(() => {
+      window.alert = () => {};
+      document.getElementById("yoOverlay").classList.remove("open");
+      const antes = people[0].codes[0];
+      openShiftPicker(0, 0);
+      return { abanico: document.getElementById("shiftOverlay").classList.contains("open"),
+        pregunta: document.getElementById("yoOverlay").classList.contains("open"), igual: people[0].codes[0] === antes };
+    });
+    chequear("sin nombre no puede cambiar turnos y le pregunta \"¿Quién sos?\"", !sinNombre.abanico && sinNombre.pregunta && sinNombre.igual, sinNombre);
     const s = await P.evaluate(() => {
       for (let d = 0; d < DAYS; d++) for (let a = 0; a < people.length; a++) {
         const x = actualDe(a, d); if (!trabaja(x)) continue;

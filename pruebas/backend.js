@@ -81,8 +81,12 @@ module.exports = function crearBackend(app, turnosColl) {
     return "ok";
   }
   // Abre un "celular": uid propio, email solo para el admin
-  async function celular(browser, url, uid, email, errores) {
-    const ctx = await browser.newContext({ viewport: { width: 420, height: 900 } });
+  // opts.iphone: "safari" (navegador) o "app" (instalada en la pantalla de inicio)
+  async function celular(browser, url, uid, email, errores, opts) {
+    const o = opts || {};
+    const ctx = await browser.newContext(Object.assign({ viewport: { width: 420, height: 900 } }, o.iphone ? {
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" } : {}));
+    if (o.iphone) await ctx.addInitScript(app => { Object.defineProperty(navigator, "standalone", { get: () => app }); }, o.iphone === "app");
     await ctx.route(/gstatic\.com\/firebasejs|googleapis/, r => r.abort());
     const pg = await ctx.newPage();
     pages.add(pg);

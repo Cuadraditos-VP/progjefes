@@ -1435,6 +1435,14 @@
     #yoLegajoBtn { border: 0; border-radius: 8px; padding: 0 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
     #yoLegajoMsg:not(:empty) { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
     #yoLegajoAyuda { margin-top: 10px; font-size: 0.72rem; color: #64748b; }
+    #yoIos { display: none; font-size: 0.82rem; color: #1e293b; line-height: 1.4; }
+    #yoOverlay.ios-safari #yoIos { display: block; }
+    #yoOverlay.ios-safari #yoLegajoBox, #yoOverlay.ios-safari #yoIntro { display: none; }
+    #yoIos ol { margin: 6px 0 8px; padding-left: 20px; }
+    #yoIos small { display: block; color: #64748b; font-size: 0.72rem; }
+    #yoIos .ios-codigo { margin: 4px 0 8px; padding: 10px; border-radius: 8px; background: #f0fdfa; border: 1px solid #99f6e4; font: 700 1.1rem ui-monospace, Menlo, monospace; text-align: center; letter-spacing: 1px; user-select: all; -webkit-user-select: all; }
+    #yoIosSafari { margin-top: 10px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px; background: #fff; color: #334155; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+    #yoCodigoLink { color: #0f766e; font-weight: 700; }
     #yoLegajoConf { display: none; margin-top: 10px; padding: 10px; border-radius: 8px; background: #f0fdfa; border: 1px solid #99f6e4; }
     #yoLegajoConf.show { display: block; }
     #yoLegajoPregunta { font-size: 0.9rem; font-weight: 700; color: #134e4a; }
@@ -1657,6 +1665,7 @@
       </div>
       <p id="yoIntro" style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
       <div id="yoNota"></div>
+      <div id="yoIos"></div>
       <div id="yoLegajoBox">
         <div id="yoLegajoFila">
           <input id="yoLegajo" type="text" inputmode="numeric" placeholder="Tu número de legajo" autocomplete="off">
@@ -1670,7 +1679,7 @@
             <button type="button" id="yoLegajoNo">No</button>
           </div>
         </div>
-        <div id="yoLegajoAyuda">¿No tenés legajo? Pedile al administrador un link de invitación.</div>
+        <div id="yoLegajoAyuda">¿No tenés legajo? Pedile al administrador un link de invitación. <a href="#" id="yoCodigoLink">Tengo un código de invitación</a></div>
       </div>
       <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
       <div id="yoList"></div>
@@ -3925,7 +3934,10 @@
       const ok = ext ? true : await reservarLegajo(id, name);
       if (ok === null) return false;
       if (!ok) {
-        alert(name + " ya está en uso en otro celular.\n\nSi sos vos, pedile al administrador que lo libere.");
+        const txt = name + " ya está en uso en otro celular. Si sos vos, pedile al administrador que lo libere." +
+          (ES_IOS && esAppInstalada() ? " Si antes te registraste desde Safari en este iPhone, es ese registro (en Celulares figura sin \"(app)\")." : "");
+        if (yoOverlay.classList.contains("open") && yoOverlay.classList.contains("por-legajo")) document.getElementById("yoLegajoMsg").textContent = txt;
+        else alert(txt);
         return false;
       }
       const anterior = miLegajo;
@@ -3961,6 +3973,16 @@
       const inp = document.getElementById("yoLegajo");
       const msg = document.getElementById("yoLegajoMsg");
       const btn = document.getElementById("yoLegajoBtn");
+      if (modoCodigo) {
+        const code = String(inp.value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!code) { msg.textContent = "Escribí el código de invitación."; return; }
+        try { localStorage.setItem(INV_PEND_KEY, code); } catch (e) {}
+        btn.disabled = true;
+        msg.textContent = "";
+        await aceptarInvitacion(t => { msg.textContent = t; }, true);
+        btn.disabled = false;
+        return;
+      }
       const id = String(inp.value || "").replace(/\D/g, "");
       legajoElegido = null;
       document.getElementById("yoLegajoConf").classList.remove("show");
@@ -3979,6 +4001,48 @@
       document.getElementById("yoLegajoConf").classList.add("show");
     }
     let legajoElegido = null;
+    // Invitados: en vez del legajo pueden escribir el código de su invitación
+    let modoCodigo = false;
+    function setModoCodigo(on) {
+      modoCodigo = on;
+      const inp = document.getElementById("yoLegajo");
+      inp.setAttribute("inputmode", on ? "text" : "numeric");
+      inp.setAttribute("autocapitalize", "off");
+      inp.placeholder = on ? "Código de invitación" : "Tu número de legajo";
+      inp.value = "";
+      document.getElementById("yoCodigoLink").textContent = on ? "Tengo legajo" : "Tengo un código de invitación";
+      document.getElementById("yoLegajoMsg").textContent = "";
+      document.getElementById("yoLegajoConf").classList.remove("show");
+      legajoElegido = null;
+    }
+    // iPhone: Safari y la app instalada en el inicio no comparten nada (para Firebase son dos
+    // celulares distintos). Si se registran en Safari, después la app les dice "en uso".
+    const ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || "") ||
+      (/Macintosh/.test(navigator.userAgent || "") && navigator.maxTouchPoints > 1);
+    function esAppInstalada() {
+      try { return !!navigator.standalone || window.matchMedia("(display-mode: standalone)").matches; } catch (e) { return false; }
+    }
+    function enSafariIOS() {
+      let solo = false;
+      try { solo = localStorage.getItem("jefSoloSafari") === "1"; } catch (e) {}
+      return ES_IOS && !esAppInstalada() && !solo;
+    }
+    function mostrarAvisoIOS(code) {
+      const box = document.getElementById("yoIos");
+      box.innerHTML = "<b>En iPhone, primero instalá la app</b>" +
+        "<ol><li>Tocá el botón Compartir de Safari (el cuadrado con la flecha).</li>" +
+        "<li>Elegí \"Agregar a inicio\".</li>" +
+        "<li>Abrí la app desde el ícono nuevo y registrate ahí" +
+        (code ? ": tocá \"Tengo un código de invitación\" y escribí este código:</li></ol><div class=\"ios-codigo\">" + code + "</div>"
+              : " con tu número de legajo.</li></ol>") +
+        "<small>Safari y la app instalada no comparten el registro: si te registrás acá, después la app te va a decir que tu nombre ya está en uso.</small>" +
+        "<button type=\"button\" id=\"yoIosSafari\">Prefiero usarla solo en Safari</button>";
+      document.getElementById("yoIosSafari").addEventListener("click", () => {
+        try { localStorage.setItem("jefSoloSafari", "1"); } catch (e) {}
+        yoOverlay.classList.remove("ios-safari");
+        if (code) aceptarInvitacion();
+      });
+    }
     async function confirmarLegajo() {
       if (!legajoElegido) return;
       const si = document.getElementById("yoLegajoSi");
@@ -3999,14 +4063,17 @@
       document.getElementById("yoSearch").value = "";
       document.getElementById("yoLegajo").value = "";
       document.getElementById("yoLegajoMsg").textContent = "";
-      document.getElementById("yoLegajoConf").classList.remove("show");
-      legajoElegido = null;
+      setModoCodigo(false);
+      const ios = porLegajo && enSafariIOS();
+      yoOverlay.classList.toggle("ios-safari", ios);
+      if (ios) { let pend = ""; try { pend = localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) {} mostrarAvisoIOS(pend); }
       if (porLegajo) document.getElementById("yoNota").textContent = "";
       else renderYoList();
       yoOverlay.classList.add("open");
     }
     document.getElementById("yoLegajoBtn").addEventListener("click", buscarLegajo);
     document.getElementById("yoLegajoSi").addEventListener("click", confirmarLegajo);
+    document.getElementById("yoCodigoLink").addEventListener("click", e => { e.preventDefault(); setModoCodigo(!modoCodigo); document.getElementById("yoLegajo").focus(); });
     document.getElementById("yoLegajoNo").addEventListener("click", () => {
       legajoElegido = null;
       document.getElementById("yoLegajoConf").classList.remove("show");
@@ -4913,7 +4980,7 @@
         : /Windows/.test(ua) ? "Windows" : /Mac OS X|Macintosh/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "Otro";
       const nav = /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera"
         : /Firefox|FxiOS/.test(ua) ? "Firefox" : /CriOS|Chrome/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "otro navegador";
-      return so + " · " + nav;
+      return so + " · " + nav + (esAppInstalada() ? " (app)" : "");
     }
     // true = reservado para este celular · false = lo tiene otro · null = no se pudo (error / sin conexión)
     async function reservarLegajo(id, name) {
@@ -5110,25 +5177,28 @@
       } catch (e) {}
     })();
     function hayInvitacionPendiente() { try { return !!localStorage.getItem(INV_PEND_KEY); } catch (e) { return false; } }
-    async function aceptarInvitacion() {
+    async function aceptarInvitacion(avisar, desdeCuadro) {
+      if (typeof avisar !== "function") avisar = t => alert(t);
       let code = "";
       try { code = localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) {}
       if (!code || !fbReady || !yoUid) return;
+      // En Safari de iPhone no se usa: se muestra el código para escribirlo en la app instalada
+      if (!desdeCuadro && enSafariIOS() && !miLegajo) { openYo(); return; }
       try { localStorage.removeItem(INV_PEND_KEY); } catch (e) {}
-      const preguntar = () => { if (!miLegajo && currentUser !== "ADMIN") openYo(); };
+      const preguntar = () => { if (!desdeCuadro && !miLegajo && currentUser !== "ADMIN") openYo(); };
       const ref = fbDb.collection(INV_COLLECTION).doc(code);
       let d = null;
       try { const snap = await ref.get(); d = snap.exists ? snap.data() : null; }
       catch (e) {
         try { localStorage.setItem(INV_PEND_KEY, code); } catch (e2) {}
-        alert("No se pudo revisar la invitación. Revisá la conexión y abrí el link de nuevo.");
+        avisar("No se pudo revisar la invitación. Revisá la conexión y abrí el link de nuevo.");
         return;
       }
-      if (!d) { alert("La invitación no es válida o fue anulada. Pedile una nueva al administrador."); preguntar(); return; }
-      if (d.uid && d.uid !== yoUid) { alert("Esta invitación ya se usó en otro celular. Pedile una nueva al administrador."); preguntar(); return; }
+      if (!d) { avisar("La invitación no es válida o fue anulada. Pedile una nueva al administrador."); preguntar(); return; }
+      if (d.uid && d.uid !== yoUid) { avisar("Esta invitación ya se usó en otro celular. Pedile una nueva al administrador."); preguntar(); return; }
       if (!d.uid) {
         try { await ref.update({ uid: yoUid, usadoEn: Date.now() }); }
-        catch (e) { alert("No se pudo usar la invitación. Pedile una nueva al administrador."); preguntar(); return; }
+        catch (e) { avisar("No se pudo usar la invitación. Pedile una nueva al administrador."); preguntar(); return; }
       }
       const anterior = miLegajo;
       if (anterior && !externoDe(anterior)) soltarLegajo(anterior);

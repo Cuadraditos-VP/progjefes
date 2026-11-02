@@ -175,6 +175,33 @@ function chequear(nombre, cond, detalle) {
       await wait(2500);
       chequear("el mismo link no sirve en otro celular", !(await I2.evaluate(() => miLegajo)));
       await I1.close(); await I2.close();
+
+      console.log("\niPhone: Safari y la app instalada no comparten el registro");
+      const SF = await be.celular(browser, URL, "uSF", null, errores, { iphone: "safari" });
+      await wait(1000);
+      const sf = await SF.evaluate(() => ({ ios: document.getElementById("yoOverlay").classList.contains("ios-safari"),
+        caja: getComputedStyle(document.getElementById("yoLegajoBox")).display }));
+      chequear("en Safari de iPhone le explica que primero instale la app", sf.ios && sf.caja === "none", sf);
+      await SF.click("#yoIosSafari");
+      chequear("puede elegir usarla solo en Safari", (await SF.evaluate(() => getComputedStyle(document.getElementById("yoLegajoBox")).display)) !== "none");
+      await SF.close();
+      const code2 = await AD.evaluate(() => crearInvitacion("Invitada iPhone"));
+      const SI = await be.celular(browser, URL + "?inv=" + code2, "uSI", null, errores, { iphone: "safari" });
+      await wait(2500);
+      const si = await SI.evaluate(() => ({ leg: miLegajo, cod: (document.querySelector("#yoIos .ios-codigo") || {}).textContent || "" }));
+      chequear("el link en Safari de iPhone no se gasta y muestra el código", !si.leg && si.cod === code2, si);
+      chequear("la invitación sigue sin usar", !((be.st["invitados_" + APP] || {})[code2] || {}).uid);
+      await SI.close();
+      const AP = await be.celular(browser, URL, "uAP", null, errores, { iphone: "app" });
+      await wait(1000);
+      chequear("en la app instalada pide el legajo normal", await AP.evaluate(() => !document.getElementById("yoOverlay").classList.contains("ios-safari") &&
+        document.getElementById("yoOverlay").classList.contains("open")));
+      await AP.click("#yoCodigoLink"); await AP.fill("#yoLegajo", code2.toUpperCase()); await AP.click("#yoLegajoBtn");
+      await wait(2500);
+      chequear("en la app entra escribiendo el código", (await AP.evaluate(() => miLegajo)) === "inv-" + code2 && (await veDatos(AP)));
+      const yoAP = (be.st["yo_" + APP] || {}).uAP;
+      chequear("en Celulares figura como (app)", !!yoAP && /\(app\)/.test(yoAP.disp), yoAP && yoAP.disp);
+      await AP.close();
     }
 
     console.log("\nAdmin publica un mes nuevo (archivo del mes)");

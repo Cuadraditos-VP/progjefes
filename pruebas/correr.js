@@ -55,13 +55,21 @@ function chequear(nombre, cond, detalle) {
         pregunta: document.getElementById("yoOverlay").classList.contains("open"), igual: people[0].codes[0] === antes };
     });
     chequear("sin nombre no puede cambiar turnos", sinNombre.vacio ? sinNombre.cartel : (!sinNombre.abanico && sinNombre.pregunta && sinNombre.igual), sinNombre);
-    const malo = await P.evaluate(async () => { openYo(); document.getElementById("yoLegajo").value = "12345"; await buscarLegajo();
-      return { msg: document.getElementById("yoLegajoMsg").textContent, leg: miLegajo }; });
-    chequear("un legajo que no existe no lo registra", /No encontramos/.test(malo.msg) && !malo.leg, malo);
+    // Como una persona: escribe el legajo y toca los botones (sin ventanitas del sistema)
+    await P.evaluate(() => openYo());
+    await P.fill("#yoLegajo", "12345"); await P.click("#yoLegajoBtn"); await wait(800);
+    const malo = await P.evaluate(() => ({ msg: document.getElementById("yoLegajoMsg").textContent, leg: miLegajo,
+      conf: document.getElementById("yoLegajoConf").classList.contains("show") }));
+    chequear("un legajo que no existe no lo registra", /No encontramos/.test(malo.msg) && !malo.leg && !malo.conf, malo);
     const idP = DE_PRUEBA[DE_PRUEBA.length - 1];
-    await P.evaluate(async id => { document.getElementById("yoLegajo").value = id; await buscarLegajo(); }, idP);
-    await wait(2500);
-    chequear("con su legajo queda registrado", (await P.evaluate(() => miLegajo)) === idP);
+    let dialogos = 0; const contar = () => dialogos++; P.on("dialog", contar);
+    await P.fill("#yoLegajo", idP); await P.click("#yoLegajoBtn"); await wait(800);
+    const preg = await P.evaluate(() => document.getElementById("yoLegajoConf").classList.contains("show") ? document.getElementById("yoLegajoPregunta").textContent : "");
+    chequear("con el botón Buscar le pregunta si es él (dentro del cuadro)", /¿Sos PRUEBA/.test(preg), preg);
+    await P.click("#yoLegajoSi"); await wait(2500);
+    P.off("dialog", contar);
+    chequear("con \"Sí, soy yo\" queda registrado", (await P.evaluate(() => miLegajo)) === idP);
+    chequear("sin ventanitas del sistema (no andan bien en iPhone)", dialogos === 0, dialogos);
     chequear("registrado ve la programación protegida", await veDatos(P));
     // Busca tres personas y un día donde A y B trabajan con turnos distintos
     const s = await P.evaluate(ids => {

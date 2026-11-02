@@ -1623,6 +1623,8 @@
         <button class="close-btn" id="closeCelulares" title="Cerrar">×</button>
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Qué nombre eligió cada celular. "Liberar" hace que ese celular vuelva a preguntar "¿Quién sos?" la próxima vez que abra la app.</p>
+      <button type="button" class="ped-act" id="btnInvitar" style="width:100%;margin:2px 0 6px">＋ Invitar a alguien externo</button>
+      <div id="invitacionesList"></div>
       <div id="celularesList"></div>
     </div>
   </div>
@@ -3539,7 +3541,17 @@
     // Externos: pueden usar la app y hacer cambios en su celular, pero no tienen fila propia
     // (no publican nada, no piden cambios y no tienen ningún permiso extra).
     const EXTERNOS = [{ id: "ext-valeria", name: "Valeria" }];
-    function externoDe(id) { return EXTERNOS.find(e => e.id === String(id)) || null; }
+    // Invitados: externos que habilitó el admin con un link (no aparecen en "¿Quién sos?")
+    const INV_PREF = "inv-";
+    function esInvitado(id) { return String(id || "").indexOf(INV_PREF) === 0; }
+    function externoDe(id) {
+      const e = EXTERNOS.find(x => x.id === String(id));
+      if (e) return e;
+      if (!esInvitado(id)) return null;
+      let n = "";
+      try { if (String(id) === String(miLegajo)) n = localStorage.getItem("jefInvNombre") || ""; } catch (err) {}
+      return { id: String(id), name: n || "Invitado" };
+    }
     function soyExterno() { return !!externoDe(miLegajo); }
     function pedirYo() {
       if (soyExterno()) showShareToast("No tenés fila propia: no podés pedir ni responder cambios.");
@@ -4395,7 +4407,8 @@
       migrarAjenos();
       syncTodosPropios();
       // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
-      if (!miLegajo && currentUser !== "ADMIN") openYo();
+      if (hayInvitacionPendiente()) aceptarInvitacion();
+      else if (!miLegajo && currentUser !== "ADMIN") openYo();
     }
 
     // ---- Cambios cargados antes en filas de otros ----
@@ -4786,6 +4799,7 @@
     let celUnsub = null;
     function startCelularesListener() {
       if (celUnsub || !fbReady) return;
+      startInvitaciones();
       celUnsub = fbDb.collection(YO_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete celularesDocs[ch.doc.id];
@@ -4796,6 +4810,8 @@
       }, err => console.warn("Celulares:", err));
     }
     function stopCelularesListener() {
+      if (invUnsub) { invUnsub(); invUnsub = null; }
+      Object.keys(invitacionesDocs).forEach(k => delete invitacionesDocs[k]);
       if (celUnsub) { celUnsub(); celUnsub = null; }
       Object.keys(celularesDocs).forEach(k => delete celularesDocs[k]);
     }
@@ -4833,7 +4849,7 @@
         const dup = cnt[d.id] > 1;
         const f = d.t ? new Date(d.t) : null;
         const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
-        row.innerHTML = '<div class="acu-top"><span>' + d.name + (externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
+        row.innerHTML = '<div class="acu-top"><span>' + d.name + (esInvitado(d.id) ? ' · invitado' : externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
           (esNuevoCel(d, celVistosAntes) ? '<span style="color:#059669;font-weight:700">nuevo</span>' : '') + '</div>' +
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
           (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
@@ -4844,6 +4860,7 @@
           delete celularesDocs[k];
           renderCelulares(); updateCelularesBtn();
           // Se borra la reserva del legajo (si es de este celular) y el registro del celular
+          if (esInvitado(d.id)) fbDb.collection(INV_COLLECTION).doc(String(d.id).slice(INV_PREF.length)).delete().catch(() => {});
           const legRef = fbDb.collection(LEG_COLLECTION).doc(String(d.id));
           legRef.get().then(x => { if (x.exists && x.data() && x.data().uid === k) return legRef.delete(); }).catch(() => {});
           fbDb.collection(YO_COLLECTION).doc(k).delete().catch(err => {
@@ -4862,12 +4879,134 @@
       celVistosAntes = celVistos;
       celVistos = Math.max(Date.now(), ...Object.values(celularesDocs).map(d => (d && d.t) || 0));
       try { localStorage.setItem(CEL_VISTOS_KEY, String(celVistos)); } catch (e) {}
-      renderCelulares(); updateCelularesBtn();
+      renderCelulares(); renderInvitaciones(); updateCelularesBtn();
       celularesOverlay.classList.add("open");
     });
     document.getElementById("closeCelulares").addEventListener("click", () => celularesOverlay.classList.remove("open"));
     celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) celularesOverlay.classList.remove("open"); });
 
+
+    // ========== INVITACIONES (externos que habilita el admin) ==========
+    // El admin crea una invitación (invitados_jefes/{código}) y manda el link ?inv=código.
+    // El celular que lo abre queda como invitado: ve todo como un registrado, sin fila propia
+    // y sin aparecer en "¿Quién sos?". Cada invitación sirve para un solo celular.
+    const INV_COLLECTION = "invitados_jefes";
+    const INV_PEND_KEY = "jefInvPend";
+    const invitacionesDocs = {};
+    let invUnsub = null;
+    // Si se abrió con ?inv=CÓDIGO, se guarda para usarlo apenas cargue y se saca de la dirección
+    (function () {
+      try {
+        const q = new URLSearchParams(location.search);
+        const c = q.get("inv");
+        if (!c) return;
+        localStorage.setItem(INV_PEND_KEY, c);
+        q.delete("inv");
+        const qs = q.toString();
+        history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+      } catch (e) {}
+    })();
+    function hayInvitacionPendiente() { try { return !!localStorage.getItem(INV_PEND_KEY); } catch (e) { return false; } }
+    async function aceptarInvitacion() {
+      let code = "";
+      try { code = localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) {}
+      if (!code || !fbReady || !yoUid) return;
+      try { localStorage.removeItem(INV_PEND_KEY); } catch (e) {}
+      const preguntar = () => { if (!miLegajo && currentUser !== "ADMIN") openYo(); };
+      const ref = fbDb.collection(INV_COLLECTION).doc(code);
+      let d = null;
+      try { const snap = await ref.get(); d = snap.exists ? snap.data() : null; }
+      catch (e) {
+        try { localStorage.setItem(INV_PEND_KEY, code); } catch (e2) {}
+        alert("No se pudo revisar la invitación. Revisá la conexión y abrí el link de nuevo.");
+        return;
+      }
+      if (!d) { alert("La invitación no es válida o fue anulada. Pedile una nueva al administrador."); preguntar(); return; }
+      if (d.uid && d.uid !== yoUid) { alert("Esta invitación ya se usó en otro celular. Pedile una nueva al administrador."); preguntar(); return; }
+      if (!d.uid) {
+        try { await ref.update({ uid: yoUid, usadoEn: Date.now() }); }
+        catch (e) { alert("No se pudo usar la invitación. Pedile una nueva al administrador."); preguntar(); return; }
+      }
+      const anterior = miLegajo;
+      if (anterior && !externoDe(anterior)) soltarLegajo(anterior);
+      miLegajo = INV_PREF + code;
+      try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefInvNombre", d.name || ""); } catch (e) {}
+      registrarYo(true);
+      yoOverlay.classList.remove("open");
+      updatePedidosBar();
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      showShareToast("Listo" + (d.name ? ", " + d.name : "") + ": ya podés ver la programación.");
+    }
+    // Admin: crear una invitación y devolver su código
+    async function crearInvitacion(nombre) {
+      const abc = "abcdefghijkmnpqrstuvwxyz23456789";
+      const code = Array.from(crypto.getRandomValues(new Uint8Array(14)), b => abc[b % abc.length]).join("");
+      await fbDb.collection(INV_COLLECTION).doc(code).set({ name: nombre, creado: Date.now() });
+      return code;
+    }
+    function linkInvitacion(code) { return location.origin + location.pathname + "?inv=" + code; }
+    function compartirInvitacion(nombre, code) {
+      const link = linkInvitacion(code);
+      const texto = "Hola " + nombre + ", con este link vas a poder ver la programación de jefes: " + link;
+      if (navigator.share) { navigator.share({ title: "Programación jefes", text: texto }).catch(() => {}); return; }
+      if (navigator.clipboard) navigator.clipboard.writeText(texto).then(() => showShareToast("Link copiado: pegalo en WhatsApp")).catch(() => prompt("Copiá el link:", link));
+      else prompt("Copiá el link:", link);
+    }
+    function startInvitaciones() {
+      if (invUnsub || !fbReady) return;
+      invUnsub = fbDb.collection(INV_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete invitacionesDocs[ch.doc.id];
+          else invitacionesDocs[ch.doc.id] = ch.doc.data();
+        });
+        if (celularesOverlay.classList.contains("open")) renderInvitaciones();
+      }, err => console.warn("Invitaciones:", err));
+    }
+    // Invitaciones creadas que todavía nadie usó (las usadas aparecen como celular "invitado")
+    function renderInvitaciones() {
+      const list = document.getElementById("invitacionesList");
+      if (!list) return;
+      list.innerHTML = "";
+      Object.keys(invitacionesDocs).filter(k => invitacionesDocs[k] && !invitacionesDocs[k].uid)
+        .sort((a, b) => (invitacionesDocs[b].creado || 0) - (invitacionesDocs[a].creado || 0))
+        .forEach(k => {
+          const d = invitacionesDocs[k];
+          const row = document.createElement("div");
+          row.className = "acu-row";
+          row.innerHTML = '<div class="acu-top"><span>' + String(d.name || "").replace(/</g, "&lt;") + ' · invitación sin usar</span></div>';
+          const btns = document.createElement("span");
+          btns.style.cssText = "display:flex;gap:6px";
+          const bL = document.createElement("button");
+          bL.type = "button"; bL.className = "ped-act"; bL.textContent = "Mandar link";
+          bL.addEventListener("click", () => compartirInvitacion(d.name || "", k));
+          const bA = document.createElement("button");
+          bA.type = "button"; bA.className = "ped-act sec"; bA.textContent = "Anular";
+          bA.addEventListener("click", () => {
+            if (!confirm("¿Anular la invitación de " + d.name + "?\n\nEl link deja de funcionar.")) return;
+            delete invitacionesDocs[k]; renderInvitaciones();
+            fbDb.collection(INV_COLLECTION).doc(k).delete().catch(() => alert("No se pudo anular. Revisá la conexión."));
+          });
+          btns.appendChild(bL); btns.appendChild(bA);
+          row.querySelector(".acu-top").appendChild(btns);
+          list.appendChild(row);
+        });
+    }
+    document.getElementById("btnInvitar").addEventListener("click", async () => {
+      if (currentUser !== "ADMIN") return;
+      const nombre = (prompt("¿A quién querés invitar? (nombre)") || "").trim();
+      if (!nombre) return;
+      try {
+        const code = await crearInvitacion(nombre);
+        invitacionesDocs[code] = { name: nombre, creado: Date.now() };
+        renderInvitaciones();
+        compartirInvitacion(nombre, code);
+      } catch (err) {
+        alert(err && err.code === "permission-denied"
+          ? "Firebase no deja crear la invitación (faltan las reglas de " + INV_COLLECTION + ")."
+          : "No se pudo crear la invitación. Revisá la conexión.");
+      }
+    });
 
     function showShareToast(msg) {
       let t = document.getElementById("shareToast");

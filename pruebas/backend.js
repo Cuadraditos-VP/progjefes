@@ -7,7 +7,12 @@ module.exports = function crearBackend(app) {
   const pages = new Set();
   const clone = x => JSON.parse(JSON.stringify(x));
   const stripDel = o => { if (o && typeof o === "object") for (const k of Object.keys(o)) { if (o[k] && o[k].__del) delete o[k]; else stripDel(o[k]); } return o; };
-  function permitido(w, next) {
+  function permitido(w, next, prev) {
+    // invitados_<app>: las crea/borra el admin; un celular solo puede "usarla" una vez (poner su uid)
+    if (w.coll === "invitados_" + app) {
+      if (w.email === ADMIN) return true;
+      return w.op === "update" && !!prev && !prev.uid && !!next && next.uid === w.uid;
+    }
     if (w.coll !== "propios_" + app) return true;
     if (w.email === ADMIN) return true;
     if (w.op === "delete" || !next) return false;
@@ -18,6 +23,7 @@ module.exports = function crearBackend(app) {
     const w = JSON.parse(json);
     st[w.coll] = st[w.coll] || {};
     let cur = st[w.coll][w.id] ? clone(st[w.coll][w.id]) : null;
+    const prev = cur ? clone(cur) : null;
     if (w.op === "delete") cur = null;
     else if (w.op === "set") {
       if (w.opts && w.opts.mergeFields) { cur = cur || {}; w.opts.mergeFields.forEach(f => { if (f in w.data) cur[f] = w.data[f]; else delete cur[f]; }); }
@@ -32,7 +38,7 @@ module.exports = function crearBackend(app) {
         if (v && v.__del) delete o[parts[parts.length - 1]]; else o[parts[parts.length - 1]] = v;
       }
     }
-    if (!permitido(w, cur)) return "permission-denied";
+    if (!permitido(w, cur, prev)) return "permission-denied";
     if (cur == null) delete st[w.coll][w.id]; else st[w.coll][w.id] = cur;
     for (const p of pages) { try { await p.evaluate(([c, i, d]) => window.__fbPush && window.__fbPush(c, i, d), [w.coll, w.id, cur]); } catch (e) {} }
     return "ok";

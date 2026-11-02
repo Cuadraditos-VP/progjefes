@@ -128,6 +128,24 @@ function chequear(nombre, cond, detalle) {
     const avX = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
     chequear("A recibe aviso del descarte", /descartó/.test(avX), avX);
 
+    if (html.includes("function aceptarInvitacion")) {
+      console.log("\nInvitación del admin para un externo (jefes)");
+      const code = await AD.evaluate(() => crearInvitacion("Invitada"));
+      const I1 = await be.celular(browser, URL + "?inv=" + code, "uI1", null, errores);
+      await wait(2500);
+      const inv = await I1.evaluate(() => ({ leg: miLegajo, ext: soyExterno(), ve: veCambiosAjenos(),
+        pregunta: document.getElementById("yoOverlay").classList.contains("open"), url: location.search }));
+      chequear("con el link queda habilitado sin elegir nombre", inv.leg === "inv-" + code && inv.ext && inv.ve && !inv.pregunta, inv);
+      chequear("el link se saca de la dirección", !/inv=/.test(inv.url), inv.url);
+      const yo = (be.st["yo_" + APP] || {}).uI1;
+      chequear("el admin lo ve en Celulares", !!yo && yo.name === "Invitada", yo);
+      chequear("no aparece en la lista de \"¿Quién sos?\"", !(await I1.evaluate(() => { renderYoList(); return /Invitada/.test(document.getElementById("yoList").innerText); })));
+      const I2 = await be.celular(browser, URL + "?inv=" + code, "uI2", null, errores);
+      await wait(2500);
+      chequear("el mismo link no sirve en otro celular", !(await I2.evaluate(() => miLegajo)));
+      await I1.close(); await I2.close();
+    }
+
     if (html.includes("function turnosAPublicar")) {
       console.log("\nAdmin publica turnos (jefes)");
       const d3 = (s.d + 5) % 28;

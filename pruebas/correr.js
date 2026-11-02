@@ -192,6 +192,16 @@ function chequear(nombre, cond, detalle) {
       chequear("el link en Safari de iPhone no se gasta y muestra el código", !si.leg && si.cod === code2, si);
       chequear("la invitación sigue sin usar", !((be.st["invitados_" + APP] || {})[code2] || {}).uid);
       await SI.close();
+      // Caso real: ese iPhone ya había entrado antes por Safari (y eligió "solo Safari") y abre un link nuevo
+      const code3 = await AD.evaluate(() => crearInvitacion("Invitada repetida"));
+      const SR = await be.celular(browser, URL, "uSR", null, errores, { iphone: "safari" });
+      await SR.evaluate(([k, s]) => { localStorage.setItem(k, "inv-viejo"); localStorage.setItem(s, "1"); }, [YOKEY, YOKEY.replace("Yo", "SoloSafari")]);
+      await SR.goto(URL + "?inv=" + code3); await wait(6000);
+      const sr = await SR.evaluate(() => ({ open: document.getElementById("yoOverlay").classList.contains("open"),
+        cod: (document.querySelector("#yoIos .ios-codigo") || {}).textContent || "" }));
+      chequear("aunque ya hubiera entrado por Safari, el código queda fijo en pantalla", sr.open && sr.cod === code3, sr);
+      chequear("y la invitación nueva no se gasta en Safari", !((be.st["invitados_" + APP] || {})[code3] || {}).uid);
+      await SR.close();
       const AP = await be.celular(browser, URL, "uAP", null, errores, { iphone: "app" });
       await wait(1000);
       chequear("en la app instalada pide el legajo normal", await AP.evaluate(() => !document.getElementById("yoOverlay").classList.contains("ios-safari") &&

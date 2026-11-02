@@ -239,6 +239,14 @@ function chequear(nombre, cond, detalle) {
       chequear("C lo ve", (await C.evaluate(([s, d3]) => people[s.b].codes[d3], [s, d3])) === nuevo);
     }
 
+    console.log("\nAl abrir: su grupo a la vista");
+    const GR = await cel("uGr", DE_PRUEBA[14]);
+    const gr = await GR.evaluate(() => { const me = miPersona(); const td = me && document.querySelector('td[data-pi="' + me.pi + '"]');
+      const card = td && td.closest(".grp-card"); const r = card ? card.getBoundingClientRect() : null;
+      return { top: r && Math.round(r.top), abajo: r && Math.round(r.bottom), alto: innerHeight, alm: document.getElementById("personOverlay").classList.contains("open") }; });
+    chequear("se ve la grilla con su grupo a la vista", gr.top != null && gr.top >= 0 && (gr.top < gr.alto / 2 || gr.abajo <= gr.alto) && !gr.alm, gr);
+    await GR.close();
+
     console.log("\nSin internet");
     const OF = await cel("uOff", libre2);
     chequear("registrado con internet ve la programación", await veDatos(OF));

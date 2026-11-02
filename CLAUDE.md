@@ -66,8 +66,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas.
-- Al abrir, la app muestra la grilla principal (el almanaque propio no se abre solo;
-  `ABRIR_ALMANAQUE_AL_INICIO = false`, igual en las dos).
+- Al abrir, la app muestra la grilla principal con el **grupo del usuario** a la vista
+  (`irAMiGrupo`); el almanaque propio no se abre solo (`ABRIR_ALMANAQUE_AL_INICIO = false`).
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
 
 ## Diferencias con la gemela (cajeros)

@@ -4651,14 +4651,25 @@
     }
     // Al abrir la app, cada uno ve directamente su almanaque (una vez por apertura;
     // la recarga automática no lo vuelve a abrir). No para el admin ni para externos.
+    // Grupo de quien usa el celular: lo pone arriba de la pantalla
+    function irAMiGrupo() {
+      const me = miPersona();
+      if (!me) return false;
+      const td = document.querySelector('#groupCards td[data-pi="' + me.pi + '"]') || document.querySelector('td[data-pi="' + me.pi + '"]');
+      const card = td && td.closest(".grp-card");
+      if (!card) return false;
+      card.scrollIntoView({ block: "start" });
+      return true;
+    }
     // Al abrir se ve la grilla principal (en las dos apps)
     const ABRIR_ALMANAQUE_AL_INICIO = false;
     let almanaqueInicialHecho = false;
     function abrirAlmanaqueInicial() {
-      if (!ABRIR_ALMANAQUE_AL_INICIO) return;
       if (almanaqueInicialHecho || !authListo || !propListo) return;
       if (miLegajo && !people.length) return; // todavía no llegaron los turnos
       almanaqueInicialHecho = true;
+      // Al abrir, la grilla se acomoda en el grupo de quien usa el celular
+      if (!ABRIR_ALMANAQUE_AL_INICIO) { if (currentUser !== "ADMIN") setTimeout(irAMiGrupo, 50); return; }
       try { if (sessionStorage.getItem("almanaqueInicial")) return; } catch (e) {}
       if (currentUser === "ADMIN") return;
       const me = miPersona();

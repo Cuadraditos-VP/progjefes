@@ -4027,6 +4027,11 @@
       try { solo = localStorage.getItem("jefSoloSafari") === "1"; } catch (e) {}
       return ES_IOS && !esAppInstalada() && !solo;
     }
+    // Código de una invitación abierta en un iPhone fuera de la app instalada (Safari o WhatsApp)
+    function codigoPendienteIOS() {
+      if (!ES_IOS || esAppInstalada()) return "";
+      try { return localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) { return ""; }
+    }
     function mostrarAvisoIOS(code) {
       const box = document.getElementById("yoIos");
       box.innerHTML = "<b>En iPhone, primero instalá la app</b>" +
@@ -4040,7 +4045,7 @@
       document.getElementById("yoIosSafari").addEventListener("click", () => {
         try { localStorage.setItem("jefSoloSafari", "1"); } catch (e) {}
         yoOverlay.classList.remove("ios-safari");
-        if (code) aceptarInvitacion();
+        if (code) aceptarInvitacion(undefined, true);
       });
     }
     async function confirmarLegajo() {
@@ -4054,7 +4059,8 @@
       if (ok) { legajoElegido = null; document.getElementById("yoLegajoConf").classList.remove("show"); }
     }
     function openYo() {
-      if ((miPersona() || soyExterno() || (miLegajo && !people.length)) && currentUser !== "ADMIN") return;
+      const pendIOS = codigoPendienteIOS();
+      if (!pendIOS && (miPersona() || soyExterno() || (miLegajo && !people.length)) && currentUser !== "ADMIN") return;
       const porLegajo = currentUser !== "ADMIN";
       yoOverlay.classList.toggle("por-legajo", porLegajo);
       document.getElementById("yoIntro").textContent = porLegajo
@@ -4064,9 +4070,9 @@
       document.getElementById("yoLegajo").value = "";
       document.getElementById("yoLegajoMsg").textContent = "";
       setModoCodigo(false);
-      const ios = porLegajo && enSafariIOS();
+      const ios = porLegajo && (!!pendIOS || enSafariIOS());
       yoOverlay.classList.toggle("ios-safari", ios);
-      if (ios) { let pend = ""; try { pend = localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) {} mostrarAvisoIOS(pend); }
+      if (ios) mostrarAvisoIOS(pendIOS);
       if (porLegajo) document.getElementById("yoNota").textContent = "";
       else renderYoList();
       yoOverlay.classList.add("open");
@@ -5183,7 +5189,7 @@
       try { code = localStorage.getItem(INV_PEND_KEY) || ""; } catch (e) {}
       if (!code || !fbReady || !yoUid) return;
       // En Safari de iPhone no se usa: se muestra el código para escribirlo en la app instalada
-      if (!desdeCuadro && enSafariIOS() && !miLegajo) { openYo(); return; }
+      if (!desdeCuadro && codigoPendienteIOS()) { openYo(); return; }
       try { localStorage.removeItem(INV_PEND_KEY); } catch (e) {}
       const preguntar = () => { if (!desdeCuadro && !miLegajo && currentUser !== "ADMIN") openYo(); };
       const ref = fbDb.collection(INV_COLLECTION).doc(code);
@@ -5222,7 +5228,9 @@
     function linkInvitacion(code) { return location.origin + location.pathname + "?inv=" + code; }
     function compartirInvitacion(nombre, code) {
       const link = linkInvitacion(code);
-      const texto = "Hola " + nombre + ", con este link vas a poder ver la programación de jefes: " + link;
+      const texto = "Hola " + nombre + ", con este link vas a poder ver la programación de jefes: " + link +
+        "\n\nSi tenés iPhone: abrí el link en Safari, tocá Compartir → \"Agregar a inicio\" y abrí la app desde el ícono. " +
+        "Ahí tocá \"Tengo un código de invitación\" y escribí este código: " + code;
       if (navigator.share) { navigator.share({ title: "Programación jefes", text: texto }).catch(() => {}); return; }
       if (navigator.clipboard) navigator.clipboard.writeText(texto).then(() => showShareToast("Link copiado: pegalo en WhatsApp")).catch(() => prompt("Copiá el link:", link));
       else prompt("Copiá el link:", link);

@@ -91,7 +91,8 @@ function chequear(nombre, cond, detalle) {
     const A = await cel("uA", s.ida), B = await cel("uB", s.idb), C = await cel("uC", s.idc);
     chequear("con nombre elegido ya no pregunta", !(await A.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     const alm = await A.evaluate(() => ({ abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }));
-    chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
+    if (/const ABRIR_ALMANAQUE_AL_INICIO = true/.test(html)) chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
+    else chequear("al abrir la app se ve la grilla (sin almanaque)", !alm.abierto, alm);
     for (const pg of [A, B, C]) await pg.evaluate(() => closePersonCalendar());
     await A.evaluate(s => { pedTengoSel = actualDe(s.a, s.d); guardarPedido(s.a, s.d, [s.y, s.z]); closePedido(); }, s);
     await wait(800);

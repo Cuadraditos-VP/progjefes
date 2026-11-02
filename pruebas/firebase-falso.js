@@ -20,12 +20,15 @@
   };
   const enc = v => JSON.stringify(v, (k, x) => x === DEL ? { __del: 1 } : x);
   function write(coll, id, op, data, opts) {
+    // Sin internet: lo escrito queda esperando (como en Firebase, que no confirma hasta que vuelve la red)
+    if (window.__SIN_RED) return new Promise(() => {});
     return window.__fbWrite(enc({ coll, id, op, data, opts, uid: window.__UID, email: window.__EMAIL || null }))
       .then(r => { if (r && r !== "ok") { const e = new Error(r); e.code = r; throw e; } });
   }
   // Lecturas: el "servidor" decide si este celular puede leer (reglas de Firebase)
   const denegado = () => { const e = new Error("permission-denied"); e.code = "permission-denied"; return e; };
-  const puede = (coll, id) => ready.then(() => window.__fbCanRead(coll, id == null ? null : id));
+  // Sin internet se lee la copia guardada en el celular (lo que ya tenía)
+  const puede = (coll, id) => ready.then(() => window.__SIN_RED ? true : window.__fbCanRead(coll, id == null ? null : id));
   function docRef(coll, id) {
     return {
       id,

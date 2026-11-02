@@ -5222,7 +5222,9 @@
     function linkInvitacion(code) { return location.origin + location.pathname + "?inv=" + code; }
     function compartirInvitacion(nombre, code) {
       const link = linkInvitacion(code);
-      const texto = "Hola " + nombre + ", con este link vas a poder ver la programación de jefes: " + link;
+      const texto = "Hola " + nombre + ", con este link vas a poder ver la programación de jefes: " + link +
+        "\n\nSi tenés iPhone: abrí el link en Safari, tocá Compartir → \"Agregar a inicio\" y abrí la app desde el ícono. " +
+        "Ahí tocá \"Tengo un código de invitación\" y escribí este código: " + code;
       if (navigator.share) { navigator.share({ title: "Programación jefes", text: texto }).catch(() => {}); return; }
       if (navigator.clipboard) navigator.clipboard.writeText(texto).then(() => showShareToast("Link copiado: pegalo en WhatsApp")).catch(() => prompt("Copiá el link:", link));
       else prompt("Copiá el link:", link);

@@ -5015,6 +5015,11 @@
     async function asegurarReserva() {
       if (!miLegajo || !yoUid) return;
       const habilitar = listo => { if (listo) { registroOk = true; startProtegidos(); } };
+      // Este celular ya estaba registrado: se habilita enseguida (sin internet se ve lo guardado;
+      // con internet, Firebase igual controla y si el admin lo liberó se entera solo)
+      let yaReg = null;
+      try { yaReg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
+      if (yaReg === String(miLegajo)) habilitar(true);
       if (soyExterno()) { registrarYo(false).then(habilitar); return; }
       const me = miPersona();
       let nom = "";

@@ -83,6 +83,7 @@ function chequear(nombre, cond, detalle) {
       }
     }, DE_PRUEBA);
     const libre = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP].includes(id));
+    const libre2 = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre].includes(id));
     await P.close();
     console.log("Mes " + s.mes + ", día " + (s.d + 1) + ": A=" + s.ida + " (" + s.x + "), B=" + s.idb + " (" + s.y + "), C=" + s.idc + " (" + s.z + ")\n");
 
@@ -236,6 +237,15 @@ function chequear(nombre, cond, detalle) {
       chequear("queda publicado en Firebase", pub && pub.people[s.b].codes[d3] === nuevo, pub && pub.people[s.b].codes[d3]);
       chequear("C lo ve", (await C.evaluate(([s, d3]) => people[s.b].codes[d3], [s, d3])) === nuevo);
     }
+
+    console.log("\nSin internet");
+    const OF = await cel("uOff", libre2);
+    chequear("registrado con internet ve la programación", await veDatos(OF));
+    await OF.addInitScript(() => { window.__SIN_RED = true; });
+    await OF.reload(); await wait(3000);
+    const of = await OF.evaluate(() => ({ leg: miLegajo, reg: registroOk, vacio: document.getElementById("sinDatos").classList.contains("show") }));
+    chequear("sin internet sigue viendo lo guardado", (await veDatos(OF)) && of.reg && !of.vacio, of);
+    await OF.close();
 
     console.log("\nCelda del franco ofrecido");
     const fr = await A.evaluate(s => {

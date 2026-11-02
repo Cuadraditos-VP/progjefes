@@ -1427,6 +1427,17 @@
     #yoList { display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 8px; }
     #yoList button { text-align: left; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 9px 10px; font-size: 0.85rem; font-weight: 600; color: #1e293b; cursor: pointer; }
     #yoList button span { color: #64748b; font-weight: 500; margin-left: 6px; font-size: 0.75rem; }
+    #yoLegajoBox { display: none; }
+    #yoOverlay.por-legajo #yoLegajoBox { display: block; }
+    #yoOverlay.por-legajo #yoSearch, #yoOverlay.por-legajo #yoList { display: none; }
+    #yoLegajoFila { display: flex; gap: 6px; }
+    #yoLegajo { flex: 1; min-width: 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px; font-size: 16px; }
+    #yoLegajoBtn { border: 0; border-radius: 8px; padding: 0 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+    #yoLegajoMsg:not(:empty) { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
+    #yoLegajoAyuda { margin-top: 10px; font-size: 0.72rem; color: #64748b; }
+    #sinDatos { display: none; margin: 24px auto; max-width: 420px; padding: 18px 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 0.9rem; font-weight: 600; }
+    #sinDatos.show { display: block; }
+    #sinDatos button { margin-top: 12px; border: 0; border-radius: 8px; padding: 9px 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
 </style>
 </head>
 <body class="month-view">
@@ -1468,6 +1479,7 @@
       <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
     </div>
     <div id="pedidosVacio"></div>
+    <div id="sinDatos"><div id="sinDatosTxt"></div><button type="button" id="sinDatosYo">¿Quién sos?</button></div>
     <div id="dayFilterBar">
       <span id="dayFilterLabel">Sólo un día</span>
       <button type="button" id="btnDaySort" hidden>Por turno</button>
@@ -1634,8 +1646,16 @@
         <h3>¿Quién sos?</h3>
         <button class="close-btn" id="closeYo" title="Cerrar">×</button>
       </div>
-      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
+      <p id="yoIntro" style="font-size:0.75rem;color:#64748b;margin:-6px 0 8px">Elegí tu nombre una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador.</p>
       <div id="yoNota"></div>
+      <div id="yoLegajoBox">
+        <div id="yoLegajoFila">
+          <input id="yoLegajo" type="text" inputmode="numeric" placeholder="Tu número de legajo" autocomplete="off">
+          <button type="button" id="yoLegajoBtn">Buscar</button>
+        </div>
+        <div id="yoLegajoMsg"></div>
+        <div id="yoLegajoAyuda">¿No tenés legajo? Pedile al administrador un link de invitación.</div>
+      </div>
       <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
       <div id="yoList"></div>
     </div>
@@ -1887,6 +1907,8 @@
     const pedidosDocs = {};   // docId -> datos
     let miLegajo = "";
     try { miLegajo = localStorage.getItem("jefYo") || ""; } catch (e) {}
+    // Los externos fijos de antes ("ext-...") ahora entran con invitación
+    if (/^ext-/.test(miLegajo)) { miLegajo = ""; try { localStorage.removeItem("jefYo"); } catch (e) {} }
     let PED_REF = {};         // PED_REF["pi:di"] = día (0-based) del pedido de franco que ofrece ese día
     // En Jefes no hay vista compacta (entran casi todos en pantalla); solo el filtro "Me sirven"
     let pedSoloSirven = false;
@@ -2399,6 +2421,7 @@
       buildShiftGrid();
       applyColors();
       if (typeof aplicarAcuerdos === "function") aplicarAcuerdos();
+      try { actualizarSinDatos(); } catch (e) {}
     }
 
     // Vuelve a traer el JSON del mes que se está viendo (auto-actualización)
@@ -2674,19 +2697,144 @@
       }
     }
 
+    // ========== DATOS PROTEGIDOS ==========
+    // Los turnos (con nombres y legajos) están en Firebase (colección "jefes") y solo los pueden
+    // leer los celulares registrados (con su legajo o con una invitación) y el admin. Lo mismo los
+    // pedidos y los cambios publicados. El padrón deja buscar un legajo por vez para "¿Quién sos?".
+    const TURNOS_COLLECTION = "jefes";
+    const PADRON_COLLECTION = "padron_jefes";
+    const FB_MESES = {};      // meses que ya vinieron de Firebase
+    let turnosUnsub = null, turnosListos = false, registroOk = false, reintentoT = null, reintentos = 0;
+    function habilitado() { return currentUser === "ADMIN" || registroOk; }
+    function startProtegidos() {
+      if (!fbReady || !habilitado()) return;
+      startTurnos();
+      startPedidos();
+      startPropios();
+    }
+    // Si Firebase no deja leer (todavía no terminó el registro), se reintenta más tarde
+    function errProtegido(nombre, reset) {
+      return err => {
+        console.warn(nombre + ":", err);
+        reset();
+        if (err && err.code === "permission-denied" && habilitado() && reintentos++ < 40) {
+          clearTimeout(reintentoT);
+          reintentoT = setTimeout(startProtegidos, 15000);
+        }
+      };
+    }
+    function startTurnos() {
+      if (turnosUnsub || !fbReady) return;
+      turnosUnsub = fbDb.collection(TURNOS_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") return;
+          const d = ch.doc.data();
+          if (!d || !Array.isArray(d.people) || !d.people.length) return;
+          FB_MESES[ch.doc.id] = true;
+          applyOfficialUpdate(ch.doc.id, d);
+        });
+        turnosListos = true;
+        turnosLlegaron();
+      }, errProtegido("Turnos", () => { turnosUnsub = null; }));
+    }
+    function mesInicial() {
+      let want = null;
+      try { want = localStorage.getItem("jefesMes"); } catch (e) {}
+      if (want && AVAILABLE_MESES.includes(want)) return want;
+      const now = new Date();
+      const today = mesKeyOf(now.getFullYear(), now.getMonth() + 1);
+      return AVAILABLE_MESES.includes(today) ? today : AVAILABLE_MESES[AVAILABLE_MESES.length - 1];
+    }
+    function turnosLlegaron() {
+      if (!people.length && AVAILABLE_MESES.length) { switchMonth(mesInicial()); fillMonthSelect(); }
+      actualizarSinDatos();
+      updatePedidosBar();
+      abrirAlmanaqueInicial();
+      if (currentUser === "ADMIN") migrarLegado();
+    }
+    // Cartel cuando no hay turnos para mostrar (sin registrarse, cargando o sin meses)
+    function actualizarSinDatos() {
+      const box = document.getElementById("sinDatos");
+      if (!box) return;
+      const vacio = !people.length;
+      box.classList.toggle("show", vacio);
+      if (!vacio) return;
+      const sinNombre = !miLegajo && currentUser !== "ADMIN";
+      document.getElementById("sinDatosTxt").textContent = sinNombre
+        ? "Para ver la programación, decinos quién sos (con tu número de legajo)."
+        : turnosListos ? "Todavía no hay programación cargada." : "Cargando la programación…";
+      document.getElementById("sinDatosYo").style.display = sinNombre ? "" : "none";
+    }
+    function limpioParaFb(x) { return JSON.parse(JSON.stringify(x)); }
+    // Padrón: legajo → nombre (para que cada uno se identifique con su legajo)
+    function guardarPadron(lista) {
+      const batch = fbDb.batch();
+      let n = 0;
+      (lista || []).forEach(p => {
+        if (!p || !p.id || !/^\d+$/.test(String(p.id))) return;
+        batch.set(fbDb.collection(PADRON_COLLECTION).doc(String(p.id)), { name: String(p.name || ""), t: Date.now() }, { merge: true });
+        n++;
+      });
+      return n ? batch.commit() : Promise.resolve();
+    }
+    // Admin: publica un mes completo (desde el JSON) para los registrados
+    async function publicarMes(data) {
+      const mes = String(data.mes || currentMes);
+      const lista = normalizePeople(data.people, mesInfo(mes).days);
+      const prev = FB_MESES[mes] ? loadFbCache(mes) : null;
+      const doc = limpioParaFb(Object.assign({}, data, {
+        mes,
+        version: Date.now(),
+        codigos: Array.isArray(data.codigos) && data.codigos.length ? data.codigos : ALL_SHIFT_CODES.slice(),
+        colores: data.colores || Object.assign({}, colorMap),
+        changedAt: (prev && prev.changedAt) || {},
+        people: lista.map(p => ({ id: p.id, name: p.name, codes: p.codes })),
+        // La "inicial" del mes es la primera versión publicada: no se pisa al volver a subirlo
+        inicial: prev && Array.isArray(prev.inicial) && prev.inicial.length ? prev.inicial
+          : Array.isArray(data.inicial) && data.inicial.length ? data.inicial
+          : lista.map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }))
+      }));
+      await fbDb.collection(TURNOS_COLLECTION).doc(mes).set(doc);
+      await guardarPadron(lista);
+      return mes;
+    }
+    // ---- Paso a Firebase de los meses que estaban en la página (lo hace el admin una vez) ----
+    let migrando = false, padronHecho = false;
+    async function migrarLegado() {
+      if (migrando || currentUser !== "ADMIN" || !turnosListos) return;
+      const faltan = AVAILABLE_MESES.filter(k => !FB_MESES[k] && (MES_DATA[k] || SEED_BY_MES[k]));
+      if (!faltan.length && padronHecho) return;
+      migrando = true;
+      try {
+        for (const k of faltan) {
+          const src = MES_DATA[k] || { mes: k, people: SEED_BY_MES[k] };
+          if (!Array.isArray(src.people) || !src.people.length) continue;
+          const data = Object.assign({}, src, { mes: k });
+          if (SEED_BY_MES[k]) data.inicial = normalizePeople(SEED_BY_MES[k], mesInfo(k).days);
+          await publicarMes(data);
+        }
+        // Los meses que ya estaban en Firebase también cargan su gente en el padrón
+        if (!padronHecho) {
+          for (const k of Object.keys(FB_MESES)) {
+            const d = loadFbCache(k);
+            if (d && Array.isArray(d.people)) await guardarPadron(d.people);
+          }
+          padronHecho = true;
+        }
+        if (faltan.length) showShareToast("Listo: los meses quedaron guardados en Firebase.");
+      } catch (err) {
+        console.warn("Migración:", err);
+        showShareToast(err && err.code === "permission-denied"
+          ? "Firebase no deja guardar los meses: faltan las reglas nuevas." : "No se pudieron guardar los meses en Firebase.");
+      }
+      migrando = false;
+    }
+
     let fbStarted = false;
     function startFirebase() {
       if (!fbReady || fbStarted) return;
       fbStarted = true;
-      startPropios();
-      startPedidos();
       document.body.classList.add("fb-on");
-      fbDb.collection("jefes").onSnapshot(qs => {
-        qs.docChanges().forEach(ch => {
-          if (ch.type === "removed") return;
-          applyOfficialUpdate(ch.doc.id, ch.doc.data());
-        });
-      }, err => { console.warn("Firebase:", err); });
       fbAuth.onAuthStateChanged(u => {
         if (!u) {
           // Sin sesión: entra como anónimo (invisible para el usuario) para poder mandar sus cambios
@@ -2704,6 +2852,7 @@
         updatePublishBtn();
         if (isAdmin) { startCjListener(); startCelularesListener(); } else { stopCjListener(); stopCelularesListener(); }
         if (u) startYoSync(u);
+        if (u) startProtegidos();
         if (u) propTrasAuth();
         if (u && u.isAnonymous) AVAILABLE_MESES.forEach(k => syncCj(k));
       });
@@ -2855,6 +3004,7 @@
       tp.cambiados.forEach(k => { data.changedAt[k] = data.version; });
       try {
         await fbDb.collection("jefes").doc(currentMes).set(data);
+        guardarPadron(data.people).catch(() => {});
         colorOverrides = {};
         saveColorOverrides();
         btn.disabled = false;
@@ -2929,6 +3079,26 @@
         document.body.removeChild(ta);
       }
     });
+    // Admin: sube un mes nuevo a Firebase (queda visible solo para los registrados)
+    async function subirMesAdmin(data) {
+      const mes = String(data.mes);
+      const mi = mesInfo(mes);
+      if (!confirm("¿Publicar la programación de " + mi.nombre + " " + mi.y + "?\n\n" +
+          data.people.length + " personas. La van a ver todos los registrados.")) return;
+      try {
+        await publicarMes(data);
+        try { localStorage.setItem("jefesMes", mes); } catch (e) {}
+        if (!AVAILABLE_MESES.includes(mes)) { AVAILABLE_MESES.push(mes); AVAILABLE_MESES.sort(); }
+        if (!loadFbCache(mes)) MES_DATA[mes] = data;
+        switchMonth(mes);
+        fillMonthSelect();
+        showShareToast("Listo: " + mi.nombre.toLowerCase() + " publicado.");
+      } catch (err) {
+        alert(err && err.code === "permission-denied"
+          ? "Firebase no deja publicar el mes: faltan las reglas nuevas."
+          : "No se pudo publicar. Revisá la conexión y probá de nuevo.");
+      }
+    }
     document.getElementById("btnImportJson").addEventListener("click", () => {
       document.getElementById("importJsonFile").click();
     });
@@ -2942,6 +3112,10 @@
           const data = JSON.parse(reader.result);
           const list = Array.isArray(data) ? data : data.people;
           if (!list || !list.length) throw new Error("sin people");
+          // Mes nuevo: el admin lo publica directo en Firebase (lo ven solo los registrados)
+          if (currentUser === "ADMIN" && fbReady && !Array.isArray(data) && /^\d{4}-\d{2}$/.test(String(data.mes || "")) && !FB_MESES[data.mes]) {
+            subirMesAdmin(data); return;
+          }
           if (data.mes && data.mes !== currentMes &&
               !confirm("Este JSON es de " + data.mes + " pero estás viendo " + currentMes + ". ¿Importarlo igual?")) return;
           applyCatalog(data);
@@ -2980,7 +3154,7 @@
           renderGroups();
           buildShiftGrid();
           applyColors();
-          let msg = "JSON importado y guardado en este dispositivo.\n\nPara que lo vean todos, subí ese mismo archivo a GitHub como " + MES.file;
+          let msg = "JSON importado y guardado en este dispositivo.\n\nPara que lo vean todos, tocá ⬆ Publicar.";
           if (noEncontrados.length) msg += "\n\nNo se encontraron en la programación publicada: " + noEncontrados.join(", ");
           alert(msg);
         } catch (err) {
@@ -3540,7 +3714,8 @@
     }
     // Externos: pueden usar la app y hacer cambios en su celular, pero no tienen fila propia
     // (no publican nada, no piden cambios y no tienen ningún permiso extra).
-    const EXTERNOS = [{ id: "ext-valeria", name: "Valeria" }];
+    // (hoy no hay ninguno fijo: los externos entran con un link de invitación)
+    const EXTERNOS = [];
     // Invitados: externos que habilitó el admin con un link (no aparecen en "¿Quién sos?")
     const INV_PREF = "inv-";
     function esInvitado(id) { return String(id || "").indexOf(INV_PREF) === 0; }
@@ -3667,14 +3842,14 @@
         ? "Elegí quién sos para ver los pedidos"
         : n + (n === 1 ? " pedido" : " pedidos") + (me ? " · " + me.p.name : soyExterno() ? " · " + externoDe(miLegajo).name : "");
       const btnYo = document.getElementById("btnYo");
-      const elegido = me || soyExterno();
+      const elegido = me || soyExterno() || (!!miLegajo && !people.length);
       btnYo.textContent = elegido ? "Cambiar" : "¿Quién sos?";
       // Una vez elegido, solo el admin (logueado en ese celular) lo puede cambiar
       btnYo.style.display = elegido && currentUser !== "ADMIN" ? "none" : "";
     }
 
     function startPedidos() {
-      if (pedUnsub || !fbReady) return;
+      if (pedUnsub || !fbReady || !habilitado()) return;
       pedUnsub = fbDb.collection(PED_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete pedidosDocs[ch.doc.id];
@@ -3688,7 +3863,7 @@
         }
         updatePedidosBar();
         revisarAvisos();
-      }, err => console.warn("Pedidos:", err));
+      }, errProtegido("Pedidos", () => { pedUnsub = null; }));
     }
 
     // Vista compacta: solo filas y días con algo publicado (y la fila propia)
@@ -3804,36 +3979,72 @@
           b.disabled = true;
           const prevTxt = b.innerHTML;
           b.innerHTML = "Reservando…";
-          // Los externos no tienen fila: no hace falta reservar el nombre
-          (ext ? Promise.resolve(true) : reservarLegajo(p.id, p.name)).then(ok => {
-            b.disabled = false;
-            b.innerHTML = prevTxt;
-            if (ok === null) return;
-            if (!ok) {
-              alert(p.name + " ya está en uso en otro celular.\n\nSi sos vos, pedile al administrador que lo libere.");
-              return;
-            }
-            const anterior = miLegajo;
-            miLegajo = String(p.id);
-            try { localStorage.setItem("jefYo", miLegajo); } catch (e) {}
-            if (anterior && anterior !== miLegajo) soltarLegajo(anterior);
-            registrarYo(true);
-            yoOverlay.classList.remove("open");
-            aplicarAcuerdos();
-            updatePedidosBar();
-            procesarMisPropios();
-            migrarAjenos();
-            resetPeopleFromOfficial();
-            refreshAfterEdit();
-            revisarAvisos();
-            syncTodosPropios();
-          });
+          elegirYo(p.id, p.name, ext).then(() => { b.disabled = false; b.innerHTML = prevTxt; });
         });
         list.appendChild(b);
       });
     }
+    // Reserva el nombre para este celular y lo deja registrado (true si quedó)
+    async function elegirYo(id, name, ext) {
+      // Los externos no tienen fila: no hace falta reservar el nombre
+      const ok = ext ? true : await reservarLegajo(id, name);
+      if (ok === null) return false;
+      if (!ok) {
+        alert(name + " ya está en uso en otro celular.\n\nSi sos vos, pedile al administrador que lo libere.");
+        return false;
+      }
+      const anterior = miLegajo;
+      miLegajo = String(id);
+      try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefYoNombre", name || ""); } catch (e) {}
+      if (anterior && anterior !== miLegajo) soltarLegajo(anterior);
+      yoOverlay.classList.remove("open");
+      aplicarAcuerdos();
+      updatePedidosBar();
+      procesarMisPropios();
+      migrarAjenos();
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      revisarAvisos();
+      syncTodosPropios();
+      actualizarSinDatos();
+      registrarYo(true).then(listo => { if (listo) { registroOk = true; startProtegidos(); } });
+      return true;
+    }
+    // ¿Quién sos? por legajo: el celular no ve la lista de nombres (los datos son privados).
+    // Se busca el legajo en el padrón (Firebase deja leer de a un legajo, no la lista entera).
+    async function nombreDeLegajo(id) {
+      if (fbReady) {
+        try {
+          const d = await fbDb.collection(PADRON_COLLECTION).doc(id).get();
+          if (d.exists && d.data() && d.data().name) return d.data().name;
+        } catch (e) {}
+      }
+      const p = people.find(x => String(x.id) === id);
+      return p ? p.name : null;
+    }
+    async function buscarLegajo() {
+      const inp = document.getElementById("yoLegajo");
+      const msg = document.getElementById("yoLegajoMsg");
+      const btn = document.getElementById("yoLegajoBtn");
+      const id = String(inp.value || "").replace(/\D/g, "");
+      if (!id) { msg.textContent = "Escribí tu número de legajo."; return; }
+      btn.disabled = true;
+      msg.textContent = "";
+      const name = await nombreDeLegajo(id);
+      btn.disabled = false;
+      if (!name) { msg.textContent = "No encontramos el legajo " + id + ". Revisalo; si está bien, avisale al administrador."; return; }
+      if (!confirm("¿Sos " + name + " (" + id + ")?\n\nQueda guardado en este celular y después solo lo puede cambiar el administrador.")) return;
+      btn.disabled = true;
+      await elegirYo(id, name, false);
+      btn.disabled = false;
+    }
     function openYo() {
-      if ((miPersona() || soyExterno()) && currentUser !== "ADMIN") return;
+      if ((miPersona() || soyExterno() || (miLegajo && !people.length)) && currentUser !== "ADMIN") return;
+      const porLegajo = currentUser !== "ADMIN";
+      yoOverlay.classList.toggle("por-legajo", porLegajo);
+      document.getElementById("yoIntro").textContent = porLegajo
+        ? "Escribí tu legajo una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador."
+        : "Elegí a quién asignarle este celular.";
       document.getElementById("yoSearch").value = "";
       renderYoList();
       yoOverlay.classList.add("open");
@@ -4382,7 +4593,7 @@
     }
 
     function startPropios() {
-      if (propUnsub || !fbReady) return;
+      if (propUnsub || !fbReady || !habilitado()) return;
       propUnsub = fbDb.collection(PROP_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete propDocs[ch.doc.id];
@@ -4397,13 +4608,14 @@
         if (typeof revisarAvisos === "function") revisarAvisos();
         if (primera) syncTodosPropios();
         abrirAlmanaqueInicial();
-      }, err => console.warn("Propios:", err));
+      }, errProtegido("Propios", () => { propUnsub = null; }));
     }
     // Al abrir la app, cada uno ve directamente su almanaque (una vez por apertura;
     // la recarga automática no lo vuelve a abrir). No para el admin ni para externos.
     let almanaqueInicialHecho = false;
     function abrirAlmanaqueInicial() {
       if (almanaqueInicialHecho || !authListo || !propListo) return;
+      if (miLegajo && !people.length) return; // todavía no llegaron los turnos
       almanaqueInicialHecho = true;
       try { if (sessionStorage.getItem("almanaqueInicial")) return; } catch (e) {}
       if (currentUser === "ADMIN") return;
@@ -4424,6 +4636,7 @@
       // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
       if (hayInvitacionPendiente()) aceptarInvitacion();
       else if (!miLegajo && currentUser !== "ADMIN") openYo();
+      actualizarSinDatos();
       abrirAlmanaqueInicial();
     }
 
@@ -4762,9 +4975,12 @@
     // Celulares que eligieron nombre antes del bloqueo: se reserva al abrir. Si ya lo tiene otro, se pierde.
     async function asegurarReserva() {
       if (!miLegajo || !yoUid) return;
-      if (soyExterno()) { registrarYo(false); return; }
+      const habilitar = listo => { if (listo) { registroOk = true; startProtegidos(); } };
+      if (soyExterno()) { registrarYo(false).then(habilitar); return; }
       const me = miPersona();
-      const ok = await reservarLegajo(miLegajo, me ? me.p.name : miLegajo);
+      let nom = "";
+      try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
+      const ok = await reservarLegajo(miLegajo, me ? me.p.name : (nom || miLegajo));
       if (ok === false) {
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         miLegajo = "";
@@ -4774,21 +4990,24 @@
         if (currentUser !== "ADMIN") openYo();
         return;
       }
-      if (ok) registrarYo(false);
+      if (ok) registrarYo(false).then(habilitar);
     }
     let yoUid = "", yoUnsub = null;
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
+    // Registra este celular en yo_jefes. Devuelve true cuando ya está registrado.
     function registrarYo(forzar) {
-      if (!fbReady || !yoUid || !miLegajo) return;
+      if (!fbReady || !yoUid || !miLegajo) return Promise.resolve(false);
       let reg = null;
       try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
-      if (!forzar && reg === String(miLegajo)) return;
+      if (!forzar && reg === String(miLegajo)) return Promise.resolve(true);
       const me = miPersona();
       const ex = externoDe(miLegajo);
-      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : String(miLegajo), disp: dispositivo(), t: Date.now() };
-      fbDb.collection(YO_COLLECTION).doc(yoUid).set(data)
-        .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} })
-        .catch(err => console.warn("yo_jefes:", err));
+      let nom = "";
+      try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
+      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : (nom || String(miLegajo)), disp: dispositivo(), t: Date.now() };
+      return fbDb.collection(YO_COLLECTION).doc(yoUid).set(data)
+        .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} return true; })
+        .catch(err => { console.warn("yo_jefes:", err); return false; });
     }
     function startYoSync(u) {
       if (!fbReady || !u || u.uid === yoUid) return;
@@ -4803,6 +5022,8 @@
         // El admin liberó este celular
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         miLegajo = "";
+        registroOk = false;
+        actualizarSinDatos();
         updatePedidosBar();
         resetPeopleFromOfficial();
         refreshAfterEdit();
@@ -4947,11 +5168,12 @@
       if (anterior && !externoDe(anterior)) soltarLegajo(anterior);
       miLegajo = INV_PREF + code;
       try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefInvNombre", d.name || ""); } catch (e) {}
-      registrarYo(true);
+      registrarYo(true).then(listo => { if (listo) { registroOk = true; startProtegidos(); } });
       yoOverlay.classList.remove("open");
       updatePedidosBar();
       resetPeopleFromOfficial();
       refreshAfterEdit();
+      actualizarSinDatos();
       showShareToast("Listo" + (d.name ? ", " + d.name : "") + ": ya podés ver la programación.");
     }
     // Admin: crear una invitación y devolver su código

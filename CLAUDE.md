@@ -3,8 +3,8 @@
 App web (PWA) de la programación mensual de turnos de los **jefes**. Todo está en
 `index.html` (HTML + CSS + JS, sin build). Los turnos de cada mes están en Firebase (colección
 `jefes`, un doc por mes) y solo los ven los registrados; lo compartido en vivo va por Firebase.
-Los `<mes>-<año>.json` y las semillas `SEED_*` del HTML son lo de antes (se sacan cuando el admin
-haya pasado los meses a Firebase): **nunca subir datos de empleados al repo** (es público).
+Ya no hay `<mes>-<año>.json` ni semillas con datos en el HTML: **nunca subir datos de empleados
+al repo** (es público; el historial viejo todavía los tiene hasta pasarlo a privado).
 
 ## Regla de oro: hay una app gemela
 Esta app tiene una gemela casi idéntica para los **cajeros**: `Cuadraditos-VP/CAJEROS`.

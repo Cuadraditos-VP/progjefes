@@ -1437,6 +1437,7 @@
     #yoLegajoAyuda { margin-top: 10px; font-size: 0.72rem; color: #64748b; }
     #sinDatos { display: none; margin: 24px auto; max-width: 420px; padding: 18px 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 0.9rem; font-weight: 600; }
     #sinDatos.show { display: block; }
+    body.sin-datos .group, body.sin-datos #groupCards, body.sin-datos .day-split { display: none !important; }
     #sinDatos button { margin-top: 12px; border: 0; border-radius: 8px; padding: 9px 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
 </style>
 </head>
@@ -1732,87 +1733,13 @@
     let WEEKEND_DAYS = [];    // índices (0-based) de sábados y domingos
     let WEEK_START_DAYS = []; // índices (0-based) donde empieza una semana (LU)
 
-    // DATA inicial de septiembre: PAZ, C vacío (confirmado por usuario). Resto realineado.
-    const SEED_SEP = [
-      { id: "60198", name: "PAZ, C", codes: Array(30).fill("") },
-      { id: "60219", name: "PAZ, L", codes: "M F T MD T MD T M T1 M F F F T M T M M T M F N NC NC NC N F NC T T".split(" ") },
-      { id: "60228", name: "ALVAREZ", codes: "F F M M MD M M T T T M M MD M F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60238", name: "BORLANDELLI", codes: "F NC NC N T T T T1 M MD F F NC N N NC N T MD F F NC N N N T M M M F".split(" ") },
-      { id: "60243", name: "CAPECHE", codes: "T M F F F T M T M MD MD F F M M T T T M MD M M M F NC INT/P T/P M M T".split(" ") },
-      { id: "60254", name: "DE CARLO", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO T T T1 M M F F T M M".split(" ") },
-      { id: "60262", name: "FILLON", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO M MD MD M T/P M T M F F M M T T M MD MD F F T".split(" ") },
-      { id: "60264", name: "FRANCO", codes: "M M M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F F NC".split(" ") },
-      { id: "60280", name: "LANCELLOTTI", codes: "NC N F F NC N N NC N N N F F NC N N NC N N N NC N N F F NC N N N N".split(" ") },
-      { id: "60287", name: "MELE", codes: "NC N F F NC N N NC N N N F F NC N N NC N N N NC N N F F NC N N N N".split(" ") },
-      { id: "60296", name: "MORALES", codes: "T T T F N NC NC T T1 T T M F F N T INT/P T M MD F F N NC N T M F T T".split(" ") },
-      { id: "60299", name: "MURATORI", codes: "F T T/P T MD T1 T M T T MD F F T T T M MD MD F F T T T MD MD T T T1 F".split(" ") },
-      { id: "60301", name: "NEMARIC", codes: "T/P T T M F F NC N N NC NC N T F F NC NC N T M T T INT/P T1 F F NC N T T".split(" ") },
-      { id: "60423", name: "RIVAS", codes: "N T M MD F F NC N N NC NC N T T1 M F F NC N T T/P M M T INT/P M F F NC N".split(" ") },
-      { id: "60457", name: "ESPINOZA", codes: "T M F F T T T M M M F T T/P T T M T MD F F T T/P M M F T T M T M".split(" ") },
-      { id: "60502", name: "PIÑERO", codes: "F F NC NC NC N N NC NC N F NC NC N NC NC N NC NC NC N NC NC N F F F NC NC N".split(" ") },
-      { id: "60613", name: "CANTERO", codes: "T T1 T M F F F INT/P T T T T T M M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60616", name: "KYRIACO", codes: "N N F NC N NC N N T F F NC NC N NC N T F F NC N NC NC N F NC NC N N NC".split(" ") },
-      { id: "60636", name: "CASANOVA", codes: "F F F F F F · · NC N T MD M F NC N N T T T M N/P T INT/P T F T T M M".split(" ").map(c => c === "·" ? "" : c) },
-      { id: "60668", name: "ANTELO", codes: "N NC N T M MD M F NC NC N T M T T1 M F F NC T T T1 M M MD F F F N NC".split(" ") },
-      { id: "60713", name: "RAMOS", codes: "N F NC NC N NC N T F F NC N N NC T F N NC NC NC N N F NC NC N T NC N F".split(" ") },
-      { id: "60718", name: "SOSNICKI", codes: "M F N N T M T T1 M F F NC N T T M T1 M F F NC N N N T M MD F NC N".split(" ") },
-      { id: "60823", name: "PEREYRA", codes: "NC NC N T M F F N T M F F N N T T M F N T/P T1 T T T T F NC T T M".split(" ") },
-    ];
 
-    const SEED_OCT = [
-      { id: "60198", name: "PAZ, C", codes: "LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC".split(" ") },
-      { id: "60219", name: "PAZ, L", codes: "M M MD MD M F T M MD F F N T M LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60228", name: "ALVAREZ", codes: "LAO LAO LAO LAO LAO LAO F F NC N T T M M F F NC N T M M M F T T M M M F NC N".split(" ") },
-      { id: "60238", name: "BORLANDELLI", codes: "F N N T T M F F NC NC NC N T M F F F NC NC N NC N T T M T1 T M M MD F".split(" ") },
-      { id: "60243", name: "CAPECHE", codes: "T MD F T T T1 M F F N T M M T T M MD F F F N T T1 M T M T M T1 MD F".split(" ") },
-      { id: "60254", name: "DE CARLO", codes: "F T T M T M M T1 T M MD T M F F N N T M T M T M MD T T M F F F F".split(" ") },
-      { id: "60262", name: "FILLON", codes: "M F F F · T M M MD T M MD F T T M MD F F T T1 M M T M M F N N T T".split(" ").map(c => c === "·" ? "" : c) },
-      { id: "60264", name: "FRANCO", codes: "N NC NC N T M F NC N T M F F F F NC NC N T T1 M F F N NC NC N T T M M".split(" ") },
-      { id: "60280", name: "LANCELLOTTI", codes: "F F N N NC N NC N F N N NC N N NC N F F NC NC N NC N NC N F F NC NC N N".split(" ") },
-      { id: "60287", name: "MELE", codes: "F F N N NC N NC N F N N NC N N NC N F F NC NC N NC N NC N F F NC NC N N".split(" ") },
-      { id: "60296", name: "MORALES", codes: "T M F NC N T T M M F F NC N T T1 T T TT F F NC N T M MD T T F F T T".split(" ") },
-      { id: "60299", name: "MURATORI", codes: "T1 MD MD F F T T1 T T M MD MD F F T MD M F T T T T1 T F F N N T T T MD".split(" ") },
-      { id: "60301", name: "NEMARIC", codes: "M M T T T1 F F NC N T M F F NC N T T T F N T T M F F NC N T T M M".split(" ") },
-      { id: "60423", name: "RIVAS", codes: "F F NC NC N T T M F F NC N N T T M T T M M F F NC N NC N T T M F NC".split(" ") },
-      { id: "60457", name: "ESPINOZA", codes: "T T T M M F · T T F T M T T1 M F F F T M M M MD MD T M F F T M MD".split(" ").map(c => c === "·" ? "" : c) },
-      { id: "60502", name: "PIÑERO", codes: "LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F NC NC N N F F NC NC NC NC NC N F NC NC".split(" ") },
-      { id: "60613", name: "CANTERO", codes: "LAO LAO LAO LAO LAO F T T T1 F F T T T M MD M TT F F T T T M MD F F NC N T T".split(" ") },
-      { id: "60616", name: "KYRIACO", codes: "NC N F F NC NC N N F NC NC N NC N F NC N N N NC N F F N N N NC N N F NC".split(" ") },
-      { id: "60636", name: "CASANOVA", codes: "T T M M F NC N NC N T T M F NC N T M TT F F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60668", name: "ANTELO", codes: "N T M MD F F N T M MD T T T1 M M F F NC N T T M MD F F F NC N NC N T".split(" ") },
-      { id: "60713", name: "RAMOS", codes: "N NC NC NC N N F F NC NC N LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60718", name: "SOSNICKI", codes: "NC N T T M F N T M MD F F NC NC N T T TT F F NC NC N T M T T1 T1 M F F".split(" ") },
-      { id: "60823", name: "PEREYRA", codes: "NC NC N T F NC NC N T M F F NC N NC NC N T M F F N NC N T T M F F NC N".split(" ") },
-    ];
 
-    const SEED_NOV = [
-      { id: "60198", name: "PAZ, C", codes: "LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC LIC".split(" ") },
-      { id: "60219", name: "PAZ, L", codes: "LAO LAO LAO NC NC N T F M M MD T M MD F F T T1 T M F NC NC N T T MD M MD F".split(" ") },
-      { id: "60228", name: "ALVAREZ", codes: "N F T M M MD MD MD F F NC N N T M M F F T M M T MD M F T M MD M M".split(" ") },
-      { id: "60238", name: "BORLANDELLI", codes: "F NC NC N T T M MD F F N NC NC N T M F N NC N T MD F F F LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60243", name: "CAPECHE", codes: "M M M F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO F F NC N N T T T M F F NC N T".split(" ") },
-      { id: "60254", name: "DE CARLO", codes: "F T M M T M MD M F T M T T M MD F F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60262", name: "FILLON", codes: "MD M F F T T M M F T M T1 MD F F T M T T M MD T MD M F NC N T T M".split(" ") },
-      { id: "60280", name: "LANCELLOTTI", codes: "NC N N NC N F F F NC N N NC NC NC N N N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO NC".split(" ") },
-      { id: "60287", name: "MELE", codes: "NC N N NC N F F F NC N N NC NC NC N N N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO NC".split(" ") },
-      { id: "60296", name: "MORALES", codes: "F N T T M MD T M F N T M MD F F F NC NC N T T M F NC NC N IN T T T".split(" ") },
-      { id: "60299", name: "MURATORI", codes: "F T T1 T T IN T T M T1 F F T M T T T/P T T1 MD F F IN T T T T MD MD F".split(" ") },
-      { id: "60301", name: "NEMARIC", codes: "N T M T M M F F T T M M F NC N T T M F F NC NC NC N T T M T M F".split(" ") },
-      { id: "60423", name: "RIVAS", codes: "F F NC N NC NC N IN T M MD F F N T T1 M M F NC N N N N T M F NC NC N".split(" ") },
-      { id: "60457", name: "ESPINOZA", codes: "MD T1 M M F F T T MD F F T T T MD C/A T T M MD F F T T M T/P T T T M".split(" ") },
-      { id: "60502", name: "PIÑERO", codes: "NC NC N F F N NC NC N NC NC N F F NC NC NC N N F NC NC NC NC N F NC NC NC NC".split(" ") },
-      { id: "60613", name: "CANTERO", codes: "M F F T T1 T IN T MD F T M T1 MD F T M M T T MD MD F F NC N T M IN T".split(" ") },
-      { id: "60616", name: "KYRIACO", codes: "T T NC N F NC NC N F F LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO LAO".split(" ") },
-      { id: "60636", name: "CASANOVA", codes: "LAO LAO LAO LAO LAO LAO LAO LAO NC N NC N N T T M F NC NC NC N N T T M M MD F F F".split(" ") },
-      { id: "60668", name: "ANTELO", codes: "T C/A T M M F F NC IN T T T/P M F F NC N T M T T M F F NC NC N N N T".split(" ") },
-      { id: "60713", name: "RAMOS", codes: "N NC N N N F NC NC N NC N N N N NC NC N N F NC NC N N NC N N F F F F".split(" ") },
-      { id: "60718", name: "SOSNICKI", codes: "F N T T1 T M F F N NC T T T T M F NC NC N N T T M M F F NC N NC N".split(" ") },
-      { id: "60823", name: "PEREYRA", codes: "T M F F NC NC N N T M T1 M F F NC N T INT/P M T M T M F N NC NC N F N".split(" ") },
-    ];
 
-    const SEED_BY_MES = { "2026-09": SEED_SEP, "2026-10": SEED_OCT, "2026-11": SEED_NOV };
+    // Ya no hay datos de personas en la página: todo viene de Firebase (solo registrados)
+    const SEED_BY_MES = {};
 
-    let people = SEED_BY_MES[FIRST_MES].map(p => ({ id: p.id, name: p.name, codes: p.codes.slice() }));
+    let people = [];
 
     // Snapshot de la programación INICIAL del mes: nunca se pisa,
     // ni al cargar un JSON nuevo ni al hacer ediciones. Sirve para poder
@@ -2250,7 +2177,7 @@
       fitNameCols();
       if (typeof updatePublishBtn === "function" && fbStarted) updatePublishBtn();
     }
-    // Mide el legajo y el apellido más largos (hoy BORLANDELLI / LANCELLOTTI) y ajusta
+    // Mide el legajo y el apellido más largos y ajusta
     // las dos columnas fijas a ese ancho justo, así en el celular entran más días.
     let fitCanvas = null;
     function fitNameCols() {
@@ -2305,16 +2232,8 @@
       }
     }
 
-    // Trae el JSON de un mes (null si no existe o falla)
-    async function fetchMes(key) {
-      try {
-        const r = await fetch(mesInfo(key).file + "?t=" + Date.now(), { cache: "no-store" });
-        if (!r.ok) return null;
-        const data = await r.json();
-        if (data && Array.isArray(data.people) && data.people.length) return data;
-      } catch (e) {}
-      return null;
-    }
+    // Los meses ya no están en la página (vienen de Firebase, solo para registrados)
+    async function fetchMes(key) { return null; }
 
     // Arma el encabezado de días según el mes (cantidad de días y día de la semana del 1)
     // Línea DO/LU: agrega la rayita (ver .ws-line en el CSS) en las celdas del lunes
@@ -2400,7 +2319,7 @@
         applyCatalog(data);
         people = normalizePeople(data.people);
       } else {
-        people = normalizePeople(SEED_BY_MES[key]);
+        people = normalizePeople(SEED_BY_MES[key] || []);
       }
       ORIGINAL_CODES = people.map(p => p.codes.slice());
       const ini = initialFor(key, data);
@@ -2497,7 +2416,7 @@
       const results = await Promise.all(cands.map(k => fetchMes(k)));
       cands.forEach((k, i) => { if (results[i]) MES_DATA[k] = results[i]; });
       AVAILABLE_MESES = cands.filter(k => MES_DATA[k] || SEED_BY_MES[k] || loadFbCache(k));
-      if (!AVAILABLE_MESES.length) AVAILABLE_MESES = [FIRST_MES];
+      if (!AVAILABLE_MESES.length) { const n = new Date(); AVAILABLE_MESES = [mesKeyOf(n.getFullYear(), n.getMonth() + 1)]; }
       let want = null;
       try { want = localStorage.getItem("jefesMes"); } catch (e) {}
       if (!want || !AVAILABLE_MESES.includes(want)) {
@@ -2758,6 +2677,7 @@
       if (!box) return;
       const vacio = !people.length;
       box.classList.toggle("show", vacio);
+      document.body.classList.toggle("sin-datos", vacio);
       if (!vacio) return;
       const sinNombre = !miLegajo && currentUser !== "ADMIN";
       document.getElementById("sinDatosTxt").textContent = sinNombre

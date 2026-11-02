@@ -72,6 +72,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - En jefes el admin **sí** publica turnos con ⬆ Publicar (colección `jefes`, un doc por mes
   con `people`, `colores`, `changedAt`…). Un mes nuevo lo sube con ↑ JSON (va directo a Firebase).
   En cajeros los colores van aparte (colección `cajeros`) y el mes en `turnos_cajeros`.
+- Al abrir, jefes muestra la grilla principal; cajeros abre el almanaque propio
+  (`ABRIR_ALMANAQUE_AL_INICIO`).
 - Colección de CJ: `cj` (en cajeros es `cj_cajeros`). No hay `server.js` (las pruebas traen
   su propio servidor).
 

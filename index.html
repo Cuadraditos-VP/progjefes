@@ -4651,8 +4651,11 @@
     }
     // Al abrir la app, cada uno ve directamente su almanaque (una vez por apertura;
     // la recarga automática no lo vuelve a abrir). No para el admin ni para externos.
+    // En cajeros sí; en jefes abre con la grilla principal
+    const ABRIR_ALMANAQUE_AL_INICIO = false;
     let almanaqueInicialHecho = false;
     function abrirAlmanaqueInicial() {
+      if (!ABRIR_ALMANAQUE_AL_INICIO) return;
       if (almanaqueInicialHecho || !authListo || !propListo) return;
       if (miLegajo && !people.length) return; // todavía no llegaron los turnos
       almanaqueInicialHecho = true;

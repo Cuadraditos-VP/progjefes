@@ -66,14 +66,14 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas.
+- Al abrir, la app muestra la grilla principal (el almanaque propio no se abre solo;
+  `ABRIR_ALMANAQUE_AL_INICIO = false`, igual en las dos).
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
 
 ## Diferencias con la gemela (cajeros)
 - En jefes el admin **sí** publica turnos con ⬆ Publicar (colección `jefes`, un doc por mes
   con `people`, `colores`, `changedAt`…). Un mes nuevo lo sube con ↑ JSON (va directo a Firebase).
   En cajeros los colores van aparte (colección `cajeros`) y el mes en `turnos_cajeros`.
-- Al abrir, jefes muestra la grilla principal; cajeros abre el almanaque propio
-  (`ABRIR_ALMANAQUE_AL_INICIO`).
 - Colección de CJ: `cj` (en cajeros es `cj_cajeros`). No hay `server.js` (las pruebas traen
   su propio servidor).
 

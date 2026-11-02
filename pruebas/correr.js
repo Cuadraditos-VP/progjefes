@@ -60,6 +60,9 @@ function chequear(nombre, cond, detalle) {
     console.log("\nCambios (pedidos)");
     const A = await cel("uA", s.ida), B = await cel("uB", s.idb), C = await cel("uC", s.idc);
     chequear("con nombre elegido ya no pregunta", !(await A.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    const alm = await A.evaluate(() => ({ abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }));
+    chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
+    for (const pg of [A, B, C]) await pg.evaluate(() => closePersonCalendar());
     await A.evaluate(s => { pedTengoSel = actualDe(s.a, s.d); guardarPedido(s.a, s.d, [s.y, s.z]); closePedido(); }, s);
     await wait(800);
     const ped = be.st["pedidos_" + APP] && be.st["pedidos_" + APP][s.mes + "_" + s.ida + "_" + (s.d + 1)];

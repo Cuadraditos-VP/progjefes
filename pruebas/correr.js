@@ -10,7 +10,8 @@ const ROOT = path.join(__dirname, "..");
 const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const APP = (html.match(/PED_COLLECTION = "pedidos_(\w+)"/) || [])[1];
 const YOKEY = (html.match(/localStorage\.getItem\("(\w+Yo)"\)/) || [])[1];
-if (!APP || !YOKEY) { console.error("No pude detectar la app (pedidos_X / XYo)"); process.exit(2); }
+const TURNOS = (html.match(/const TURNOS_COLLECTION = "(\w+)"/) || [])[1];
+if (!APP || !YOKEY || !TURNOS) { console.error("No pude detectar la app (pedidos_X / XYo / TURNOS_COLLECTION)"); process.exit(2); }
 const PORT = 8700 + Math.floor(Math.random() * 200);
 const URL = "http://localhost:" + PORT + "/";
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -25,7 +26,11 @@ function chequear(nombre, cond, detalle) {
   console.log("Pruebas de " + APP + "\n");
   const srv = await servir(ROOT, PORT);
   const browser = await chromium.launch();
-  const be = crearBackend(APP);
+  const be = crearBackend(APP, TURNOS);
+  const M0 = be.mesDePrueba(0);
+  const DE_PRUEBA = M0.people.map(p => p.id);
+  // ¿Este celular ve la programación protegida? (gente del mes de prueba en pantalla)
+  const veDatos = pg => pg.evaluate(ids => people.some(p => ids.includes(String(p.id))), DE_PRUEBA);
   const errores = [];
   const cel = async (uid, legajo, email) => {
     const pg = await be.celular(browser, URL, uid, email, errores);
@@ -33,27 +38,43 @@ function chequear(nombre, cond, detalle) {
     return pg;
   };
   try {
-    // Busca tres personas y un día donde A y B trabajan con turnos distintos
     const P = await cel("u0");
-    console.log("¿Quién sos?");
+    console.log("¿Quién sos? y datos protegidos");
     chequear("un celular sin nombre ve \"¿Quién sos?\" al abrir", await P.evaluate(() => document.getElementById("yoOverlay").classList.contains("open")));
+    chequear("le pide el legajo (no ve la lista de nombres)", await P.evaluate(() => document.getElementById("yoOverlay").classList.contains("por-legajo") &&
+      getComputedStyle(document.getElementById("yoList")).display === "none"));
+    chequear("sin nombre no ve la programación protegida", !(await veDatos(P)));
+    chequear("sin nombre Firebase no le deja leer los turnos", (await P.evaluate(() => Object.keys(FB_MESES).length)) === 0);
     const sinNombre = await P.evaluate(() => {
       window.alert = () => {};
       document.getElementById("yoOverlay").classList.remove("open");
+      if (!people.length) return { vacio: true, cartel: document.getElementById("sinDatos").classList.contains("show") };
       const antes = people[0].codes[0];
       openShiftPicker(0, 0);
       return { abanico: document.getElementById("shiftOverlay").classList.contains("open"),
         pregunta: document.getElementById("yoOverlay").classList.contains("open"), igual: people[0].codes[0] === antes };
     });
-    chequear("sin nombre no puede cambiar turnos y le pregunta \"¿Quién sos?\"", !sinNombre.abanico && sinNombre.pregunta && sinNombre.igual, sinNombre);
-    const s = await P.evaluate(() => {
+    chequear("sin nombre no puede cambiar turnos", sinNombre.vacio ? sinNombre.cartel : (!sinNombre.abanico && sinNombre.pregunta && sinNombre.igual), sinNombre);
+    const malo = await P.evaluate(async () => { openYo(); document.getElementById("yoLegajo").value = "12345"; await buscarLegajo();
+      return { msg: document.getElementById("yoLegajoMsg").textContent, leg: miLegajo }; });
+    chequear("un legajo que no existe no lo registra", /No encontramos/.test(malo.msg) && !malo.leg, malo);
+    const idP = DE_PRUEBA[DE_PRUEBA.length - 1];
+    await P.evaluate(async id => { document.getElementById("yoLegajo").value = id; await buscarLegajo(); }, idP);
+    await wait(2500);
+    chequear("con su legajo queda registrado", (await P.evaluate(() => miLegajo)) === idP);
+    chequear("registrado ve la programación protegida", await veDatos(P));
+    // Busca tres personas y un día donde A y B trabajan con turnos distintos
+    const s = await P.evaluate(ids => {
+      const ok = i => ids.includes(String(people[i].id)) && String(people[i].id) !== String(miLegajo);
       for (let d = 0; d < DAYS; d++) for (let a = 0; a < people.length; a++) {
+        if (!ok(a)) continue;
         const x = actualDe(a, d); if (!trabaja(x)) continue;
-        const otros = people.map((_, o) => o).filter(o => o !== a && trabaja(actualDe(o, d)) && actualDe(o, d) !== x);
+        const otros = people.map((_, o) => o).filter(o => o !== a && ok(o) && trabaja(actualDe(o, d)) && actualDe(o, d) !== x);
         if (otros.length >= 2) return { d, a, b: otros[0], c: otros[1], x, y: actualDe(otros[0], d), z: actualDe(otros[1], d),
           ida: String(people[a].id), idb: String(people[otros[0]].id), idc: String(people[otros[1]].id), mes: currentMes };
       }
-    });
+    }, DE_PRUEBA);
+    const libre = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP].includes(id));
     await P.close();
     console.log("Mes " + s.mes + ", día " + (s.d + 1) + ": A=" + s.ida + " (" + s.x + "), B=" + s.idb + " (" + s.y + "), C=" + s.idc + " (" + s.z + ")\n");
 
@@ -97,24 +118,10 @@ function chequear(nombre, cond, detalle) {
       (await B.evaluate(([s, d2]) => ORIGINAL_CODES[s.c][d2], [s, d2])) === "MD");
     chequear("A sí ve lo que cambió en la fila de C", (await A.evaluate(([s, d2]) => people[s.c].codes[d2], [s, d2])) === "MD");
     const N = await cel("uN");
-    const ofiA = await N.evaluate(([s, d2]) => ORIGINAL_CODES[s.a][d2], [s, d2]);
-    chequear("sin nombre NO ve el cambio que publicó A", ofiA === "X" || (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === ofiA);
-    await N.evaluate(([k, v]) => localStorage.setItem(k, v), [YOKEY, s.idb]); await N.reload(); await wait(2500);
+    chequear("sin nombre NO ve la fila de A (ni lo que publicó)", !(await veDatos(N)));
+    await N.evaluate(([k, v]) => localStorage.setItem(k, v), [YOKEY, libre]); await N.reload(); await wait(3000);
     chequear("al elegir su nombre ya lo ve", (await N.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === "X");
     await N.close();
-
-    console.log("\nExterna (Valeria): cambia en su celular, no publica nada");
-    const V = await cel("uV", "ext-valeria");
-    chequear("a Valeria no le pregunta \"¿Quién sos?\"", !(await V.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
-    const d4 = (s.d + 7) % 28;
-    const antesV = Object.keys(be.st["propios_" + APP] || {}).length;
-    await V.evaluate(([s, d4]) => { openShiftPicker(s.b, d4); applyShift("MD"); document.getElementById("closeShift").click(); }, [s, d4]);
-    await wait(2500);
-    chequear("Valeria ve su cambio", (await V.evaluate(([s, d4]) => people[s.b].codes[d4], [s, d4])) === "MD");
-    chequear("B no ve el cambio de Valeria", (await B.evaluate(([s, d4]) => people[s.b].codes[d4], [s, d4])) !== "MD" ||
-      (await B.evaluate(([s, d4]) => ORIGINAL_CODES[s.b][d4], [s, d4])) === "MD");
-    chequear("Valeria no publica nada", Object.keys(be.st["propios_" + APP] || {}).length === antesV);
-    await V.close();
 
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
@@ -130,9 +137,14 @@ function chequear(nombre, cond, detalle) {
     chequear("vuelve a lo oficial para todos", (await B.evaluate(([s, d2]) => people[s.a].codes[d2], [s, d2])) === ofi);
     const avX = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
     chequear("A recibe aviso del descarte", /descartó/.test(avX), avX);
+    if (/const SEED_[A-Z]+ = \[/.test(html)) {
+      const legado = await AD.evaluate(() => AVAILABLE_MESES.filter(k => !FB_MESES[k] && (MES_DATA[k] || SEED_BY_MES[k])));
+      const enFb = Object.keys(be.st[TURNOS] || {});
+      chequear("el admin pasa a Firebase los meses que estaban en la página", legado.length === 0 && enFb.length > 1, { legado, enFb });
+    }
 
     if (html.includes("function aceptarInvitacion")) {
-      console.log("\nInvitación del admin para un externo (jefes)");
+      console.log("\nInvitación del admin para un externo");
       const code = await AD.evaluate(() => crearInvitacion("Invitada"));
       const I1 = await be.celular(browser, URL + "?inv=" + code, "uI1", null, errores);
       await wait(2500);
@@ -140,6 +152,14 @@ function chequear(nombre, cond, detalle) {
         pregunta: document.getElementById("yoOverlay").classList.contains("open"), url: location.search }));
       chequear("con el link queda habilitado sin elegir nombre", inv.leg === "inv-" + code && inv.ext && inv.ve && !inv.pregunta, inv);
       chequear("el link se saca de la dirección", !/inv=/.test(inv.url), inv.url);
+      await wait(1500);
+      chequear("el invitado ve la programación protegida", await veDatos(I1));
+      const d4 = (s.d + 7) % 28;
+      const antesI = Object.keys(be.st["propios_" + APP] || {}).length;
+      await I1.evaluate(([s, d4]) => { openShiftPicker(s.b, d4); applyShift("MD"); document.getElementById("closeShift").click(); }, [s, d4]);
+      await wait(2500);
+      chequear("el invitado ve su cambio", (await I1.evaluate(([s, d4]) => people[s.b].codes[d4], [s, d4])) === "MD");
+      chequear("el invitado no publica nada", Object.keys(be.st["propios_" + APP] || {}).length === antesI);
       const yo = (be.st["yo_" + APP] || {}).uI1;
       chequear("el admin lo ve en Celulares", !!yo && yo.name === "Invitada", yo);
       chequear("no aparece en la lista de \"¿Quién sos?\"", !(await I1.evaluate(() => { renderYoList(); return /Invitada/.test(document.getElementById("yoList").innerText); })));
@@ -148,6 +168,16 @@ function chequear(nombre, cond, detalle) {
       chequear("el mismo link no sirve en otro celular", !(await I2.evaluate(() => miLegajo)));
       await I1.close(); await I2.close();
     }
+
+    console.log("\nAdmin publica un mes nuevo (archivo del mes)");
+    const M1 = be.mesDePrueba(1);
+    await AD.evaluate(m => subirMesAdmin(m), { mes: M1.mes, codigos: M1.codigos, people: M1.people });
+    await wait(2500);
+    const sub = (be.st[TURNOS] || {})[M1.mes];
+    chequear("queda guardado en Firebase", !!sub && sub.people.length === M1.people.length, sub && sub.people.length);
+    chequear("el padrón tiene los legajos", !!(be.st["padron_" + APP] || {})[M1.people[0].id]);
+    chequear("un registrado tiene el mes nuevo", (await C.evaluate(m => AVAILABLE_MESES.includes(m), M1.mes)));
+    await AD.evaluate(m => { switchMonth(m); fillMonthSelect(); }, s.mes);
 
     if (html.includes("function turnosAPublicar")) {
       console.log("\nAdmin publica turnos (jefes)");

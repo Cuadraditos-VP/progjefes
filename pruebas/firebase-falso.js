@@ -23,22 +23,42 @@
     return window.__fbWrite(enc({ coll, id, op, data, opts, uid: window.__UID, email: window.__EMAIL || null }))
       .then(r => { if (r && r !== "ok") { const e = new Error(r); e.code = r; throw e; } });
   }
+  // Lecturas: el "servidor" decide si este celular puede leer (reglas de Firebase)
+  const denegado = () => { const e = new Error("permission-denied"); e.code = "permission-denied"; return e; };
+  const puede = (coll, id) => ready.then(() => window.__fbCanRead(coll, id == null ? null : id));
   function docRef(coll, id) {
     return {
       id,
       set: (d, o) => write(coll, id, "set", d, o),
       update: (d) => write(coll, id, "update", d),
       delete: () => write(coll, id, "delete"),
-      get: () => ready.then(() => { const d = (local[coll] || {})[id]; return { exists: d != null, id, data: () => d }; }),
-      onSnapshot: (cb) => { const l = { coll, id, cb }; listeners.push(l); ready.then(() => { const d = (local[coll] || {})[id]; cb({ exists: d != null, id, data: () => d }); }); return () => { const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+      get: () => puede(coll, id).then(ok => { if (!ok) throw denegado(); const d = (local[coll] || {})[id]; return { exists: d != null, id, data: () => d }; }),
+      onSnapshot: (cb, errCb) => {
+        const l = { coll, id, cb }; let vivo = true;
+        puede(coll, id).then(ok => {
+          if (!vivo) return;
+          if (!ok) { if (errCb) errCb(denegado()); return; }
+          listeners.push(l); const d = (local[coll] || {})[id]; cb({ exists: d != null, id, data: () => d });
+        });
+        return () => { vivo = false; const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); };
+      }
     };
   }
   const db = {
     enablePersistence: () => Promise.resolve(),
     collection: (coll) => ({
       doc: (id) => docRef(coll, id),
-      get: () => ready.then(() => { const docs = Object.entries(local[coll] || {}).map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: f => docs.forEach(f), size: docs.length, empty: !docs.length }; }),
-      onSnapshot: (cb) => { const l = { coll, id: null, cb }; listeners.push(l); ready.then(() => deliverColl(l, Object.entries(local[coll] || {}).map(([id, d]) => ({ type: "added", doc: { id, data: () => d, exists: true } })))); return () => { const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+      get: () => puede(coll, null).then(ok => { if (!ok) throw denegado(); const docs = Object.entries(local[coll] || {}).map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: f => docs.forEach(f), size: docs.length, empty: !docs.length }; }),
+      onSnapshot: (cb, errCb) => {
+        const l = { coll, id: null, cb }; let vivo = true;
+        puede(coll, null).then(ok => {
+          if (!vivo) return;
+          if (!ok) { if (errCb) errCb(denegado()); return; }
+          listeners.push(l);
+          deliverColl(l, Object.entries(local[coll] || {}).map(([id, d]) => ({ type: "added", doc: { id, data: () => d, exists: true } })));
+        });
+        return () => { vivo = false; const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); };
+      }
     }),
     batch: () => { const ops = []; return {
       set: (r, d, o) => ops.push(() => r.set(d, o)), update: (r, d) => ops.push(() => r.update(d)), delete: (r) => ops.push(() => r.delete()),

@@ -1,8 +1,10 @@
 # Programación Jefes — notas para Claude
 
 App web (PWA) de la programación mensual de turnos de los **jefes**. Todo está en
-`index.html` (HTML + CSS + JS, sin build). Los turnos de cada mes vienen de
-`<mes>-<año>.json` y de lo que publica el admin en Firebase; lo compartido en vivo va por Firebase.
+`index.html` (HTML + CSS + JS, sin build). Los turnos de cada mes están en Firebase (colección
+`jefes`, un doc por mes) y solo los ven los registrados; lo compartido en vivo va por Firebase.
+Los `<mes>-<año>.json` y las semillas `SEED_*` del HTML son lo de antes (se sacan cuando el admin
+haya pasado los meses a Firebase): **nunca subir datos de empleados al repo** (es público).
 
 ## Regla de oro: hay una app gemela
 Esta app tiene una gemela casi idéntica para los **cajeros**: `Cuadraditos-VP/CAJEROS`.
@@ -26,17 +28,24 @@ Esta app tiene una gemela casi idéntica para los **cajeros**: `Cuadraditos-VP/C
 node pruebas/correr.js
 ```
 Abre varios "celulares" con un Firebase falso compartido (`pruebas/firebase-falso.js` +
-`pruebas/backend.js`, que aplica la misma regla de permisos de `propios_*`) y recorre:
-Cambios (pedido con varias opciones, respuestas, acuerdo, avisos), fila propia publicada vs.
+`pruebas/backend.js`, que aplica las mismas reglas de escritura y de **lectura** que Firebase,
+con un mes de gente inventada — nunca datos reales en las pruebas) y recorre: registro por legajo y
+datos protegidos, Cambios (pedido con varias opciones, respuestas, acuerdo, avisos), fila propia publicada vs.
 filas ajenas privadas, descarte del admin con aviso, que el admin publique turnos, celda del
 franco ofrecido y que no haya errores de JavaScript. Si agregás algo importante, sumale una
 prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo igual.
 
 ## Conceptos de la app
-- **¿Quién sos?**: cada celular elige su nombre una vez (`localStorage` `jefYo`) y se reserva
-  en `legajos_jefes` (un celular por legajo). Solo el admin lo puede cambiar.
-- **Externos** (`EXTERNOS` en `index.html`, hoy solo "Valeria"): aparecen al final de "¿Quién sos?",
-  no reservan legajo, no tienen fila propia (no publican ni piden cambios) y no tienen permisos extra.
+- **Datos protegidos**: los turnos (nombres, legajos, licencias) están en Firebase y solo los leen
+  los celulares registrados y el admin (lo mismo `pedidos_*` y `propios_*`). Quien no se registró
+  ve un cartel y "¿Quién sos?". Registrado = su doc en `yo_jefes` apunta a un legajo reservado a su
+  uid en `legajos_jefes`, o a una invitación usada por su uid (`inv-<código>`).
+- **¿Quién sos?**: cada celular escribe su **legajo** una vez (`localStorage` `jefYo`); la app busca
+  el nombre en `padron_jefes/{legajo}` (Firebase deja leer de a un legajo, no la lista) y lo
+  reserva en `legajos_jefes` (un celular por legajo). Solo el admin lo puede cambiar (él ve la lista).
+- **Externos**: entran con un link de invitación del admin (Celulares → Invitar, colección
+  `invitados_jefes`). No reservan legajo, no tienen fila propia (no publican ni piden cambios).
+  `EXTERNOS` en `index.html` quedó vacío (Valeria pasó a invitación).
 - **Fila propia vs. ajena**: cualquiera puede cambiar cualquier fila en su celular, pero solo
   lo de **su propia fila** se publica para todos (colección `propios_jefes`, doc
   `<mes>_<legajo>`, días como `d0`, `d1`…). Lo de filas ajenas queda solo en ese celular.
@@ -56,7 +65,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 
 ## Diferencias con la gemela (cajeros)
 - En jefes el admin **sí** publica turnos con ⬆ Publicar (colección `jefes`, un doc por mes
-  con `people`, `colores`, `changedAt`…). En cajeros solo publica colores.
+  con `people`, `colores`, `changedAt`…). Un mes nuevo lo sube con ↑ JSON (va directo a Firebase).
+  En cajeros los colores van aparte (colección `cajeros`) y el mes en `turnos_cajeros`.
 - Colección de CJ: `cj` (en cajeros es `cj_cajeros`). No hay `server.js` (las pruebas traen
   su propio servidor).
 

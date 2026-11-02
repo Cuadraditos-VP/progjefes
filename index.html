@@ -4396,7 +4396,22 @@
         refreshAfterEdit();
         if (typeof revisarAvisos === "function") revisarAvisos();
         if (primera) syncTodosPropios();
+        abrirAlmanaqueInicial();
       }, err => console.warn("Propios:", err));
+    }
+    // Al abrir la app, cada uno ve directamente su almanaque (una vez por apertura;
+    // la recarga automática no lo vuelve a abrir). No para el admin ni para externos.
+    let almanaqueInicialHecho = false;
+    function abrirAlmanaqueInicial() {
+      if (almanaqueInicialHecho || !authListo || !propListo) return;
+      almanaqueInicialHecho = true;
+      try { if (sessionStorage.getItem("almanaqueInicial")) return; } catch (e) {}
+      if (currentUser === "ADMIN") return;
+      const me = miPersona();
+      if (!me) return;
+      if (document.querySelector(".palette-overlay.open")) return; // hay otra ventana abierta
+      try { sessionStorage.setItem("almanaqueInicial", "1"); } catch (e) {}
+      openPersonCalendar(me.pi);
     }
     // Cuando ya se sabe si es admin o no
     function propTrasAuth() {
@@ -4409,6 +4424,7 @@
       // Todo celular que todavía no eligió su nombre lo tiene que elegir apenas abre la app
       if (hayInvitacionPendiente()) aceptarInvitacion();
       else if (!miLegajo && currentUser !== "ADMIN") openYo();
+      abrirAlmanaqueInicial();
     }
 
     // ---- Cambios cargados antes en filas de otros ----

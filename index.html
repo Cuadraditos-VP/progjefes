@@ -1435,6 +1435,14 @@
     #yoLegajoBtn { border: 0; border-radius: 8px; padding: 0 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
     #yoLegajoMsg:not(:empty) { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
     #yoLegajoAyuda { margin-top: 10px; font-size: 0.72rem; color: #64748b; }
+    #yoLegajoConf { display: none; margin-top: 10px; padding: 10px; border-radius: 8px; background: #f0fdfa; border: 1px solid #99f6e4; }
+    #yoLegajoConf.show { display: block; }
+    #yoLegajoPregunta { font-size: 0.9rem; font-weight: 700; color: #134e4a; }
+    #yoLegajoPregunta small { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 500; color: #475569; }
+    #yoLegajoBotones { display: flex; gap: 8px; margin-top: 10px; }
+    #yoLegajoBotones button { flex: 1; border: 0; border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+    #yoLegajoSi { background: #0f766e; color: #fff; }
+    #yoLegajoNo { background: #e2e8f0; color: #334155; }
     #sinDatos { display: none; margin: 24px auto; max-width: 420px; padding: 18px 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 0.9rem; font-weight: 600; }
     #sinDatos.show { display: block; }
     body.sin-datos .group, body.sin-datos #groupCards, body.sin-datos .day-split { display: none !important; }
@@ -1655,6 +1663,13 @@
           <button type="button" id="yoLegajoBtn">Buscar</button>
         </div>
         <div id="yoLegajoMsg"></div>
+        <div id="yoLegajoConf">
+          <div id="yoLegajoPregunta"></div>
+          <div id="yoLegajoBotones">
+            <button type="button" id="yoLegajoSi">Sí, soy yo</button>
+            <button type="button" id="yoLegajoNo">No</button>
+          </div>
+        </div>
         <div id="yoLegajoAyuda">¿No tenés legajo? Pedile al administrador un link de invitación.</div>
       </div>
       <input id="yoSearch" type="search" placeholder="Buscar apellido o legajo" autocomplete="off">
@@ -3947,16 +3962,32 @@
       const msg = document.getElementById("yoLegajoMsg");
       const btn = document.getElementById("yoLegajoBtn");
       const id = String(inp.value || "").replace(/\D/g, "");
+      legajoElegido = null;
+      document.getElementById("yoLegajoConf").classList.remove("show");
       if (!id) { msg.textContent = "Escribí tu número de legajo."; return; }
       btn.disabled = true;
+      btn.textContent = "Buscando…";
       msg.textContent = "";
       const name = await nombreDeLegajo(id);
       btn.disabled = false;
+      btn.textContent = "Buscar";
       if (!name) { msg.textContent = "No encontramos el legajo " + id + ". Revisalo; si está bien, avisale al administrador."; return; }
-      if (!confirm("¿Sos " + name + " (" + id + ")?\n\nQueda guardado en este celular y después solo lo puede cambiar el administrador.")) return;
-      btn.disabled = true;
-      await elegirYo(id, name, false);
-      btn.disabled = false;
+      // La confirmación va dentro del cuadro (en iPhone las ventanitas del sistema a veces no aparecen)
+      legajoElegido = { id, name };
+      document.getElementById("yoLegajoPregunta").innerHTML = "¿Sos " + String(name).replace(/</g, "&lt;") + " (" + id + ")?" +
+        "<small>Queda guardado en este celular y después solo lo puede cambiar el administrador.</small>";
+      document.getElementById("yoLegajoConf").classList.add("show");
+    }
+    let legajoElegido = null;
+    async function confirmarLegajo() {
+      if (!legajoElegido) return;
+      const si = document.getElementById("yoLegajoSi");
+      si.disabled = true;
+      si.textContent = "Guardando…";
+      const ok = await elegirYo(legajoElegido.id, legajoElegido.name, false);
+      si.disabled = false;
+      si.textContent = "Sí, soy yo";
+      if (ok) { legajoElegido = null; document.getElementById("yoLegajoConf").classList.remove("show"); }
     }
     function openYo() {
       if ((miPersona() || soyExterno() || (miLegajo && !people.length)) && currentUser !== "ADMIN") return;
@@ -3966,9 +3997,24 @@
         ? "Escribí tu legajo una sola vez. Queda guardado en este celular y es tu fila: lo que cambies ahí se publica para todos y desde ahí pedís cambios. Si te equivocás, solo lo puede corregir el administrador."
         : "Elegí a quién asignarle este celular.";
       document.getElementById("yoSearch").value = "";
-      renderYoList();
+      document.getElementById("yoLegajo").value = "";
+      document.getElementById("yoLegajoMsg").textContent = "";
+      document.getElementById("yoLegajoConf").classList.remove("show");
+      legajoElegido = null;
+      if (porLegajo) document.getElementById("yoNota").textContent = "";
+      else renderYoList();
       yoOverlay.classList.add("open");
     }
+    document.getElementById("yoLegajoBtn").addEventListener("click", buscarLegajo);
+    document.getElementById("yoLegajoSi").addEventListener("click", confirmarLegajo);
+    document.getElementById("yoLegajoNo").addEventListener("click", () => {
+      legajoElegido = null;
+      document.getElementById("yoLegajoConf").classList.remove("show");
+      document.getElementById("yoLegajo").value = "";
+      document.getElementById("yoLegajo").focus();
+    });
+    document.getElementById("yoLegajo").addEventListener("keydown", e => { if (e.key === "Enter") buscarLegajo(); });
+    document.getElementById("sinDatosYo").addEventListener("click", () => openYo());
     document.getElementById("yoSearch").addEventListener("input", renderYoList);
     document.getElementById("btnYo").addEventListener("click", openYo);
     document.getElementById("closeYo").addEventListener("click", () => yoOverlay.classList.remove("open"));

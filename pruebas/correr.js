@@ -243,14 +243,12 @@ function chequear(nombre, cond, detalle) {
       chequear("C lo ve", (await C.evaluate(([s, d3]) => people[s.b].codes[d3], [s, d3])) === nuevo);
     }
 
-    console.log("\nAl abrir: su grupo a la vista");
+    console.log("\nAl abrir: el inicio de la grilla");
     const GR = await cel("uGr", DE_PRUEBA[14]);
-    const gr = await GR.evaluate(() => { const me = miPersona(); const td = me && document.querySelector('td[data-pi="' + me.pi + '"]');
-      const card = td && td.closest(".grp-card"); const r = card ? card.getBoundingClientRect() : null;
-      return { top: r && Math.round(r.top), abajo: r && Math.round(r.bottom), alto: innerHeight, alm: document.getElementById("personOverlay").classList.contains("open") }; });
-    chequear("se ve la grilla con su grupo a la vista", gr.top != null && gr.top >= 0 && (gr.top < gr.alto / 2 || gr.abajo <= gr.alto) && !gr.alm, gr);
-    await GR.setViewportSize({ width: 420, height: 420 });
-    const antes = await GR.evaluate(() => { const w = document.getElementById("scheduleWrap"); w.scrollTop = 0; w.scrollLeft = 120;
+    await GR.setViewportSize({ width: 420, height: 420 }); await wait(300);
+    const gr = await GR.evaluate(() => ({ top: document.getElementById("scheduleWrap").scrollTop, alm: document.getElementById("personOverlay").classList.contains("open") }));
+    chequear("al abrir se ve el inicio de la grilla (sin almanaque)", gr.top === 0 && !gr.alm, gr);
+    const antes = await GR.evaluate(() => { const w = document.getElementById("scheduleWrap"); w.scrollTop = 150; w.scrollLeft = 120;
       return { top: w.scrollTop, left: w.scrollLeft }; });
     await Promise.all([GR.waitForNavigation(), GR.evaluate(() => recargaAutomatica())]);
     await wait(3500);

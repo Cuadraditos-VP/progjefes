@@ -1443,13 +1443,15 @@
     #bancoDia .bd-fecha { font-size: 1rem; font-weight: 800; color: #1e293b; }
     #bancoDia .bd-tengo { font-size: 0.78rem; color: #475569; font-weight: 600; white-space: nowrap; }
     #bancoDia .pill, .bd-card .pill { display: inline-block; min-width: 34px; padding: 2px 7px; border-radius: 6px; font-weight: 800; text-align: center; border: 1px solid rgba(0,0,0,.15); font-size: 0.8rem; }
-    .bd-card { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin-top: 8px; padding: 9px 10px; border-radius: 10px;
+    .bd-card { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-top: 5px; padding: 5px 8px; border-radius: 8px;
       border: 1px solid #94a3b8; background: #f8fafc; cursor: pointer; font: inherit; color: #1e293b; }
     .bd-card .bd-quien { flex: 1; min-width: 0; overflow: hidden; }
-    .bd-card .bd-nom { font-size: 0.85rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bd-card .bd-que { margin-top: 4px; font-size: 0.78rem; color: #334155; line-height: 1.9; }
-    .bd-card .bd-tag { display: inline-block; margin-top: 3px; font-size: 0.68rem; font-weight: 800; padding: 1px 7px; border-radius: 10px; }
-    .bd-card .bd-ir { font-size: 1.2rem; color: #94a3b8; font-weight: 700; }
+    .bd-card .bd-l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+    .bd-card .bd-nom { flex: 1; min-width: 0; font-size: 0.8rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bd-card .bd-que { margin-top: 2px; font-size: 0.74rem; color: #334155; line-height: 1.45; }
+    .bd-card .bd-que .pill { min-width: 28px; padding: 0 5px; font-size: 0.72rem; border-radius: 5px; }
+    .bd-card .bd-tag { flex-shrink: 0; font-size: 0.64rem; font-weight: 800; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+    .bd-card .bd-ir { font-size: 1.1rem; color: #94a3b8; font-weight: 700; }
     .bd-card.sirve { border: 2px solid #16a34a; background: #f0fdf4; }
     .bd-card.sirve .bd-tag { background: #16a34a; color: #fff; }
     .bd-card.mio { border: 2px solid #fdba74; background: #fff7ed; }
@@ -4126,21 +4128,21 @@
         if (x.mio) {
           cls += " mio";
           tag = x.nResp ? (x.nResp === 1 ? "Tu pedido · 1 interesado" : "Tu pedido · " + x.nResp + " interesados") : "Tu pedido";
-          if (x.tipo === "franco") tag = "Tu franco ofrecido (pedido del " + (x.src + 1) + ")";
+          if (x.tipo === "franco") tag = "Tu franco (pedido del " + (x.src + 1) + ")";
           que = que.replace(/^Da /, "Das ").replace(" · busca ", " · buscás ").replace(" · busca ", " · buscás ")
             .replace(" · acepta ", " · aceptás ").replace(/\(ese día tiene /, "(ese día tenés ");
-        } else if (x.avisado) { cls += " avisado"; tag = "Le avisaste que te sirve"; }
-        else if (x.sirve) { cls += " sirve"; tag = "Te sirve"; }
+        } else if (x.avisado) { cls += " avisado"; tag = "Le avisaste"; }
+        else if (x.sirve) { cls += " sirve"; tag = "✓ Te sirve"; }
         html += '<button type="button" class="' + cls + '" data-i="' + i + '"><span class="bd-quien">' +
-          '<div class="bd-nom">' + escH(p.name) + "</div>" +
-          '<div class="bd-que">' + que + "</div>" + (tag ? '<span class="bd-tag">' + tag + "</span>" : "") +
+          '<div class="bd-l1"><span class="bd-nom">' + escH(p.name) + "</span>" + (tag ? '<span class="bd-tag">' + tag + "</span>" : "") + "</div>" +
+          '<div class="bd-que">' + que + "</div>" +
           '</span><span class="bd-ir">›</span></button>';
       });
       acordadosDelDia(di).forEach(a => {
         const yoPide = String(a.id) === String(miLegajo);
         const otro = yoPide ? a.con.name : a.name;
-        html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-nom">Cambio acordado con ' + escH(otro) + "</div>" +
-          '<span class="bd-tag">' + (a.pasado ? "Ya está en la programación oficial" : "Ya está cargado en tu celular") + "</span></span></div>";
+        html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-l1"><span class="bd-nom">Acordado con ' + escH(otro) + "</span></div>" +
+          '<div class="bd-que">' + (a.pasado ? "Ya está en la programación oficial" : "Ya está cargado en tu celular") + "</div></span></div>";
       });
       if (!props.length) {
         html += '<div class="bd-vacio">' + (pedSoloSirven && todas.length ? "Ese día no hay propuestas que te sirvan."

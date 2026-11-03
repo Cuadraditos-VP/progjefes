@@ -2897,6 +2897,16 @@
           if (!latest[k] || t > latest[k].t) latest[k] = { c: String(e.c || ""), t };
         });
       });
+      // También lo que cada uno publicó en su propia fila (no depende de que su celular lo mande a CJ)
+      Object.values(propDocs).forEach(d => {
+        if (!d || d.mes !== currentMes || !d.edits || !d.id) return;
+        Object.keys(d.edits).forEach(dk => {
+          const k = String(d.id) + ":" + Number(dk.slice(1));
+          const t = Number((d.t || {})[dk]) || Number(d.updated) || 0;
+          if (changedAt[k] && t < changedAt[k]) return;
+          if (!latest[k] || t >= latest[k].t) latest[k] = { c: String(d.edits[dk] || ""), t };
+        });
+      });
       const idx = {};
       people.forEach((p, i) => { idx[p.id] = i; });
       CJ_CODES = people.map((p, i) => (ORIGINAL_CODES[i] || []).slice());

@@ -270,6 +270,12 @@ function chequear(nombre, cond, detalle) {
     await A.evaluate(() => Object.keys(localStorage).filter(k => /CjSent:/.test(k)).forEach(k => localStorage.setItem(k, "{}")));
     await A.reload(); await wait(4000);
     chequear("si se había borrado, lo vuelve a mandar", cjA() > 0, cjDe("uA"));
+    // Aunque su celular no haya mandado nada a CJ, el admin ve lo que publicó en su propia fila
+    Object.values(be.st[CJC] || {}).forEach(d => { if (d.uid === "uA") d.edits = {}; });
+    const AD2 = await cel("uAd2", null, "guillermo.nemaric@gmail.com");
+    const marcas = await AD2.evaluate(m => { switchMonth(m); rebuildCj(); return CJ_MARKS; }, s.mes);
+    chequear("en CJ el admin ve lo publicado en su fila aunque no lo haya mandado", !!marcas[s.a + ":" + s.d], marcas);
+    await AD2.close();
 
     console.log("\nCopia de los turnos en el celular (para abrir al instante)");
     const copia = pg => pg.evaluate(() => Object.keys(localStorage).some(k => k.indexOf("cajTurnos:") === 0 || k.indexOf("ctFb:") === 0));

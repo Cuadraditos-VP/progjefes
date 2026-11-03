@@ -306,6 +306,35 @@ function chequear(nombre, cond, detalle) {
     if (fr) chequear('abajo dice "F el ' + (fr.dd + 1) + '"', fr.txt === "F el " + (fr.dd + 1), fr.txt);
     else console.log("  (sin días para probar)");
 
+    if (fr && html.includes("function renderBanco")) {
+      console.log("\nBanco de cambios (almanaque)");
+      await wait(1500);
+      const bc = await B.evaluate(([s, fr]) => {
+        setPedidosMode(true);
+        const vis = id => getComputedStyle(document.getElementById(id)).display !== "none";
+        const dia = document.querySelector('#bancoCal .bc-day[data-di="' + fr.dd + '"]');
+        const cant = dia ? Number(dia.querySelector(".bc-cant").textContent) || 0 : 0;
+        dia.click();
+        const tarjetas = [...document.querySelectorAll("#bancoDia .bd-card[data-i]")];
+        const deA = tarjetas.find(t => t.textContent.indexOf(people[s.a].name) >= 0);
+        if (deA) deA.click();
+        const r = { banco: vis("bancoCambios"), grilla: vis("groupSection1"), cant, n: tarjetas.length, deA: !!deA,
+          cuadro: document.getElementById("pedidoOverlay").classList.contains("open"), titulo: document.getElementById("pedidoTitle").textContent };
+        closePedido();
+        const diaF = document.querySelector('#bancoCal .bc-day[data-di="' + fr.f + '"]');
+        diaF.click();
+        r.franco = [...document.querySelectorAll("#bancoDia .bd-card[data-i]")].some(t => t.textContent.indexOf(people[s.a].name) >= 0 && /busca F el/.test(t.textContent));
+        setPedidosMode(false);
+        r.vuelve = vis("groupSection1") && !vis("bancoCambios");
+        return r;
+      }, [s, fr]);
+      chequear("en Cambios se ve el almanaque (no la grilla)", bc.banco && !bc.grilla, bc);
+      chequear("el día del pedido muestra cuántas propuestas hay", bc.cant >= 1, bc);
+      chequear("al tocar el día aparece la propuesta y abre su cuadro", bc.deA && bc.cuadro && bc.titulo.indexOf(String(fr.dd + 1)) >= 0, bc);
+      chequear("el día del franco ofrecido también la muestra", bc.franco, bc);
+      chequear("con Volver se ve la grilla de nuevo", bc.vuelve, bc);
+    }
+
     console.log("\nPedidos vencidos");
     const ven = await A.evaluate(s => {
       const d = [...Array(DAYS).keys()].find(x => x !== s.d && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)));

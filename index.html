@@ -1408,6 +1408,56 @@
     }
     body.pedidos-on td.te-sirve::after { border: 3px solid #16a34a; }
     body.pedidos-on td.con-resp::before { inset: auto; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 1.5px #fff; }
+    /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
+    #bancoCambios { display: none; max-width: 560px; margin: 0 auto 16px; padding: 0 4px; }
+    body.pedidos-on #bancoCambios { display: block; }
+    body.pedidos-on #groupSection1, body.pedidos-on #daySplit, body.pedidos-on #dayFilterBar, body.pedidos-on #pedidosVacio { display: none !important; }
+    #bancoCal { gap: 4px; }
+    .bc-day { position: relative; min-height: 62px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3px 2px 4px;
+      cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+    .bc-day .bc-num { align-self: flex-start; font-size: 0.68rem; font-weight: 800; color: #64748b; line-height: 1; padding-left: 2px; }
+    .bc-day.finde .bc-num { color: #b91c1c; }
+    .bc-day .bc-cant { min-width: 24px; height: 24px; border-radius: 12px; padding: 0 6px; background: #ea580c; color: #fff;
+      font-size: 0.85rem; font-weight: 900; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .bc-day .bc-cant.cero { background: transparent; color: #cbd5e1; font-weight: 600; }
+    .bc-day .bc-mio { font-size: 0.6rem; font-weight: 800; padding: 1px 0; width: 100%; text-align: center; border-radius: 5px; line-height: 1.25;
+      border: 1px solid rgba(0,0,0,.12); }
+    .bc-day.sirve { border: 3px solid #16a34a; background: #f0fdf4; padding: 1px 0 2px; }
+    .bc-day.tengo::before { content: "★"; position: absolute; top: 1px; right: 3px; font-size: 0.7rem; color: #ea580c; line-height: 1; }
+    .bc-day.interesados::before { content: attr(data-int); top: 2px; right: 2px; min-width: 14px; height: 14px; border-radius: 7px; background: #dc2626;
+      color: #fff; font-size: 0.58rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 3px; box-sizing: border-box; }
+    .bc-day.pasado { opacity: .38; cursor: default; }
+    .bc-day.hoy .bc-num { background: #0f766e; color: #fff; border-radius: 4px; padding: 1px 3px; }
+    .bc-day.sel { box-shadow: 0 0 0 3px #1e293b; z-index: 1; }
+    #bancoLeyenda { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin: 8px 0 4px; font-size: 0.68rem; color: #64748b; font-weight: 600; }
+    #bancoLeyenda span { display: inline-flex; align-items: center; gap: 4px; }
+    #bancoLeyenda i { display: inline-block; font-style: normal; }
+    #bancoLeyenda .lg-n { min-width: 16px; height: 16px; border-radius: 8px; background: #ea580c; color: #fff; font-size: 0.6rem; font-weight: 900; text-align: center; line-height: 16px; }
+    #bancoLeyenda .lg-v { width: 14px; height: 14px; border: 3px solid #16a34a; border-radius: 4px; box-sizing: border-box; background: #f0fdf4; }
+    #bancoLeyenda .lg-e { color: #ea580c; }
+    #bancoDia { margin-top: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; }
+    #bancoDia .bd-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    #bancoDia .bd-fecha { font-size: 1rem; font-weight: 800; color: #1e293b; }
+    #bancoDia .bd-tengo { font-size: 0.78rem; color: #475569; font-weight: 600; white-space: nowrap; }
+    #bancoDia .pill, .bd-card .pill { display: inline-block; min-width: 34px; padding: 2px 7px; border-radius: 6px; font-weight: 800; text-align: center; border: 1px solid rgba(0,0,0,.15); font-size: 0.8rem; }
+    .bd-card { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin-top: 8px; padding: 9px 10px; border-radius: 10px;
+      border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer; font: inherit; color: #1e293b; }
+    .bd-card .bd-quien { flex: 1; min-width: 0; }
+    .bd-card .bd-nom { font-size: 0.85rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bd-card .bd-que { margin-top: 4px; font-size: 0.78rem; color: #334155; line-height: 1.9; }
+    .bd-card .bd-tag { display: inline-block; margin-top: 3px; font-size: 0.68rem; font-weight: 800; padding: 1px 7px; border-radius: 10px; }
+    .bd-card .bd-ir { font-size: 1.2rem; color: #94a3b8; font-weight: 700; }
+    .bd-card.sirve { border: 2px solid #16a34a; background: #f0fdf4; }
+    .bd-card.sirve .bd-tag { background: #16a34a; color: #fff; }
+    .bd-card.mio { border: 2px solid #fdba74; background: #fff7ed; }
+    .bd-card.mio .bd-tag { background: #ea580c; color: #fff; }
+    .bd-card.avisado .bd-tag { background: #dbeafe; color: #1e40af; }
+    .bd-card.acordado { background: #f1f5f9; cursor: default; }
+    .bd-card.acordado .bd-tag { background: #64748b; color: #fff; }
+    .bd-vacio { margin-top: 6px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.82rem; text-align: center; }
+    .bd-pedir { display: block; width: 100%; margin-top: 10px; padding: 11px; border: 0; border-radius: 10px; background: #ea580c; color: #fff;
+      font-weight: 800; font-size: 0.88rem; cursor: pointer; }
     .fr-opt { padding: 10px 4px; border-radius: 8px; border: 2px solid #e2e8f0; background: #f8fafc; font-weight: 800; font-size: 0.85rem; text-align: center; cursor: pointer; color: #1e293b; }
     .fr-opt.selected { background: #DF7272; border-color: #2563eb; color: #fff; box-shadow: 0 0 0 2px rgba(37,99,235,0.4); }
     .fr-opt small { display: block; font-size: 0.6rem; font-weight: 600; opacity: .8; }
@@ -1501,6 +1551,11 @@
       <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
     </div>
     <div id="pedidosVacio"></div>
+    <div id="bancoCambios">
+      <div class="cal-grid" id="bancoCal"></div>
+      <div id="bancoLeyenda"><span><i class="lg-n">3</i>propuestas</span><span><i class="lg-v"></i>te sirve</span><span><i class="lg-e">★</i>tu pedido</span></div>
+      <div id="bancoDia"></div>
+    </div>
     <div id="sinDatos"><div id="sinDatosTxt"></div><button type="button" id="sinDatosYo">¿Quién sos?</button></div>
     <div id="dayFilterBar">
       <span id="dayFilterLabel">Sólo un día</span>
@@ -2159,7 +2214,7 @@
     }
 
     function renderGroups() {
-      if (pedidosMode) rebuildPedidos();
+      if (pedidosMode) { rebuildPedidos(); renderBanco(); }
       else if (viewMode === "cj") rebuildCj();
       if (selectedDay === null) {
         const wrapEl = document.getElementById("scheduleWrap");
@@ -3952,6 +4007,166 @@
       if (on && !miPersona() && !soyExterno()) openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
+    // ---- Banco de cambios: un almanaque del mes. Cada día dice cuántas propuestas hay;
+    // al tocarlo se listan abajo y cada una abre el cuadro de siempre (responder / confirmar / pedir). ----
+    let bancoDiaSel = null, bancoMesSel = null;
+    function escH(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    function diaPasado(di) {
+      const h = hoyFecha();
+      return new Date(MES.y, MES.m - 1, di + 1) < new Date(h.getFullYear(), h.getMonth(), h.getDate());
+    }
+    function diaHoy() {
+      const h = hoyFecha();
+      return h.getFullYear() === MES.y && h.getMonth() === MES.m - 1 ? h.getDate() - 1 : -1;
+    }
+    // Las propuestas de un día: pedidos de ese día y francos que alguien ofrece ese día
+    function propuestasDelDia(di) {
+      const out = [];
+      if (!veCambiosAjenos()) return out;
+      const me = miPersona();
+      people.forEach((p, pi) => {
+        const mio = !!me && me.pi === pi;
+        let d = pedidoDe(p.id, di);
+        if (d) {
+          let sirve = false;
+          if (me && !mio) sirve = francosQueSirven(d, di, me).length > 0 || aceptaTurno(d, actualDe(me.pi, di));
+          const resp = d.respuestas || {};
+          out.push({ pi, di, d, tipo: "pide", mio, sirve, nResp: Object.keys(resp).length,
+            avisado: !!me && !!resp[me.p.id] });
+          return;
+        }
+        const src = refDia(pi, di);
+        if (src == null || !(d = pedidoDe(p.id, src))) return;
+        const sirve = !!me && !mio && actualDe(me.pi, src) === "F" && trabaja(actualDe(me.pi, di));
+        const resp = d.respuestas || {};
+        out.push({ pi, di, src, d, tipo: "franco", mio, sirve, nResp: Object.keys(resp).length,
+          avisado: !!me && !!resp[me.p.id] });
+      });
+      // Primero lo que te sirve, después lo tuyo, después el resto
+      return out.sort((a, b) => (b.sirve - a.sirve) || (b.mio - a.mio));
+    }
+    // Cambios ya acordados de ese día en los que estás vos
+    function acordadosDelDia(di) {
+      if (!miLegajo) return [];
+      const yo = String(miLegajo);
+      return Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && a.mes === currentMes && a.con &&
+        (String(a.id) === yo || String(a.con.id) === yo) &&
+        (Number(a.dia) === di + 1 || (a.tipo === "franco" && Number(a.dia2) === di + 1)));
+    }
+    function renderBanco() {
+      const cal = document.getElementById("bancoCal");
+      if (!cal || !pedidosMode) return;
+      const me = miPersona();
+      if (bancoMesSel !== currentMes) {
+        bancoMesSel = currentMes;
+        const h = diaHoy();
+        bancoDiaSel = h >= 0 ? h : 0;
+        // Si hoy no hay nada, el primer día que viene con propuestas
+        if (!propuestasDelDia(bancoDiaSel).length) {
+          for (let x = Math.max(h, 0); x < DAYS; x++) if (propuestasDelDia(x).length) { bancoDiaSel = x; break; }
+        }
+      }
+      if (bancoDiaSel == null || bancoDiaSel >= DAYS) bancoDiaSel = 0;
+      let html = WEEKDAY_ABBR.map(d => '<div class="cal-wd">' + d + "</div>").join("");
+      for (let i = 0; i < MES.startWd; i++) html += '<div class="cal-empty"></div>';
+      const hoy = diaHoy();
+      for (let di = 0; di < DAYS; di++) {
+        const props = propuestasDelDia(di);
+        const visibles = pedSoloSirven ? props.filter(x => x.sirve) : props;
+        const ajenas = visibles.filter(x => !x.mio).length;
+        const mio = props.find(x => x.mio);
+        const sirve = props.some(x => x.sirve);
+        const cls = ["bc-day"];
+        if ((MES.startWd + di) % 7 >= 5) cls.push("finde");
+        if (sirve) cls.push("sirve");
+        if (mio) cls.push(mio.nResp ? "tengo interesados" : "tengo");
+        if (diaPasado(di)) cls.push("pasado");
+        if (di === hoy) cls.push("hoy");
+        if (di === bancoDiaSel) cls.push("sel");
+        let mioHtml = "";
+        if (me) {
+          const c = actualDe(me.pi, di);
+          const bg = c ? (colorMap[c] || "#e2e8f0") : "#f8fafc";
+          mioHtml = '<span class="bc-mio" style="background:' + bg + ";color:" + (c ? fgFor(c, bg) : "#94a3b8") + '">' + (escH(c) || "·") + "</span>";
+        }
+        html += '<div class="' + cls.join(" ") + '" data-di="' + di + '"' + (mio && mio.nResp ? ' data-int="' + mio.nResp + '"' : "") +
+          ' title="' + ajenas + (ajenas === 1 ? " propuesta" : " propuestas") + '">' +
+          '<span class="bc-num">' + (di + 1) + "</span>" +
+          '<span class="bc-cant' + (ajenas ? "" : " cero") + '">' + (ajenas || "·") + "</span>" + mioHtml + "</div>";
+      }
+      cal.innerHTML = html;
+      renderBancoDia();
+    }
+    function renderBancoDia() {
+      const box = document.getElementById("bancoDia");
+      const di = bancoDiaSel;
+      if (!box || di == null) return;
+      const me = miPersona();
+      if (!veCambiosAjenos()) {
+        box.innerHTML = '<div class="bd-vacio">Elegí quién sos para ver las propuestas de cambio.</div>';
+        return;
+      }
+      let html = '<div class="bd-top"><span class="bd-fecha">' + escH(DAY_LABELS[di].split(" ")[0]) + " " + (di + 1) + "/" + MES.m + "</span>" +
+        (me ? '<span class="bd-tengo">Ese día tenés ' + pill(actualDe(me.pi, di)) + "</span>" : "") + "</div>";
+      const todas = propuestasDelDia(di);
+      const props = pedSoloSirven ? todas.filter(x => x.sirve || x.mio) : todas;
+      props.forEach((x, i) => {
+        const p = people[x.pi];
+        const da = String(x.d.ofrece || oficialDe(x.pi, x.src != null ? x.src : di)).toUpperCase();
+        let que, tag = "", cls = "bd-card";
+        if (x.tipo === "franco") {
+          que = "Da " + pill("F") + " el " + (di + 1) + " · busca " + pill("F") + " el " + (x.src + 1) +
+            ' <small style="color:#64748b">(ese día tiene ' + escH(da) + ")</small>";
+        } else {
+          que = "Da " + pill(da) + " · " + verboAcepta(x.d).toLowerCase() + " " + aceptaTxt(x.d) +
+            (esFranco(x.d) ? ' <small style="color:#64748b">o franco (ofrece el ' + x.d.francos.join(", ") + ")</small>" : "");
+        }
+        if (x.mio) {
+          cls += " mio";
+          tag = x.nResp ? (x.nResp === 1 ? "Tu pedido · 1 interesado" : "Tu pedido · " + x.nResp + " interesados") : "Tu pedido";
+          if (x.tipo === "franco") tag = "Tu franco ofrecido (pedido del " + (x.src + 1) + ")";
+          que = que.replace(/^Da /, "Das ").replace(" · busca ", " · buscás ").replace(" · busca ", " · buscás ")
+            .replace(" · acepta ", " · aceptás ").replace(/\(ese día tiene /, "(ese día tenés ");
+        } else if (x.avisado) { cls += " avisado"; tag = "Le avisaste que te sirve"; }
+        else if (x.sirve) { cls += " sirve"; tag = "Te sirve"; }
+        html += '<button type="button" class="' + cls + '" data-i="' + i + '"><span class="bd-quien">' +
+          '<div class="bd-nom">' + escH(p.name) + "</div>" +
+          '<div class="bd-que">' + que + "</div>" + (tag ? '<span class="bd-tag">' + tag + "</span>" : "") +
+          '</span><span class="bd-ir">›</span></button>';
+      });
+      acordadosDelDia(di).forEach(a => {
+        const yoPide = String(a.id) === String(miLegajo);
+        const otro = yoPide ? a.con.name : a.name;
+        html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-nom">Cambio acordado con ' + escH(otro) + "</div>" +
+          '<span class="bd-tag">' + (a.pasado ? "Ya está en la programación oficial" : "Ya está cargado en tu celular") + "</span></span></div>";
+      });
+      if (!props.length) {
+        html += '<div class="bd-vacio">' + (pedSoloSirven && todas.length ? "Ese día no hay propuestas que te sirvan."
+          : "Ese día no hay propuestas de cambio.") + "</div>";
+      }
+      const tengoPedido = todas.some(x => x.mio && x.tipo === "pide");
+      if (me && !tengoPedido && !diaPasado(di)) {
+        html += '<button type="button" class="bd-pedir" id="bancoPedir">＋ Pedir cambio el ' + (di + 1) + "</button>";
+      }
+      box.innerHTML = html;
+      box.querySelectorAll(".bd-card[data-i]").forEach(b => b.addEventListener("click", () => {
+        const x = props[Number(b.dataset.i)];
+        if (x) openPedido(x.pi, di);
+      }));
+      const bp = document.getElementById("bancoPedir");
+      if (bp) bp.addEventListener("click", () => { const m = miPersona(); if (m) openPedido(m.pi, di); });
+    }
+    document.getElementById("bancoCal").addEventListener("click", e => {
+      const el = e.target.closest(".bc-day[data-di]");
+      if (!el || el.classList.contains("pasado")) return;
+      bancoDiaSel = Number(el.dataset.di);
+      document.querySelectorAll("#bancoCal .bc-day.sel").forEach(x => x.classList.remove("sel"));
+      el.classList.add("sel");
+      renderBancoDia();
+      const box = document.getElementById("bancoDia");
+      const r = box.getBoundingClientRect();
+      if (r.top > window.innerHeight - 120) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
     // --- ¿Quién sos? ---
     const yoOverlay = document.getElementById("yoOverlay");

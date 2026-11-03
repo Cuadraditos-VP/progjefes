@@ -2468,11 +2468,17 @@
     // la caché del celular. Esto asegura que si el propio HTML/código cambió (no solo
     // los datos), el celular lo termine tomando solo sin que haya que reinstalarla.
     const FULL_RELOAD_MS = 20 * 60 * 1000; // cada 20 minutos
-    setInterval(() => {
+    // Antes de recargar se guarda dónde estaba la grilla, para volver ahí (no a tu grupo)
+    function recargaAutomatica() {
       const openOverlay = document.querySelector(".palette-overlay.open, #loginOverlay.open");
       if (openOverlay) return;
+      try {
+        const w = document.getElementById("scheduleWrap");
+        sessionStorage.setItem("posRecarga", JSON.stringify({ top: w ? w.scrollTop : 0, left: w ? w.scrollLeft : 0, y: window.scrollY, t: Date.now() }));
+      } catch (e) {}
       location.replace(location.pathname + "?v=" + Date.now());
-    }, FULL_RELOAD_MS);
+    }
+    setInterval(recargaAutomatica, FULL_RELOAD_MS);
 
     let currentUser = fbReady ? "" : (sessionStorage.getItem("jefesUser") || "");
     function setAdminUI() {
@@ -2745,6 +2751,7 @@
     // ---- Paso a Firebase de los meses que estaban en la página (lo hace el admin una vez) ----
     let migrando = false, padronHecho = false;
     async function migrarLegado() {
+      if (!Object.keys(SEED_BY_MES).length) return; // ya no hay meses viejos en la página (se pasaron todos)
       if (migrando || currentUser !== "ADMIN" || !turnosListos) return;
       const faltan = AVAILABLE_MESES.filter(k => !FB_MESES[k] && (MES_DATA[k] || SEED_BY_MES[k]));
       if (!faltan.length && padronHecho) return;
@@ -4651,6 +4658,16 @@
     }
     // Al abrir la app, cada uno ve directamente su almanaque (una vez por apertura;
     // la recarga automática no lo vuelve a abrir). No para el admin ni para externos.
+    // Después de la recarga automática: la grilla vuelve a donde estaba (true si había posición guardada)
+    function volverAPosicion() {
+      let p = null;
+      try { p = JSON.parse(sessionStorage.getItem("posRecarga") || "null"); sessionStorage.removeItem("posRecarga"); } catch (e) {}
+      if (!p || Date.now() - (p.t || 0) > 5 * 60 * 1000) return false;
+      const w = document.getElementById("scheduleWrap");
+      if (w) { w.scrollTop = p.top || 0; w.scrollLeft = p.left || 0; }
+      window.scrollTo(0, p.y || 0);
+      return true;
+    }
     // Grupo de quien usa el celular: lo pone arriba de la pantalla
     function irAMiGrupo() {
       const me = miPersona();
@@ -4669,7 +4686,7 @@
       if (miLegajo && !people.length) return; // todavía no llegaron los turnos
       almanaqueInicialHecho = true;
       // Al abrir, la grilla se acomoda en el grupo de quien usa el celular
-      if (!ABRIR_ALMANAQUE_AL_INICIO) { if (currentUser !== "ADMIN") setTimeout(irAMiGrupo, 50); return; }
+      if (!ABRIR_ALMANAQUE_AL_INICIO) { setTimeout(() => { if (!volverAPosicion() && currentUser !== "ADMIN") irAMiGrupo(); }, 50); return; }
       try { if (sessionStorage.getItem("almanaqueInicial")) return; } catch (e) {}
       if (currentUser === "ADMIN") return;
       const me = miPersona();
@@ -5052,6 +5069,14 @@
     }
     let yoUid = "", yoUnsub = null;
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
+    // Borra del celular las copias guardadas que empiezan con ese prefijo
+    function borrarCopiaLocal(pref) {
+      try {
+        const ks = [];
+        for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf(pref) === 0) ks.push(k); }
+        ks.forEach(k => localStorage.removeItem(k));
+      } catch (e) {}
+    }
     // Registra este celular en yo_jefes. Devuelve true cuando ya está registrado.
     function registrarYo(forzar) {
       if (!fbReady || !yoUid || !miLegajo) return Promise.resolve(false);
@@ -5077,8 +5102,9 @@
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
         if (!reg || !miLegajo) return; // nunca se registró: no es una liberación
-        // El admin liberó este celular
+        // El admin liberó este celular: también se borra la copia de los turnos
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
+        borrarCopiaLocal("ctFb:");
         miLegajo = "";
         registroOk = false;
         actualizarSinDatos();

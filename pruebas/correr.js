@@ -245,7 +245,21 @@ function chequear(nombre, cond, detalle) {
       const card = td && td.closest(".grp-card"); const r = card ? card.getBoundingClientRect() : null;
       return { top: r && Math.round(r.top), abajo: r && Math.round(r.bottom), alto: innerHeight, alm: document.getElementById("personOverlay").classList.contains("open") }; });
     chequear("se ve la grilla con su grupo a la vista", gr.top != null && gr.top >= 0 && (gr.top < gr.alto / 2 || gr.abajo <= gr.alto) && !gr.alm, gr);
+    await GR.setViewportSize({ width: 420, height: 420 });
+    const antes = await GR.evaluate(() => { const w = document.getElementById("scheduleWrap"); w.scrollTop = 0; w.scrollLeft = 120;
+      return { top: w.scrollTop, left: w.scrollLeft }; });
+    await Promise.all([GR.waitForNavigation(), GR.evaluate(() => recargaAutomatica())]);
+    await wait(3500);
+    const desp = await GR.evaluate(() => { const w = document.getElementById("scheduleWrap"); return { top: w.scrollTop, left: w.scrollLeft }; });
+    chequear("después de la recarga automática queda donde estaba", desp.top === antes.top && Math.abs(desp.left - antes.left) < 3, { antes, desp });
     await GR.close();
+
+    console.log("\nCopia de los turnos en el celular (para abrir al instante)");
+    const copia = pg => pg.evaluate(() => Object.keys(localStorage).some(k => k.indexOf("cajTurnos:") === 0 || k.indexOf("ctFb:") === 0));
+    chequear("el registrado guarda una copia de los meses", await copia(A));
+    const NC = await cel("uNC");
+    chequear("sin registrarse no guarda nada", !(await copia(NC)));
+    await NC.close();
 
     console.log("\nSin internet");
     const OF = await cel("uOff", libre2);

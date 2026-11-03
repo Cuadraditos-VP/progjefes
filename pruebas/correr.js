@@ -256,6 +256,21 @@ function chequear(nombre, cond, detalle) {
     chequear("después de la recarga automática queda donde estaba", desp.top === antes.top && Math.abs(desp.left - antes.left) < 3, { antes, desp });
     await GR.close();
 
+    console.log("\nCJ: lo que manda cada celular al admin");
+    const CJC = (html.match(/const CJ_COLLECTION = "(\w+)"/) || [])[1] || "cj";
+    const cjDe = uid => Object.entries(be.st[CJC] || {}).filter(([k]) => k.endsWith("_" + uid)).map(([, d]) => d);
+    const cjA = () => cjDe("uA").reduce((n, d) => n + Object.keys(d.edits || {}).length, 0);
+    chequear("A mandó sus cambios a CJ", cjA() > 0, cjDe("uA"));
+    // Reabrir sin la copia de los meses: antes mandaba una lista vacía y borraba lo de CJ
+    await A.evaluate(() => Object.keys(localStorage).filter(k => k.indexOf("cajTurnos:") === 0 || k.indexOf("ctFb:") === 0).forEach(k => localStorage.removeItem(k)));
+    await A.reload(); await wait(3500);
+    chequear("al reabrir sin copia no se borra lo de CJ", cjA() > 0, cjDe("uA"));
+    // Un celular al que ya se le había borrado: lo vuelve a mandar solo
+    Object.values(be.st[CJC] || {}).forEach(d => { if (d.uid === "uA") d.edits = {}; });
+    await A.evaluate(() => Object.keys(localStorage).filter(k => /CjSent:/.test(k)).forEach(k => localStorage.setItem(k, "{}")));
+    await A.reload(); await wait(4000);
+    chequear("si se había borrado, lo vuelve a mandar", cjA() > 0, cjDe("uA"));
+
     console.log("\nCopia de los turnos en el celular (para abrir al instante)");
     const copia = pg => pg.evaluate(() => Object.keys(localStorage).some(k => k.indexOf("cajTurnos:") === 0 || k.indexOf("ctFb:") === 0));
     chequear("el registrado guarda una copia de los meses", await copia(A));

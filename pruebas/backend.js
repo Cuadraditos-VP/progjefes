@@ -94,6 +94,8 @@ module.exports = function crearBackend(app, turnosColl) {
     await pg.exposeBinding("__fbState", () => JSON.stringify(st));
     await pg.exposeBinding("__fbCanRead", (_, coll, id) => puedeLeer(coll, id, uid, email || null));
     await pg.addInitScript(([u, e]) => { window.__UID = u; window.__EMAIL = e; }, [uid, email || null]);
+    // "Hoy" fijo en el día 1 del mes de prueba, así los pedidos no quedan vencidos según la fecha real
+    const h = new Date(); await pg.addInitScript(t => { window.__HOY = t; }, new Date(h.getFullYear(), h.getMonth(), 1, 12).getTime());
     await pg.addInitScript({ path: path.join(__dirname, "firebase-falso.js") });
     pg.on("pageerror", e => errores.push(uid + ": " + e.message));
     pg.on("dialog", d => d.accept());

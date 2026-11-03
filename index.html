@@ -1361,6 +1361,10 @@
       .grp-card thead th.sticky-col { z-index: 61 !important; }
     }
       /* ===== PEDIDOS DE CAMBIO ===== */
+    .mi-btn { height: 32px; max-width: 120px; padding: 0 10px; border-radius: 8px; border: 1px solid #0f766e; background: #f0fdfa; color: #0f766e;
+      font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 1; min-width: 0; }
+    .mi-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mi-btn svg { width: 14px; height: 14px; flex-shrink: 0; fill: currentColor; }
     .ped-btn { background: #ea580c; width: auto !important; height: 32px !important; padding: 0 12px !important; border-radius: 8px !important; font-size: 0.8rem !important; letter-spacing: 0; display: inline-flex; align-items: center; }
     body.pedidos-on .ped-btn { background: #9a3412; box-shadow: 0 0 0 2px #fdba74; }
     #pedidosBar {
@@ -1482,6 +1486,7 @@
         <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
+        <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
@@ -3787,7 +3792,24 @@
     function fechaTxt(di) {
       return DAY_LABELS[di].split(" ")[0] + " " + (di + 1) + "/" + MES.m;
     }
+    // Arriba: el nombre de quien usa el celular; al tocarlo abre su almanaque
+    function actualizarMiBoton() {
+      const b = document.getElementById("btnMiAlmanaque");
+      if (!b) return;
+      const me = miPersona();
+      if (!me || currentUser === "ADMIN") { b.style.display = "none"; return; }
+      const corto = String(me.p.name || "").split(",")[0].trim() || String(me.p.name || "");
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm-2 8h14v10H5z"/></svg><span></span>';
+      b.querySelector("span").textContent = corto;
+      b.title = "Mi almanaque: " + me.p.name;
+      b.style.display = "";
+    }
+    document.getElementById("btnMiAlmanaque").addEventListener("click", () => {
+      const me = miPersona();
+      if (me) openPersonCalendar(me.pi);
+    });
     function updatePedidosBar() {
+      actualizarMiBoton();
       const me = miPersona();
       const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado").length;
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;

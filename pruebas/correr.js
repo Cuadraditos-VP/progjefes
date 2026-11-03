@@ -305,6 +305,26 @@ function chequear(nombre, cond, detalle) {
     }, s);
     if (fr) chequear('abajo dice "F el ' + (fr.dd + 1) + '"', fr.txt === "F el " + (fr.dd + 1), fr.txt);
     else console.log("  (sin días para probar)");
+
+    console.log("\nPedidos vencidos");
+    const ven = await A.evaluate(s => {
+      const d = [...Array(DAYS).keys()].find(x => x !== s.d && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)));
+      if (d == null) return null;
+      pedTengoSel = actualDe(s.a, d); guardarPedido(s.a, d, ["*"]); closePedido();
+      setPedidosMode(true);
+      const antes = !!pedidoDe(people[s.a].id, d);
+      const h = hoyFecha(); window.__HOY = new Date(h.getFullYear(), h.getMonth() + 1, 1, 12).getTime(); // ya pasó todo el mes
+      renderGroups(); updatePedidosBar();
+      const celda = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + d + '"] .ped-da');
+      const r = { antes, despues: !!pedidoDe(people[s.a].id, d), celda: !!celda, label: document.getElementById("pedidosLabel").textContent,
+        acordado: people[s.a].codes[s.d], acordados: document.getElementById("btnAcuerdos").textContent };
+      window.__HOY = h.getTime(); renderGroups(); updatePedidosBar();
+      return r;
+    }, s);
+    if (ven) {
+      chequear("pasado su día, el pedido desaparece de la grilla", ven.antes && !ven.despues && !ven.celda && /^0 pedidos/.test(ven.label), ven);
+      chequear("el cambio acordado sigue estando", ven.acordado === s.y && /Acordados \(\d+\)/.test(ven.acordados), ven);
+    } else console.log("  (sin días para probar)");
     if (fr) {
       await wait(1500);
       const N2 = await cel("uN2");

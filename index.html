@@ -3656,7 +3656,16 @@
     function pedDocId(mes, id, di) { return mes + "_" + id + "_" + (di + 1); }
     function pedidoDe(id, di) {
       const d = pedidosDocs[pedDocId(currentMes, id, di)];
-      return d && d.quiere && d.estado !== "acordado" ? d : null;
+      return d && d.quiere && d.estado !== "acordado" && !pedidoVencido(d) ? d : null;
+    }
+    // Hoy (las pruebas lo pueden fijar con window.__HOY)
+    function hoyFecha() { return window.__HOY ? new Date(window.__HOY) : new Date(); }
+    // Un pedido sin acordar desaparece cuando ya pasó su día (los acordados quedan)
+    function pedidoVencido(d) {
+      const m = /^(\d{4})-(\d{2})$/.exec(String(d && d.mes || ""));
+      if (!m || !d.dia) return false;
+      const h = hoyFecha();
+      return new Date(+m[1], +m[2] - 1, +d.dia) < new Date(h.getFullYear(), h.getMonth(), h.getDate());
     }
     function rebuildPedidos() {
       PED_REF = {};
@@ -3825,7 +3834,7 @@
     function updatePedidosBar() {
       actualizarMiBoton();
       const me = miPersona();
-      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado").length;
+      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado" && !pedidoVencido(d)).length;
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
       document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
       document.getElementById("pedidosLabel").textContent = !veCambiosAjenos()
@@ -4455,7 +4464,7 @@
         const d = pedidosDocs[k];
         if (!d) return;
         if (d.estado !== "acordado") {
-          if (String(d.id) !== yo || !d.respuestas) return;
+          if (String(d.id) !== yo || !d.respuestas || pedidoVencido(d)) return;
           Object.values(d.respuestas).forEach(r => {
             if (!r || String(r.id) === yo) return;
             out.push({ k: "r:" + k + ":" + r.id + ":" + (r.t || 0), doc: k, tipo: "r", t: r.t || 0, mes: d.mes, id: d.id, dia: d.dia,

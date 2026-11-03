@@ -66,8 +66,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas.
-- Al abrir, la app muestra la grilla principal con el **grupo del usuario** a la vista
-  (`irAMiGrupo`); el almanaque propio no se abre solo (`ABRIR_ALMANAQUE_AL_INICIO = false`).
+- Al abrir, la app muestra el inicio de la grilla principal (ni el grupo propio ni el almanaque:
+  `ABRIR_ALMANAQUE_AL_INICIO = false`).
   Tras la recarga automática de 20 min vuelve a donde estaba (`recargaAutomatica` / `volverAPosicion`).
 - Arriba: solo el selector de mes (el título solo si hay un único mes) y un botón con el
   apellido del usuario (`btnMiAlmanaque`) que abre su almanaque; el admin no lo ve.

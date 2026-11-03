@@ -68,6 +68,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   los de filas ajenas.
 - Al abrir, la app muestra la grilla principal con el **grupo del usuario** a la vista
   (`irAMiGrupo`); el almanaque propio no se abre solo (`ABRIR_ALMANAQUE_AL_INICIO = false`).
+  Tras la recarga automática de 20 min vuelve a donde estaba (`recargaAutomatica` / `volverAPosicion`).
+- Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al
+  instante y sin internet; solo en registrados/admin y se borra si el admin libera el celular.
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
 
 ## Diferencias con la gemela (cajeros)

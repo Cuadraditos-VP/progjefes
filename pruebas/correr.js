@@ -94,6 +94,9 @@ function chequear(nombre, cond, detalle) {
     if (/const ABRIR_ALMANAQUE_AL_INICIO = true/.test(html)) chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
     else chequear("al abrir la app se ve la grilla (sin almanaque)", !alm.abierto, alm);
     for (const pg of [A, B, C]) await pg.evaluate(() => closePersonCalendar());
+    const mi = await A.evaluate(() => { const b = document.getElementById("btnMiAlmanaque"); const vis = getComputedStyle(b).display !== "none";
+      b.click(); const r = { vis, txt: b.textContent, abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }; closePersonCalendar(); return r; });
+    chequear("arriba aparece su nombre y abre su almanaque", mi.vis && /PRUEBA/.test(mi.txt) && mi.abierto && mi.pi === s.a, mi);
     await A.evaluate(s => { pedTengoSel = actualDe(s.a, s.d); guardarPedido(s.a, s.d, [s.y, s.z]); closePedido(); }, s);
     await wait(800);
     const ped = be.st["pedidos_" + APP] && be.st["pedidos_" + APP][s.mes + "_" + s.ida + "_" + (s.d + 1)];
@@ -135,6 +138,7 @@ function chequear(nombre, cond, detalle) {
 
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
+    chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     const celTxt = () => AD.evaluate(() => document.getElementById("btnCelulares").textContent);
     chequear("el admin ve registrados nuevos en Celulares", /\d+ nuevos?/.test(await celTxt()), await celTxt());

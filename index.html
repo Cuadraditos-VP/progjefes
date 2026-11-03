@@ -3860,7 +3860,8 @@
       document.getElementById("bancoOverlay").classList.toggle("open", on);
       if (on) { startPedidos(); updatePedidosBar(); }
       refreshAfterEdit();
-      if (on && !miPersona() && !soyExterno()) openYo();
+      // Al admin no se le pregunta "¿Quién sos?" (lo puede abrir con el botón si quiere asignar el celular)
+      if (on && !miPersona() && !soyExterno() && currentUser !== "ADMIN") openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
     document.getElementById("closeBanco").addEventListener("click", () => setPedidosMode(false));

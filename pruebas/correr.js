@@ -140,6 +140,11 @@ function chequear(nombre, cond, detalle) {
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    if (html.includes('id="bancoOverlay"')) {
+      const adC = await AD.evaluate(() => { setPedidosMode(true); const r = { banco: document.getElementById("bancoOverlay").classList.contains("open"),
+        yo: document.getElementById("yoOverlay").classList.contains("open") }; setPedidosMode(false); return r; });
+      chequear("al abrir Cambios al admin tampoco le pregunta \"¿Quién sos?\"", adC.banco && !adC.yo, adC);
+    }
     const celTxt = () => AD.evaluate(() => document.getElementById("btnCelulares").textContent);
     chequear("el admin ve registrados nuevos en Celulares", /\d+ nuevos?/.test(await celTxt()), await celTxt());
     await AD.evaluate(() => { document.getElementById("btnCelulares").click(); document.getElementById("closeCelulares").click(); });

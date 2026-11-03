@@ -60,8 +60,12 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   día y marca lo que **acepta** (`acepta`: uno o varios turnos, `"*"` = cualquiera, o `F`
   ofreciendo sus francos en `francos`). Otros responden "Me sirve"; quien pidió confirma y
   queda un acuerdo (`estado: "acordado"`). Cada celular carga solo su propia fila del acuerdo.
-  En la grilla: arriba lo que da, abajo lo que busca ("Busca" si es una sola cosa, "Acepta"
-  si son varias). En el día del franco ofrecido, abajo dice "F el N".
+  Se ven en el **banco de cambios**: el botón Cambios abre un cuadro (fondo oscuro) con el
+  almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
+  sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";
+  el día del franco ofrecido dice "busca F el N"); cada una abre el cuadro del pedido
+  (`openPedido`), y "＋ Pedir cambio el N" carga uno propio. La grilla ya no muestra pedidos.
+  "Acordados" y "Celulares" (admin) y "¿Quién sos?" están arriba de ese cuadro.
 - **Avisos** ("Novedades de tus cambios"): interesados en tu pedido, confirmación, pedido
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos

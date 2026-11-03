@@ -1367,24 +1367,10 @@
     .mi-btn svg { width: 14px; height: 14px; flex-shrink: 0; fill: currentColor; }
     .ped-btn { background: #ea580c; width: auto !important; height: 32px !important; padding: 0 12px !important; border-radius: 8px !important; font-size: 0.8rem !important; letter-spacing: 0; display: inline-flex; align-items: center; }
     body.pedidos-on .ped-btn { background: #9a3412; box-shadow: 0 0 0 2px #fdba74; }
-    #pedidosBar {
-      display: none; width: 100%; max-width: 560px; margin: 0 auto 8px;
-      background: #fff7ed; border: 1px solid #fdba74; color: #9a3412;
-      border-radius: 8px; padding: 7px 10px; font-size: 0.8rem; font-weight: 600; text-align: center;
-    }
-    body.pedidos-on #pedidosBar { display: block; }
-    #pedidosBar button.ped-chip { background: #fff; color: #9a3412; border: 1px solid #fdba74; }
-    #pedidosBar button.ped-chip.on { background: #16a34a; color: #fff; border-color: #16a34a; }
-    #pedidosBar button#btnPedir { padding: 6px 12px; font-size: 0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
     #pedidoOverlay, #yoOverlay, #avisosOverlay, #infoOverlay { z-index: 1200; }
-    #pedidosVacio { display: none; max-width: 560px; margin: 4px auto 10px; padding: 12px; border-radius: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; color: #475569; font-size: 0.85rem; text-align: center; }
-    body.pedidos-on #pedidosVacio.show { display: block; }
-    #pedidosBar button {
-      margin-left: 8px; border: 0; border-radius: 6px; padding: 4px 8px;
-      background: #ea580c; color: #fff; font-weight: 700; font-size: 0.72rem; cursor: pointer;
-    }
-    body.pedidos-on .grp-card { border-color: #ea580c; }
-    body.pedidos-on .grp-card td.mi-fila { background: #fff7ed !important; }
+    #bancoAcc { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    #bancoAcc button.bc-acc { border: 0; border-radius: 6px; padding: 5px 8px; background: #ea580c; color: #fff; font-weight: 700; font-size: 0.72rem; cursor: pointer; }
+    #bancoCambios h3 small { display: block; font-size: 0.72rem; font-weight: 600; color: #9a3412; margin-top: 2px; }
     .ped-info { font-size: 0.95rem; color: #1e293b; line-height: 1.6; }
     .ped-info .pill { display: inline-block; min-width: 44px; padding: 3px 10px; border-radius: 6px; font-weight: 800; text-align: center; border: 1px solid rgba(0,0,0,.15); }
     .ped-note { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
@@ -1397,23 +1383,9 @@
     .acu-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 0.82rem; color: #1e293b; }
     .acu-row.done { opacity: .5; }
     .acu-row .acu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
-    body.pedidos-on td.ped-cell { position: relative; padding-bottom: 13px !important; vertical-align: top; line-height: 1.25; }
-    td.ped-cell .ped-da {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 13px;
-      font-size: 0.58rem; font-weight: 700; line-height: 13px; text-align: center;
-      border-top: 1px solid rgba(0,0,0,.18); pointer-events: none;
-    }
-    body.pedidos-on td.te-sirve::after, body.pedidos-on td.con-resp::before {
-      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4; box-sizing: border-box;
-    }
-    body.pedidos-on td.te-sirve::after { border: 3px solid #16a34a; }
-    body.pedidos-on td.con-resp::before { inset: auto; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 1.5px #fff; }
     /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
-    #bancoCambios { display: none; width: calc(100% - 16px); max-width: 420px; align-self: center; box-sizing: border-box; margin: 0 auto 16px; padding: 12px;
-      background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.12);
-      flex: 0 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-    body.pedidos-on #bancoCambios { display: block; }
-    body.pedidos-on #groupSection1, body.pedidos-on #daySplit, body.pedidos-on #dayFilterBar, body.pedidos-on #pedidosVacio { display: none !important; }
+    #bancoCambios { overscroll-behavior: contain; }
+    #bancoCambios .palette-header { align-items: flex-start; margin-bottom: 8px; }
     #bancoCal { gap: 4px; }
     .bc-day { position: relative; min-height: 62px; border-radius: 8px; border: 1px solid #94a3b8; background: #fff;
       display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3px 2px 4px;
@@ -1546,19 +1518,21 @@
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
-    <div id="pedidosBar">
-      <span id="pedidosLabel">Pedidos de cambio</span>
-      <button type="button" id="btnSirven" class="ped-chip">Me sirven</button>
-      <button type="button" id="btnPedir">＋ Pedir cambio</button>
-      <button type="button" id="btnYo">¿Quién sos?</button>
-      <button type="button" id="btnAcuerdos" class="admin-only">Acordados</button>
-      <button type="button" id="btnCelulares" class="admin-only">Celulares</button>
-    </div>
-    <div id="pedidosVacio"></div>
-    <div id="bancoCambios">
+    <div class="palette-overlay" id="bancoOverlay">
+    <div class="palette-modal person-cal-modal" id="bancoCambios">
+      <div class="palette-header">
+        <h3>Cambios<small id="pedidosLabel"></small></h3>
+        <div id="bancoAcc">
+          <button type="button" id="btnYo" class="bc-acc">¿Quién sos?</button>
+          <button type="button" id="btnAcuerdos" class="bc-acc admin-only">Acordados</button>
+          <button type="button" id="btnCelulares" class="bc-acc admin-only">Celulares</button>
+          <button class="close-btn" id="closeBanco" title="Cerrar">×</button>
+        </div>
+      </div>
       <div class="cal-grid" id="bancoCal"></div>
       <div id="bancoLeyenda"><span><i class="lg-n">3</i>propuestas</span><span><i class="lg-v"></i>te sirve</span><span><i class="lg-e">★</i>tu pedido</span></div>
       <div id="bancoDia"></div>
+    </div>
     </div>
     <div id="sinDatos"><div id="sinDatosTxt"></div><button type="button" id="sinDatosYo">¿Quién sos?</button></div>
     <div id="dayFilterBar">
@@ -1886,7 +1860,6 @@
       return false;
     }
     function markComment(el, pi, fromDi, toDi) {
-      if (pedidosMode) return;
       if (!rangeHasComment(pi, fromDi, toDi)) return;
       el.classList.add("has-comment");
       const dot = document.createElement("span");
@@ -1925,9 +1898,6 @@
     // Los externos fijos de antes ("ext-...") ahora entran con invitación
     if (/^ext-/.test(miLegajo)) { miLegajo = ""; try { localStorage.removeItem("jefYo"); } catch (e) {} }
     let PED_REF = {};         // PED_REF["pi:di"] = día (0-based) del pedido de franco que ofrece ese día
-    // En Jefes no hay vista compacta (entran casi todos en pantalla); solo el filtro "Me sirven"
-    let pedSoloSirven = false;
-    try { pedSoloSirven = localStorage.getItem("jefPedSirven") === "1"; } catch (e) {}
     let selectedDay = null; // índice de día (0-based) o null = mes completo
     let daySortByShift = false;
     const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","IN","N/P","N","NC","F"];
@@ -2055,7 +2025,6 @@
 
     // Según el modo de vista actual, de dónde sacar los códigos de una persona
     function codesFor(pi) {
-      if (pedidosMode) return PED_CODES[pi] || [];
       if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
       if (viewMode === "cj") return CJ_CODES[pi] || ORIGINAL_CODES[pi] || [];
       if (viewMode === "oficial") return ORIGINAL_CODES[pi] || [];
@@ -2065,7 +2034,6 @@
     // Marca de una celda: "own" = cambio personal sin publicar (ámbar),
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
     function cellMark(pi, di) {
-      if (pedidosMode) return "";
       if (viewMode === "inicial") return "";
       if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return "cj";
       const shown = (codesFor(pi)[di] || "");
@@ -2077,11 +2045,6 @@
       return "";
     }
     function markClass(pi, di) {
-      if (pedidosMode) {
-        const pp = people[pi];
-        const d = pp && pedidoDe(pp.id, di);
-        return d && d.respuestas && Object.keys(d.respuestas).length ? "con-resp" : "";
-      }
       const m = cellMark(pi, di);
       return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : ""));
     }
@@ -2102,10 +2065,9 @@
     function buildRow(person, pi) {
       const tr = document.createElement("tr");
       tr.dataset.pi = String(pi);
-      const miFila = pedidosMode && miLegajo && String(person.id) === String(miLegajo) ? " mi-fila" : "";
       tr.innerHTML = `
-        <td class="sticky-col person-id${miFila}" data-pi="${pi}">${person.id}</td>
-        <td class="sticky-col-2 person-name${miFila}" data-pi="${pi}">${person.name}</td>
+        <td class="sticky-col person-id" data-pi="${pi}">${person.id}</td>
+        <td class="sticky-col-2 person-name" data-pi="${pi}">${person.name}</td>
       `;
       const codesArr = codesFor(pi);
       const onlyDay = selectedDay !== null;
@@ -2120,7 +2082,7 @@
         td.dataset.di = String(di);
         if (onlyDay) td.classList.add("day-only");
 
-        if (isBlock && !onlyDay && !pedidosMode) {
+        if (isBlock && !onlyDay) {
           let runEnd = di;
           while (
             runEnd + 1 < codesArr.length &&
@@ -2159,7 +2121,6 @@
         const mk = markClass(pi, di);
         if (mk) td.classList.add(mk);
         markComment(td, pi, di);
-        if (pedidosMode && code) marcarCeldaPedido(td, person.id, di);
         tr.appendChild(td);
         di++;
       }
@@ -2231,7 +2192,6 @@
           else g2.appendChild(row);
         });
         pintarLineasSemana(document.getElementById("scheduleWrap"));
-        compactarPedidos();
         // Al redibujar no se pierde la posición (antes volvía al tope un instante)
         wrapEl.scrollTop = keepTop;
         wrapEl.scrollLeft = keepLeft;
@@ -3826,45 +3786,6 @@
       return d.francos.filter(n => trabaja(actualDe(me.pi, n - 1)));
     }
     function diaCorto(n) { return DAY_LABELS[n - 1] ? DAY_LABELS[n - 1].split(" ")[0] + " " + n + "/" + MES.m : String(n); }
-    function marcarCeldaPedido(td, id, di) {
-      let d = pedidoDe(id, di);
-      const me = miPersona();
-      if (!d) {
-        // Día de franco ofrecido: arriba F (lo que da), abajo "F el 11" (lo que busca: franco el día que pide)
-        const pi = people.findIndex(pp => String(pp.id) === String(id));
-        const src = refDia(pi, di);
-        if (src == null) return;
-        d = pedidoDe(id, src);
-        if (!d) return;
-        td.classList.add("ped-cell");
-        const sp = document.createElement("span");
-        sp.className = "ped-da";
-        const cubre = String(d.ofrece || "").toUpperCase();
-        // Abajo va lo que busca: el franco del día que pide ("F el 2"). El turno a cubrir está en el detalle.
-        sp.textContent = "F el " + (src + 1);
-        sp.title = "Busca franco el " + (src + 1) + (cubre ? " (hay que cubrirle " + cubre + ")" : "");
-        const bgC = colorMap["F"] || "#e2e8f0";
-        sp.style.background = bgC;
-        sp.style.color = fgFor("F", bgC);
-        td.appendChild(sp);
-        if (me && String(me.p.id) !== String(id) && actualDe(me.pi, src) === "F" && trabaja(actualDe(me.pi, di))) td.classList.add("te-sirve");
-        return;
-      }
-      const acepta = aceptaDe(d).filter(c => c !== "F" || esFranco(d));
-      const pide = acepta.length === 1 && acepta[0] !== "*" ? acepta[0] : "";
-      td.classList.add("ped-cell");
-      const sp = document.createElement("span");
-      sp.className = "ped-da";
-      sp.textContent = aceptaCorto(d) || "·";
-      const bg = pide ? (colorMap[pide] || "#f1f5f9") : (acepta.length ? "#fef3c7" : "#f1f5f9");
-      sp.style.background = bg;
-      sp.style.color = pide ? fgFor(pide, bg) : (acepta.length ? "#78350f" : "#94a3b8");
-      td.appendChild(sp);
-      // Verde: a quien mira le sirve (ese día tiene alguno de los turnos que acepta, o franco)
-      if (me && String(me.p.id) !== String(id)) {
-        if (francosQueSirven(d, di, me).length || aceptaTurno(d, actualDe(me.pi, di))) td.classList.add("te-sirve");
-      }
-    }
     function pill(code) {
       const c = String(code || "").toUpperCase();
       if (!c) return '<span class="pill" style="background:#f1f5f9;color:#94a3b8">·</span>';
@@ -3924,75 +3845,8 @@
       }, errProtegido("Pedidos", () => { pedUnsub = null; }));
     }
 
-    // Vista compacta: solo filas y días con algo publicado (y la fila propia)
-    function compactarPedidos() {
-      const vacio = document.getElementById("pedidosVacio");
-      if (vacio) { vacio.classList.remove("show"); vacio.textContent = ""; }
-      // Las dos tablas son fijas: primero se vuelve a mostrar todo
-      document.querySelectorAll("#scheduleWrap .grp-card").forEach(card => {
-        card.style.display = "";
-        card.querySelectorAll("th[data-di], td[data-di]").forEach(c => { c.style.display = ""; });
-        const tb = card.querySelector("table");
-        if (tb) tb.style.removeProperty("--days-total");
-      });
-      if (!pedidosMode || selectedDay !== null) return;
-      // Vista compacta: solo filas y días con algo publicado (y tu fila), o solo lo que te sirve
-      const rows = new Set(), cols = new Set();
-      if (pedSoloSirven) {
-        document.querySelectorAll("#scheduleWrap td.te-sirve").forEach(td => {
-          rows.add(Number(td.dataset.pi)); cols.add(Number(td.dataset.di));
-        });
-      } else {
-        PED_CODES.forEach((arr, pi) => (arr || []).forEach((c, di) => { if (c) { rows.add(pi); cols.add(di); } }));
-        const me = miPersona();
-        if (me) rows.add(me.pi);
-      }
-      document.querySelectorAll("#scheduleWrap .grp-card").forEach(card => {
-        let visibles = 0;
-        card.querySelectorAll("tbody tr").forEach(tr => {
-          const ok = rows.has(Number(tr.dataset.pi));
-          tr.style.display = ok ? "" : "none";
-          if (ok) visibles++;
-        });
-        card.querySelectorAll("th[data-di], td[data-di]").forEach(c => {
-          c.style.display = cols.has(Number(c.dataset.di)) ? "" : "none";
-        });
-        card.style.display = visibles ? "" : "none";
-        const tb = card.querySelector("table");
-        if (tb) tb.style.setProperty("--days-total", (cols.size * 42) + "px");
-      });
-      if (!cols.size && vacio) {
-        vacio.textContent = pedSoloSirven
-          ? "Por ahora ningún cambio publicado te sirve."
-          : "Todavía no hay pedidos. Para pedir uno, tocá \"Pedir cambio\".";
-        vacio.classList.add("show");
-      }
-    }
-    function updateChips() {
-      document.getElementById("btnSirven").classList.toggle("on", pedSoloSirven);
-    }
-    document.getElementById("btnSirven").addEventListener("click", () => {
-      pedSoloSirven = !pedSoloSirven;
-      try { localStorage.setItem("jefPedSirven", pedSoloSirven ? "1" : "0"); } catch (e) {}
-      updateChips(); refreshAfterEdit();
-    });
-    // ---- Pedir cambio: abre tu almanaque con tus turnos; tocás el día y cargás el pedido ----
+    // ---- Pedir cambio desde tu almanaque (tocás el día y cargás el pedido) ----
     let calModoPedir = false;
-    function abrirPedirCambio() {
-      const me = miPersona();
-      if (!me) { pedirYo(); return; }
-      calModoPedir = true;
-      openPersonCalendar(me.pi);
-    }
-    document.getElementById("btnPedir").addEventListener("click", abrirPedirCambio);
-    // Tocar tu propio nombre en modo Cambios también abre tu almanaque para pedir
-    document.addEventListener("click", (e) => {
-      if (!pedidosMode) return;
-      const td = e.target.closest("td.person-name.mi-fila, td.person-id.mi-fila");
-      if (!td) return;
-      e.stopPropagation();
-      abrirPedirCambio();
-    }, true);
     // En el almanaque de "Pedir cambio": borde naranja en los días donde ya tenés un pedido
     function marcaCal(pi, d) {
       if (!calModoPedir) return markClass(pi, d);
@@ -4002,15 +3856,16 @@
     function setPedidosMode(on) {
       pedidosMode = on;
       document.body.classList.toggle("pedidos-on", on);
-      // El mismo botón sirve para entrar y para volver a la grilla (ya no hay botón "Salir")
-      const bp = document.getElementById("btnPedidos");
-      bp.textContent = on ? "Volver" : "Cambios";
-      bp.title = on ? "Volver a la grilla" : "Pedidos de cambio de turno";
-      if (on) { startPedidos(); updatePedidosBar(); updateChips(); }
+      // Cambios se abre como un cuadro arriba de la grilla (con el fondo oscuro)
+      document.getElementById("bancoOverlay").classList.toggle("open", on);
+      if (on) { startPedidos(); updatePedidosBar(); }
       refreshAfterEdit();
-      if (on && !miPersona() && !soyExterno()) openYo();
+      // Al admin no se le pregunta "¿Quién sos?" (lo puede abrir con el botón si quiere asignar el celular)
+      if (on && !miPersona() && !soyExterno() && currentUser !== "ADMIN") openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
+    document.getElementById("closeBanco").addEventListener("click", () => setPedidosMode(false));
+    document.getElementById("bancoOverlay").addEventListener("click", e => { if (e.target.id === "bancoOverlay") setPedidosMode(false); });
     // ---- Banco de cambios: un almanaque del mes. Cada día dice cuántas propuestas hay;
     // al tocarlo se listan abajo y cada una abre el cuadro de siempre (responder / confirmar / pedir). ----
     let bancoDiaSel = null, bancoMesSel = null;
@@ -4076,8 +3931,7 @@
       const hoy = diaHoy();
       for (let di = 0; di < DAYS; di++) {
         const props = propuestasDelDia(di);
-        const visibles = pedSoloSirven ? props.filter(x => x.sirve) : props;
-        const ajenas = visibles.filter(x => !x.mio).length;
+        const ajenas = props.filter(x => !x.mio).length;
         const mio = props.find(x => x.mio);
         const sirve = props.some(x => x.sirve);
         const cls = ["bc-day"];
@@ -4113,7 +3967,7 @@
       let html = '<div class="bd-top"><span class="bd-fecha">' + escH(DAY_LABELS[di].split(" ")[0]) + " " + (di + 1) + "/" + MES.m + "</span>" +
         (me ? '<span class="bd-tengo">Ese día tenés ' + pill(actualDe(me.pi, di)) + "</span>" : "") + "</div>";
       const todas = propuestasDelDia(di);
-      const props = pedSoloSirven ? todas.filter(x => x.sirve || x.mio) : todas;
+      const props = todas;
       props.forEach((x, i) => {
         const p = people[x.pi];
         const da = String(x.d.ofrece || oficialDe(x.pi, x.src != null ? x.src : di)).toUpperCase();
@@ -4145,8 +3999,7 @@
           '<div class="bd-que">' + (a.pasado ? "Ya está en la programación oficial" : "Ya está cargado en tu celular") + "</div></span></div>";
       });
       if (!props.length) {
-        html += '<div class="bd-vacio">' + (pedSoloSirven && todas.length ? "Ese día no hay propuestas que te sirvan."
-          : "Ese día no hay propuestas de cambio.") + "</div>";
+        html += '<div class="bd-vacio">' + "Ese día no hay propuestas de cambio." + "</div>";
       }
       const tengoPedido = todas.some(x => x.mio && x.tipo === "pide");
       if (me && !tengoPedido && !diaPasado(di)) {
@@ -4760,7 +4613,8 @@
             cerrarAvisos();
             const pi = people.findIndex(p => String(p.id) === String(a.id));
             if (pi < 0) return;
-            if (!pedidosMode) setPedidosMode(true);
+            bancoMesSel = currentMes; bancoDiaSel = a.dia - 1;
+            if (!pedidosMode) setPedidosMode(true); else renderBanco();
             openPedido(pi, a.dia - 1);
           });
           row.appendChild(b);

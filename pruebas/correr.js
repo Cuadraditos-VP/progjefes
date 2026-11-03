@@ -140,6 +140,11 @@ function chequear(nombre, cond, detalle) {
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    if (html.includes('id="bancoOverlay"')) {
+      const adC = await AD.evaluate(() => { setPedidosMode(true); const r = { banco: document.getElementById("bancoOverlay").classList.contains("open"),
+        yo: document.getElementById("yoOverlay").classList.contains("open") }; setPedidosMode(false); return r; });
+      chequear("al abrir Cambios al admin tampoco le pregunta \"¿Quién sos?\"", adC.banco && !adC.yo, adC);
+    }
     const celTxt = () => AD.evaluate(() => document.getElementById("btnCelulares").textContent);
     chequear("el admin ve registrados nuevos en Celulares", /\d+ nuevos?/.test(await celTxt()), await celTxt());
     await AD.evaluate(() => { document.getElementById("btnCelulares").click(); document.getElementById("closeCelulares").click(); });
@@ -300,10 +305,12 @@ function chequear(nombre, cond, detalle) {
       if (f == null || dd == null) return null;
       pedTengoSel = actualDe(s.a, dd); guardarPedido(s.a, dd, ["F"], [f + 1]); closePedido();
       setPedidosMode(true);
-      const td = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + f + '"] .ped-da');
-      return { f, dd, txt: td && td.textContent };
+      document.querySelector('#bancoCal .bc-day[data-di="' + f + '"]').click();
+      const t = [...document.querySelectorAll("#bancoDia .bd-card[data-i]")].find(x => /busca F el/.test(x.textContent) || /buscás F el/.test(x.textContent));
+      setPedidosMode(false);
+      return { f, dd, txt: t && t.querySelector(".bd-que").textContent };
     }, s);
-    if (fr) chequear('abajo dice "F el ' + (fr.dd + 1) + '"', fr.txt === "F el " + (fr.dd + 1), fr.txt);
+    if (fr) chequear('el día del franco dice "busca F el ' + (fr.dd + 1) + '"', !!fr.txt && new RegExp("F el " + (fr.dd + 1) + "\\b").test(fr.txt), fr.txt);
     else console.log("  (sin días para probar)");
 
     if (fr && html.includes("function renderBanco")) {
@@ -311,28 +318,28 @@ function chequear(nombre, cond, detalle) {
       await wait(1500);
       const bc = await B.evaluate(([s, fr]) => {
         setPedidosMode(true);
-        const vis = id => getComputedStyle(document.getElementById(id)).display !== "none";
+        const abierto = () => document.getElementById("bancoOverlay").classList.contains("open");
         const dia = document.querySelector('#bancoCal .bc-day[data-di="' + fr.dd + '"]');
         const cant = dia ? Number(dia.querySelector(".bc-cant").textContent) || 0 : 0;
         dia.click();
         const tarjetas = [...document.querySelectorAll("#bancoDia .bd-card[data-i]")];
         const deA = tarjetas.find(t => t.textContent.indexOf(people[s.a].name) >= 0);
         if (deA) deA.click();
-        const r = { banco: vis("bancoCambios"), grilla: vis("groupSection1"), cant, n: tarjetas.length, deA: !!deA,
+        const r = { banco: abierto(), grilla: !document.querySelector("td .ped-da"), cant, n: tarjetas.length, deA: !!deA,
           cuadro: document.getElementById("pedidoOverlay").classList.contains("open"), titulo: document.getElementById("pedidoTitle").textContent };
         closePedido();
         const diaF = document.querySelector('#bancoCal .bc-day[data-di="' + fr.f + '"]');
         diaF.click();
         r.franco = [...document.querySelectorAll("#bancoDia .bd-card[data-i]")].some(t => t.textContent.indexOf(people[s.a].name) >= 0 && /busca F el/.test(t.textContent));
         setPedidosMode(false);
-        r.vuelve = vis("groupSection1") && !vis("bancoCambios");
+        r.vuelve = !abierto();
         return r;
       }, [s, fr]);
-      chequear("en Cambios se ve el almanaque (no la grilla)", bc.banco && !bc.grilla, bc);
+      chequear("Cambios se abre como cuadro (la grilla de atrás queda normal)", bc.banco && bc.grilla, bc);
       chequear("el día del pedido muestra cuántas propuestas hay", bc.cant >= 1, bc);
       chequear("al tocar el día aparece la propuesta y abre su cuadro", bc.deA && bc.cuadro && bc.titulo.indexOf(String(fr.dd + 1)) >= 0, bc);
       chequear("el día del franco ofrecido también la muestra", bc.franco, bc);
-      chequear("con Volver se ve la grilla de nuevo", bc.vuelve, bc);
+      chequear("con × se cierra y queda la grilla", bc.vuelve, bc);
     }
 
     console.log("\nPedidos vencidos");
@@ -344,7 +351,7 @@ function chequear(nombre, cond, detalle) {
       const antes = !!pedidoDe(people[s.a].id, d);
       const h = hoyFecha(); window.__HOY = new Date(h.getFullYear(), h.getMonth() + 1, 1, 12).getTime(); // ya pasó todo el mes
       renderGroups(); updatePedidosBar();
-      const celda = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + d + '"] .ped-da');
+      const celda = propuestasDelDia(d).some(x => x.pi === s.a);
       const r = { antes, despues: !!pedidoDe(people[s.a].id, d), celda: !!celda, label: document.getElementById("pedidosLabel").textContent,
         acordado: people[s.a].codes[s.d], acordados: document.getElementById("btnAcuerdos").textContent };
       window.__HOY = h.getTime(); renderGroups(); updatePedidosBar();
@@ -361,7 +368,7 @@ function chequear(nombre, cond, detalle) {
         document.getElementById("yoOverlay").classList.remove("open");
         setPedidosMode(true);
         document.getElementById("yoOverlay").classList.remove("open");
-        return { celdas: document.querySelectorAll("td .ped-da").length, label: document.getElementById("pedidosLabel").textContent };
+        return { celdas: document.querySelectorAll("#bancoDia .bd-card, #bancoCal .bc-cant:not(.cero)").length, label: document.getElementById("pedidosLabel").textContent };
       });
       chequear("sin nombre no ve los pedidos de cambio de los demás", vista.celdas === 0 && /quién sos/i.test(vista.label), vista);
       await N2.close();

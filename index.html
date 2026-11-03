@@ -1410,7 +1410,8 @@
     body.pedidos-on td.con-resp::before { inset: auto; top: 2px; left: 2px; width: 7px; height: 7px; border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 1.5px #fff; }
     /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
     #bancoCambios { display: none; width: calc(100% - 16px); max-width: 420px; align-self: center; box-sizing: border-box; margin: 0 auto 16px; padding: 12px;
-      background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.12);
+      flex: 0 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
     body.pedidos-on #bancoCambios { display: block; }
     body.pedidos-on #groupSection1, body.pedidos-on #daySplit, body.pedidos-on #dayFilterBar, body.pedidos-on #pedidosVacio { display: none !important; }
     #bancoCal { gap: 4px; }

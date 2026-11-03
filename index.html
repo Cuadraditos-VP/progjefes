@@ -2704,6 +2704,8 @@
     }
     function turnosLlegaron() {
       if (!people.length && AVAILABLE_MESES.length) { switchMonth(mesInicial()); fillMonthSelect(); }
+      // Con los turnos ya cargados, se mandan (o se vuelven a mandar) los cambios a CJ
+      Object.keys(FB_MESES).forEach(k => scheduleCjSync(k));
       actualizarSinDatos();
       updatePedidosBar();
       abrirAlmanaqueInicial();
@@ -2843,6 +2845,8 @@
       try { em = JSON.parse(localStorage.getItem(editsKey(key)) || "{}"); } catch (e) { em = {}; }
       const times = loadEditTimes(key);
       const list = officialPeopleFor(key);
+      // Todavía no llegaron los turnos de ese mes: no mandar (si no, se manda vacío y se borra lo de CJ)
+      if (!list.length) return;
       const edits = {};
       Object.keys(em).forEach(k => {
         const [pi, di] = k.split(":").map(Number);

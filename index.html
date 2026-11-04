@@ -1903,7 +1903,7 @@
       applyLocalEdits();
     }
 
-    // Modo de vista: "actual" (editable), "oficial" (última publicada, solo lectura)
+    // Modo de vista (solo el admin cambia): "actual" (editable)
     // o "inicial" (la programación de arranque del mes, solo lectura)
     let viewMode = "actual";
     // Estado de "Cambios" (pedidos de cambio de turno entre jefes)
@@ -2045,7 +2045,6 @@
     function codesFor(pi) {
       if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
       if (viewMode === "cj") return CJ_CODES[pi] || ORIGINAL_CODES[pi] || [];
-      if (viewMode === "oficial") return ORIGINAL_CODES[pi] || [];
       return people[pi].codes;
     }
 
@@ -3447,15 +3446,14 @@
     //   A = Actual (editable)
     //   O = Oficial (la última que se publicó en GitHub, solo lectura)
     //   I = Inicial (la programación de arranque del mes, solo lectura)
-    const VIEW_MODE_ORDER = ["actual", "oficial", "inicial", "cj"];
-    const VIEW_MODE_LABEL = { actual: "A", oficial: "O", inicial: "I", cj: "CJ" };
+    const VIEW_MODE_ORDER = ["actual", "inicial", "cj"];  // (la vista "O" de oficial se sacó: no hacía falta)
+    const VIEW_MODE_LABEL = { actual: "A", inicial: "I", cj: "CJ" };
     const VIEW_MODE_TITLE = {
       actual: "Actual (editable)",
-      oficial: "Oficial (última publicada)",
       inicial: "Programación inicial del mes",
       cj: "Cambios de los jefes (último cambio de cada celda)"
     };
-    const VIEW_MODE_COLOR = { actual: "#7c3aed", oficial: "#5b21b6", inicial: "#0f766e", cj: "#9333ea" };
+    const VIEW_MODE_COLOR = { actual: "#7c3aed", inicial: "#0f766e", cj: "#9333ea" };
     const btnOriginalView = document.getElementById("btnOriginalView");
     btnOriginalView.addEventListener("click", () => {
       if (currentUser !== "ADMIN") return;

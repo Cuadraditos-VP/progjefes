@@ -155,6 +155,9 @@ function chequear(nombre, cond, detalle) {
 
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
+    const vistas = await AD.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [b.textContent];
+      for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(" → "); });
+    chequear("las vistas del admin son A → I → CJ (sin O)", vistas === "A → I → CJ → A", vistas);
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     if (typeof probarLicAdmin === "function") {

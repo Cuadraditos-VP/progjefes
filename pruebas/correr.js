@@ -158,6 +158,30 @@ function chequear(nombre, cond, detalle) {
     const vistas = await AD.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [b.textContent];
       for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(" → "); });
     chequear("las vistas del admin son A → I → CJ (sin O)", vistas === "A → I → CJ → A", vistas);
+    if (html.includes("vpFueAdmin")) {
+      const visible = pg => pg.evaluate(() => getComputedStyle(document.getElementById("btnUser")).display !== "none");
+      chequear("en el celular de un empleado no aparece el botón de admin", !(await visible(B)));
+      chequear("en el del admin sí", await visible(AD));
+      await B.evaluate(() => {
+        window.__login = false;
+        document.getElementById("btnUser").addEventListener("click", e => { window.__login = true; e.stopImmediatePropagation(); }, true);
+        document.getElementById("btnPedidos").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      });
+      await wait(3300);
+      const lp = await B.evaluate(() => {
+        const bp = document.getElementById("btnPedidos");
+        bp.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+        bp.click();
+        const r = { login: window.__login, cambios: pedidosMode };
+        if (pedidosMode) setPedidosMode(false);
+        return r;
+      });
+      chequear("manteniendo apretado Cambios 3 segundos se abre el inicio de sesión (sin abrir Cambios)", lp.login && !lp.cambios, lp);
+      const corto = await B.evaluate(() => { window.__login = false; const bp = document.getElementById("btnPedidos");
+        bp.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); bp.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); bp.click();
+        const r = { login: window.__login, cambios: pedidosMode }; if (pedidosMode) setPedidosMode(false); return r; });
+      chequear("un toque normal sigue abriendo Cambios", !corto.login && corto.cambios, corto);
+    }
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     if (typeof probarLicAdmin === "function") {

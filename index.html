@@ -3052,6 +3052,22 @@
       });
       return { codes, cambiados };
     }
+    // Celdas que el admin va a publicar donde el dueño de la fila publicó otra cosa
+    function choquesConPropios(tp) {
+      return tp.cambiados.map(k => {
+        const cut = k.lastIndexOf(":"), id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+        const pi = people.findIndex(p => String(p.id) === id);
+        const pub = propCode(currentMes, id, di);
+        return pi < 0 || pub == null || pub === ((tp.codes[pi] || [])[di] || "") ? null
+          : { id, di, name: people[pi].name, pub, nuevo: (tp.codes[pi] || [])[di] || "" };
+      }).filter(Boolean);
+    }
+    function textoChoques(ch) {
+      if (!ch.length) return "";
+      return "\n\nEn " + (ch.length === 1 ? "1 celda" : ch.length + " celdas") + " vas a reemplazar lo que publicó esa persona en su fila:\n" +
+        ch.map(x => "• " + x.name + " el " + (x.di + 1) + ": " + (x.pub || "vacío") + " → " + (x.nuevo || "vacío")).join("\n") +
+        "\nA cada uno le llega un aviso.";
+    }
     // Cuántos colores y turnos cambió el admin sin publicar
     function pendingCount() {
       const turnos = currentUser === "ADMIN" ? turnosAPublicar().cambiados.length : 0;
@@ -3072,11 +3088,12 @@
       const n = Object.keys(colorOverrides).length;
       const tp = turnosAPublicar();
       const nt = tp.cambiados.length;
+      const choques = choquesConPropios(tp);
       const partes = [];
       if (nt) partes.push(nt + (nt === 1 ? " turno cambiado" : " turnos cambiados"));
       if (n) partes.push(n + (n === 1 ? " color cambiado" : " colores cambiados"));
       const msg = (partes.length ? "¿Publicar para todos?\n\n" + partes.join("\n") : "No hay turnos ni colores distintos a los publicados. ¿Publicar igual?") +
-        "\n\nLo que cada jefe cambió en su propia fila sigue mandando sobre lo que publiques.";
+        textoChoques(choques);
       if (!confirm(msg)) return;
       const btn = document.getElementById("btnPublish");
       btn.disabled = true;
@@ -3094,6 +3111,7 @@
       try {
         await fbDb.collection("jefes").doc(currentMes).set(data);
         guardarPadron(data.people).catch(() => {});
+        choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
         colorOverrides = {};
         saveColorOverrides();
         btn.disabled = false;
@@ -4617,13 +4635,15 @@
     // Lo ya visto se guarda en este celular.
     const AVISOS_KEY = "jefAvisos:";
     let avisosVistos = null, avisosLeg = null;
+    // De quién son los avisos de este celular: su legajo, o "admin" para el administrador
+    function avisosClave() { return miLegajo || (currentUser === "ADMIN" ? "admin" : ""); }
     function cargarVistos() {
-      if (avisosLeg === miLegajo) return;
-      avisosLeg = miLegajo; avisosVistos = null;
-      try { const s = localStorage.getItem(AVISOS_KEY + miLegajo); if (s) avisosVistos = JSON.parse(s); } catch (e) {}
+      if (avisosLeg === avisosClave()) return;
+      avisosLeg = avisosClave(); avisosVistos = null;
+      try { const s = localStorage.getItem(AVISOS_KEY + avisosLeg); if (s) avisosVistos = JSON.parse(s); } catch (e) {}
     }
     function guardarVistos() {
-      try { localStorage.setItem(AVISOS_KEY + miLegajo, JSON.stringify(avisosVistos)); } catch (e) {}
+      try { localStorage.setItem(AVISOS_KEY + avisosClave(), JSON.stringify(avisosVistos)); } catch (e) {}
     }
     function fechaAviso(mes, dia) {
       return mes === currentMes && DAY_LABELS[dia - 1] ? fechaTxt(dia - 1) : dia + "/" + Number(String(mes).slice(5));
@@ -4668,7 +4688,36 @@
             txt: "El admin descartó tu cambio del " + fechaAviso(d.mes, di + 1) + " (" + (ds.c || "vacío") + "). Vuelve a " + (ofi || "vacío") + "." });
         });
       });
+      if (currentUser === "ADMIN") avisosAdmin().forEach(a => out.push(a));
       return out.sort((a, b) => a.t - b.t);
+    }
+    // Turnos que publicó el admin (changedAt del mes: "legajo:día" → cuándo)
+    function changedAtDe(mes) {
+      const fb = typeof loadFbCache === "function" ? loadFbCache(mes) : null;
+      return (fb && fb.changedAt) || (MES_DATA[mes] && MES_DATA[mes].changedAt) || {};
+    }
+    // Para el admin: alguien volvió a cambiar en su fila un turno que el admin había publicado
+    function avisosAdmin() {
+      const out = [];
+      Object.keys(propDocs).forEach(k => {
+        const d = propDocs[k];
+        if (!d || !d.edits || !d.id || !d.mes) return;
+        const ca = changedAtDe(d.mes);
+        const ofi = officialPeopleFor(d.mes).find(x => String(x.id) === String(d.id));
+        Object.keys(d.edits).forEach(dk => {
+          const di = Number(dk.slice(1)), tf = Number(ca[d.id + ":" + di]) || 0;
+          if (!tf) return;
+          const te = Number((d.t || {})[dk]) || Number(d.updated) || 0;
+          const c = String(d.edits[dk] || ""), oc = ofi ? String((ofi.codes || [])[di] || "") : "";
+          if (te <= tf || c === oc) return;
+          const per = people.find(x => String(x.id) === String(d.id));
+          const nom = (per && per.name) || d.name || d.id;
+          out.push({ k: "a:" + k + ":" + dk + ":" + te, tipo: "a", t: te,
+            txt: "<b>" + escH(nom) + "</b> cambió en su fila el " + fechaAviso(d.mes, di + 1) + ": puso " + (escH(c) || "vacío") +
+              " donde vos habías publicado " + (escH(oc) || "vacío") + ". Si no corresponde, tocá esa celda en A y descartalo." });
+        });
+      });
+      return out;
     }
     // El que pidió abrió ese pedido: ya vio a los interesados
     function vistosDePedido(docId) {
@@ -4682,7 +4731,7 @@
     let avisosMostrados = [];
     function revisarAvisos() {
       const bp = document.getElementById("btnPedidos");
-      if (!miLegajo) { delete bp.dataset.n; return; }
+      if (!avisosClave()) { delete bp.dataset.n; return; }
       cargarVistos();
       const todos = calcAvisos();
       if (!avisosVistos) {
@@ -5003,7 +5052,7 @@
     function alcanceDe(pi) {
       const me = miPersona();
       if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
-      if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar (salvo lo que esa persona publicó en su fila)." };
+      if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar." };
       if (soyExterno()) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };

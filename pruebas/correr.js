@@ -260,16 +260,51 @@ function chequear(nombre, cond, detalle) {
     await AD.evaluate(m => { switchMonth(m); fillMonthSelect(); }, s.mes);
 
     if (html.includes("function turnosAPublicar")) {
-      console.log("\nAdmin publica turnos (jefes)");
+      console.log("\nAdmin publica turnos");
       const d3 = (s.d + 5) % 28;
       await AD.evaluate(() => { window.confirm = () => true; });
       const nuevo = (await AD.evaluate(([s, d3]) => ORIGINAL_CODES[s.b][d3], [s, d3])) === "N" ? "M" : "N";
       await AD.evaluate(([s, d3, n]) => { openShiftPicker(s.b, d3); applyShift(n); document.getElementById("closeShift").click();
         document.getElementById("btnPublish").click(); }, [s, d3, nuevo]);
       await wait(3000);
-      const pub = be.st.jefes && be.st.jefes[s.mes];
+      const pub = be.st[TURNOS] && be.st[TURNOS][s.mes];
       chequear("queda publicado en Firebase", pub && pub.people[s.b].codes[d3] === nuevo, pub && pub.people[s.b].codes[d3]);
       chequear("C lo ve", (await C.evaluate(([s, d3]) => people[s.b].codes[d3], [s, d3])) === nuevo);
+    }
+
+    if (html.includes("function choquesConPropios")) {
+      console.log("\nEl admin publica un cambio de palabra (manda sobre lo que publicó el dueño de la fila)");
+      const d5 = (s.d + 12) % 28;
+      const ofi5 = await AD.evaluate(([s, d5]) => ORIGINAL_CODES[s.a][d5], [s, d5]);
+      const [c1, c2, c3] = ["MD", "N", "E", "M", "T"].filter(c => c !== ofi5);
+      // A publica algo en su fila
+      await A.evaluate(([s, d5, c]) => { openShiftPicker(s.a, d5); applyShift(c); }, [s, d5, c1]);
+      await wait(2500);
+      chequear("el admin ve lo que publicó A", (await AD.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c1);
+      // El admin lo cambia (sin descartar al tocarlo) y publica
+      await AD.evaluate(([s, d5, c]) => { window.confirm = () => false; openShiftPicker(s.a, d5); applyShift(c); }, [s, d5, c2]);
+      const pend = await AD.evaluate(() => document.getElementById("btnPublish").textContent);
+      chequear("⬆ Publicar muestra que hay turnos para publicar", /\(\d+\)/.test(pend), pend);
+      let pregunta = "";
+      await AD.evaluate(() => { window.__preg = ""; window.confirm = m => { window.__preg = m; return true; }; document.getElementById("btnPublish").click(); });
+      await wait(3000);
+      pregunta = await AD.evaluate(() => window.__preg);
+      chequear("antes de publicar avisa que reemplaza lo que publicó A", /reemplazar lo que publicó/.test(pregunta) && pregunta.indexOf(await A.evaluate(s => people[s.a].name, s)) >= 0, pregunta);
+      const docMes = (be.st[TURNOS] || {})[s.mes];
+      const filaA = docMes && docMes.people.find(p => String(p.id) === s.ida);
+      const codA = filaA && (Array.isArray(filaA.codes) ? filaA.codes : String(filaA.codes).split(/\s+/))[d5];
+      chequear("queda en lo oficial (Firebase)", codA === c2, codA);
+      chequear("lo del admin manda: C lo ve", (await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
+      chequear("y A también", (await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
+      chequear("sigue marcado como cambiado (azul) para los demás", await C.evaluate(([s, d5]) => markClass(s.a, d5) === "changed", [s, d5]));
+      await A.evaluate(() => cerrarAvisos());
+      // A lo vuelve a cambiar: al admin le llega un aviso
+      await AD.evaluate(() => cerrarAvisos());
+      await A.evaluate(([s, d5, c]) => { openShiftPicker(s.a, d5); applyShift(c); }, [s, d5, c3]);
+      await wait(2500);
+      const avAd = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
+      chequear("si A lo vuelve a cambiar, al admin le llega un aviso", /cambió en su fila/.test(avAd) && avAd.indexOf(c3) >= 0, avAd);
+      await AD.evaluate(() => { cerrarAvisos(); window.confirm = () => true; });
     }
 
     console.log("\nAl abrir: el inicio de la grilla");

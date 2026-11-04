@@ -1434,6 +1434,10 @@
     .bd-vacio { margin-top: 6px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.82rem; text-align: center; }
     .bd-pedir { display: block; width: 100%; margin-top: 10px; padding: 11px; border: 0; border-radius: 10px; background: #ea580c; color: #fff;
       font-weight: 800; font-size: 0.88rem; cursor: pointer; }
+    .cji-row { margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 0.82rem; color: #1e293b; }
+    .cji-row.gana { border: 2px solid #7c3aed; background: #f5f3ff; }
+    .cji-row small { display: block; color: #64748b; font-size: 0.72rem; margin-top: 2px; }
+    .cji-row .pill { display: inline-block; min-width: 30px; padding: 1px 6px; border-radius: 5px; font-weight: 800; text-align: center; border: 1px solid rgba(0,0,0,.15); font-size: 0.78rem; }
     .fr-opt { padding: 10px 4px; border-radius: 8px; border: 2px solid #e2e8f0; background: #f8fafc; font-weight: 800; font-size: 0.85rem; text-align: center; cursor: pointer; color: #1e293b; }
     .fr-opt.selected { background: #DF7272; border-color: #2563eb; color: #fff; box-shadow: 0 0 0 2px rgba(37,99,235,0.4); }
     .fr-opt small { display: block; font-size: 0.6rem; font-weight: 600; opacity: .8; }
@@ -1681,6 +1685,19 @@
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Cambios que los jefes cerraron entre ellos. Pasalos al JSON de GitHub y marcalos como pasados.</p>
       <div id="acuerdosList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="cjInfoOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="cjInfoTitle">—</h3>
+        <button class="close-btn" id="closeCjInfo" title="Cerrar">×</button>
+      </div>
+      <div id="cjInfoBody"></div>
+      <div class="palette-actions">
+        <button class="btn btn-clear" id="cjInfoDescartar">Descartar</button>
+        <button class="btn btn-done" id="cjInfoCerrar">Cerrar</button>
+      </div>
     </div>
   </div>
   <div class="palette-overlay" id="celularesOverlay">
@@ -2941,6 +2958,83 @@
         CJ_MARKS[pi + ":" + di] = true;
       });
     }
+
+    document.addEventListener("click", (e) => {
+      if (viewMode !== "cj" || currentUser !== "ADMIN" || pedidosMode) return;
+      if (e.target.closest(".palette-overlay") || e.target.closest("thead")) return;
+      const td = e.target.closest("td[data-pi][data-di]");
+      if (!td) return;
+      const pi = Number(td.dataset.pi), di = Number(td.dataset.di);
+      if (!CJ_MARKS[pi + ":" + di]) return;
+      abrirInfoCj(pi, di);
+    });
+
+    // ---- CJ: al tocar una celda, de dónde vino ese cambio (qué celular lo mandó y cuándo) ----
+    function haceCuanto(t) {
+      if (!t) return "sin fecha";
+      const f = new Date(t), min = Math.round((Date.now() - t) / 60000);
+      const txt = min < 60 ? "hace " + Math.max(min, 1) + " min" : min < 1440 ? "hace " + Math.round(min / 60) + " h"
+        : "hace " + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? " día" : " días");
+      return txt + " (" + f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") + ")";
+    }
+    function fuentesCj(pi, di) {
+      const p = people[pi], key = p.id + ":" + di, out = [];
+      Object.keys(cjDocs).forEach(k => {
+        const d = cjDocs[k];
+        const e = d && d.mes === currentMes && d.edits && d.edits[key];
+        if (!e) return;
+        const uid = d.uid || k.slice(currentMes.length + 1);
+        const yo = celularesDocs[uid];
+        const per = yo && people.find(x => String(x.id) === String(yo.id));
+        const nom = per ? per.name : (yo && yo.name) || "";
+        let quien = nom ? "el celular de " + nom : "un celular sin registrar";
+        if (yo && String(yo.id) === String(p.id)) quien += " (su propio celular)";
+        out.push({ tipo: "cel", c: String(e.c || ""), t: Number(e.t) || 0, quien });
+      });
+      const pd = propDocs[currentMes + "_" + p.id];
+      const dk = "d" + di;
+      if (pd && pd.edits && Object.prototype.hasOwnProperty.call(pd.edits, dk)) {
+        out.push({ tipo: "propio", c: String(pd.edits[dk] || ""), t: Number((pd.t || {})[dk]) || Number(pd.updated) || 0,
+          quien: p.name + " lo publicó en su fila" });
+      }
+      return out.sort((a, b) => b.t - a.t);
+    }
+    let cjInfoPi = null, cjInfoDi = null;
+    function abrirInfoCj(pi, di) {
+      const p = people[pi];
+      if (!p) return;
+      cjInfoPi = pi; cjInfoDi = di;
+      const orig = ((ORIGINAL_CODES[pi] || [])[di]) || "";
+      const enCj = ((CJ_CODES[pi] || [])[di]) || "";
+      document.getElementById("cjInfoTitle").textContent = p.name + " · día " + (di + 1);
+      const fuentes = fuentesCj(pi, di);
+      let html = '<div class="ped-info">Oficial ' + pill(orig) + " → en CJ " + pill(enCj) + "</div>";
+      if (!fuentes.length) html += '<div class="ped-note info">No hay datos de quién lo mandó.</div>';
+      fuentes.forEach((x, i) => {
+        html += '<div class="cji-row' + (i === 0 ? " gana" : "") + '">' + pill(x.c) + " " +
+          (x.tipo === "propio" ? escH(x.quien) : "Lo mandó " + escH(x.quien)) +
+          "<small>" + haceCuanto(x.t) + (i === 0 && fuentes.length > 1 ? " · es el más nuevo: el que se ve en CJ" : "") + "</small></div>";
+      });
+      const hayCel = fuentes.some(x => x.tipo === "cel");
+      const puedeDescartar = typeof descartarCj === "function" && hayCel;
+      if (fuentes.some(x => x.tipo === "propio")) {
+        html += '<div class="ped-note info">Lo que publicó en su fila se descarta desde la vista A.</div>';
+      }
+      if (puedeDescartar) {
+        html += '<div class="ped-note info">Descartar borra lo que mandaron los celulares. Si de verdad lo tienen cargado, vuelve a aparecer cuando cambien algo.</div>';
+      }
+      document.getElementById("cjInfoBody").innerHTML = html;
+      document.getElementById("cjInfoDescartar").style.display = puedeDescartar ? "" : "none";
+      document.getElementById("cjInfoOverlay").classList.add("open");
+    }
+    function cerrarInfoCj() { document.getElementById("cjInfoOverlay").classList.remove("open"); }
+    document.getElementById("closeCjInfo").addEventListener("click", cerrarInfoCj);
+    document.getElementById("cjInfoCerrar").addEventListener("click", cerrarInfoCj);
+    document.getElementById("cjInfoOverlay").addEventListener("click", e => { if (e.target.id === "cjInfoOverlay") cerrarInfoCj(); });
+    document.getElementById("cjInfoDescartar").addEventListener("click", () => {
+      cerrarInfoCj();
+      if (typeof descartarCj === "function" && cjInfoPi != null) descartarCj(cjInfoPi, cjInfoDi, true);
+    });
 
     // Turnos que cambió el admin y todavía no publicó (programación oficial + sus cambios)
     function turnosAPublicar() {

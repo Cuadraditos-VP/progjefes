@@ -71,6 +71,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas. También suma lo publicado en `propios_*` (aunque ese celular no haya
   mandado nada). Un celular no manda a CJ hasta tener los turnos del mes (si no, lo borraría).
+  Al tocar una celda marcada en CJ se abre un cuadro con **de dónde vino** cada dato (qué celular lo
+  mandó, según `yo_*`, o si lo publicó el dueño en su fila) y cuándo (`abrirInfoCj`).
 - Al abrir, la app muestra el inicio de la grilla principal (ni el grupo propio ni el almanaque:
   `ABRIR_ALMANAQUE_AL_INICIO = false`).
   Tras la recarga automática de 20 min vuelve a donde estaba (`recargaAutomatica` / `volverAPosicion`).

@@ -298,9 +298,30 @@ function chequear(nombre, cond, detalle) {
     chequear("si se había borrado, lo vuelve a mandar", cjA() > 0, cjDe("uA"));
     // Aunque su celular no haya mandado nada a CJ, el admin ve lo que publicó en su propia fila
     Object.values(be.st[CJC] || {}).forEach(d => { if (d.uid === "uA") d.edits = {}; });
+    // El celular de B cambió la fila de C (eso va a CJ pero no se publica)
+    const dC = (s.d + 10) % 28;
+    const ofiC = (M0.people.find(p => String(p.id) === s.idc) || {}).codes[dC];
+    const codC = ofiC === "X" ? "N" : "X";
+    be.st[CJC] = be.st[CJC] || {};
+    be.st[CJC][s.mes + "_uB"] = { mes: s.mes, uid: "uB", edits: { [s.idc + ":" + dC]: { c: codC, t: Date.now() - 3 * 86400000 } }, updated: Date.now() };
     const AD2 = await cel("uAd2", null, "guillermo.nemaric@gmail.com");
     const marcas = await AD2.evaluate(m => { switchMonth(m); rebuildCj(); return CJ_MARKS; }, s.mes);
     chequear("en CJ el admin ve lo publicado en su fila aunque no lo haya mandado", !!marcas[s.a + ":" + s.d], marcas);
+    if (html.includes("function abrirInfoCj")) {
+      await wait(500);
+      const info = await AD2.evaluate(([s, dC]) => {
+        rebuildCj();
+        abrirInfoCj(s.c, dC);
+        const deB = document.getElementById("cjInfoBody").innerText;
+        const abierto = document.getElementById("cjInfoOverlay").classList.contains("open");
+        abrirInfoCj(s.a, s.d);
+        const deA = document.getElementById("cjInfoBody").innerText;
+        cerrarInfoCj();
+        return { abierto, deB, deA, nomB: people[s.b].name, nomA: people[s.a].name };
+      }, [s, dC]);
+      chequear("al tocar una celda en CJ dice de qué celular vino", info.abierto && info.deB.indexOf("celular de " + info.nomB) >= 0 && /hace 3 días/.test(info.deB), info);
+      chequear("y si lo publicó el dueño de la fila, lo dice", info.deA.indexOf(info.nomA + " lo publicó en su fila") >= 0, info.deA);
+    }
     await AD2.close();
 
     console.log("\nCopia de los turnos en el celular (para abrir al instante)");

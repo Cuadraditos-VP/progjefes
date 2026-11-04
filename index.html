@@ -1977,7 +1977,8 @@
         if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
         if (bg) {
           el.style.background = bg;
-          const hideText = code === "LIC" && !el.classList.contains("shift-option") && !el.classList.contains("blk-first");
+          // La licencia no lleva texto (solo el color); en el selector de turnos sí, para saber qué se elige
+          const hideText = code === "LIC" && !el.classList.contains("shift-option");
           el.style.color = hideText ? bg : getTextColor(bg);
           if (el.classList.contains("blk")) {
             el.style.setProperty("--blk-bg", bg);
@@ -3945,7 +3946,9 @@
         if (me) {
           const c = actualDe(me.pi, di);
           const bg = c ? (colorMap[c] || "#e2e8f0") : "#f8fafc";
-          mioHtml = '<span class="bc-mio" style="background:' + bg + ";color:" + (c ? fgFor(c, bg) : "#94a3b8") + '">' + (escH(c) || "·") + "</span>";
+          // En la licencia no se escribe nada (como en la grilla): solo el color
+          const txt = c === "LIC" ? "&nbsp;" : (escH(c) || "·");
+          mioHtml = '<span class="bc-mio" style="background:' + bg + ";color:" + (c ? fgFor(c, bg) : "#94a3b8") + '">' + txt + "</span>";
         }
         html += '<div class="' + cls.join(" ") + '" data-di="' + di + '"' + (mio && mio.nResp ? ' data-int="' + mio.nResp + '"' : "") +
           ' title="' + ajenas + (ajenas === 1 ? " propuesta" : " propuestas") + '">' +
@@ -3965,7 +3968,7 @@
         return;
       }
       let html = '<div class="bd-top"><span class="bd-fecha">' + escH(DAY_LABELS[di].split(" ")[0]) + " " + (di + 1) + "/" + MES.m + "</span>" +
-        (me ? '<span class="bd-tengo">Ese día tenés ' + pill(actualDe(me.pi, di)) + "</span>" : "") + "</div>";
+        (me && actualDe(me.pi, di) !== "LIC" ? '<span class="bd-tengo">Ese día tenés ' + pill(actualDe(me.pi, di)) + "</span>" : "") + "</div>";
       const todas = propuestasDelDia(di);
       const props = todas;
       props.forEach((x, i) => {
@@ -4002,7 +4005,7 @@
         html += '<div class="bd-vacio">' + "Ese día no hay propuestas de cambio." + "</div>";
       }
       const tengoPedido = todas.some(x => x.mio && x.tipo === "pide");
-      if (me && !tengoPedido && !diaPasado(di)) {
+      if (me && !tengoPedido && !diaPasado(di) && actualDe(me.pi, di) !== "LIC") {
         html += '<button type="button" class="bd-pedir" id="bancoPedir">＋ Pedir cambio el ' + (di + 1) + "</button>";
       }
       box.innerHTML = html;

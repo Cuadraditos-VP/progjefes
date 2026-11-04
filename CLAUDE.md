@@ -81,6 +81,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al
   instante y sin internet; solo en registrados/admin y se borra si el admin libera el celular.
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
+- **El admin publica cambios de turnos** (ej. acordados de palabra) con ⬆ Publicar: pasan a lo oficial
+  (`turnosAPublicar`), con `changedAt["legajo:día"]` = cuándo. Si en esa celda el dueño había publicado otra
+  cosa en su fila, avisa y la descarta (`choquesConPropios` → `descartarPropio`, al dueño le llega aviso): manda
+  lo del admin. Si después el dueño la vuelve a cambiar, al admin le llega un aviso (`avisosAdmin`, avisos con
+  clave "admin"). Siguen en azul para todos porque se comparan con la inicial.
 - Vistas del admin (botón arriba a la izquierda): **A** (lo que ven todos, editable) → **I** (la programación
   inicial del mes, solo lectura) → **CJ**. La vista "O" (oficial) se sacó a pedido de Guillermo.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de

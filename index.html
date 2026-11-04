@@ -810,6 +810,11 @@
       display: inline-flex; align-items: center; justify-content: center;
     }
     body.is-admin .user-btn { background: #16a34a; }
+    /* El botón de admin solo aparece en los dispositivos donde ya se entró como admin.
+       En los demás se entra manteniendo apretado "Cambios" 3 segundos. */
+    body:not(.is-admin):not(.fue-admin) #btnUser { display: none; }
+    #btnPedidos { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    #btnPedidos.listo-admin { box-shadow: 0 0 0 3px #16a34a; }
     .user-btn svg { width: 18px; height: 18px; fill: currentColor; }
     #loginOverlay {
       display: none; position: fixed; inset: 0; z-index: 80;
@@ -2528,6 +2533,10 @@
     function setAdminUI() {
       document.body.classList.toggle("is-admin", currentUser === "ADMIN");
       document.getElementById("btnUser").title = currentUser === "ADMIN" ? "Admin (salir)" : "Usuario";
+      if (currentUser === "ADMIN") { try { localStorage.setItem("vpFueAdmin", "1"); } catch (e) {} }
+      let fue = false;
+      try { fue = localStorage.getItem("vpFueAdmin") === "1"; } catch (e) {}
+      document.body.classList.toggle("fue-admin", fue);
       // Sin admin: siempre modo A y con nombres visibles.
       if (currentUser !== "ADMIN") {
         try { leaveInicialView(); } catch (e) {}
@@ -2546,6 +2555,24 @@
         refreshAfterEdit();
       }
     }
+    // Entrada escondida de admin: mantener apretado "Cambios" 3 segundos y soltar
+    (function () {
+      const bp = document.getElementById("btnPedidos");
+      let timer = null, listo = false, usado = false;
+      const cortar = () => { clearTimeout(timer); timer = null; bp.classList.remove("listo-admin"); };
+      bp.addEventListener("pointerdown", () => {
+        cortar(); listo = false;
+        timer = setTimeout(() => { listo = true; bp.classList.add("listo-admin"); try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} }, 3000);
+      });
+      bp.addEventListener("pointerup", () => {
+        const era = listo; cortar(); listo = false;
+        if (era) { usado = true; document.getElementById("btnUser").click(); }
+      });
+      ["pointerleave", "pointercancel"].forEach(ev => bp.addEventListener(ev, () => { cortar(); listo = false; }));
+      bp.addEventListener("contextmenu", e => e.preventDefault());
+      // Después de la pulsación larga no se abre Cambios
+      bp.addEventListener("click", e => { if (usado) { usado = false; e.stopImmediatePropagation(); } }, true);
+    })();
     document.getElementById("btnUser").addEventListener("click", () => {
       if (fbReady) {
         if (fbAuth.currentUser && !fbAuth.currentUser.isAnonymous) {

@@ -86,6 +86,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cosa en su fila, avisa y la descarta (`choquesConPropios` → `descartarPropio`, al dueño le llega aviso): manda
   lo del admin. Si después el dueño la vuelve a cambiar, al admin le llega un aviso (`avisosAdmin`, avisos con
   clave "admin"). Siguen en azul para todos porque se comparan con la inicial.
+- **Botón de admin (muñequito)**: solo aparece en dispositivos donde ya se entró como admin
+  (`localStorage` `vpFueAdmin`). En cualquier otro se entra manteniendo apretado **Cambios** 3 segundos y soltando.
 - Vistas del admin (botón arriba a la izquierda): **A** (lo que ven todos, editable) → **I** (la programación
   inicial del mes, solo lectura) → **CJ**. La vista "O" (oficial) se sacó a pedido de Guillermo.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de

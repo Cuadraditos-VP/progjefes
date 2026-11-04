@@ -1977,7 +1977,8 @@
         if (!bg && code === "POK") bg = colorMap["T/P"] || colorMap["INT/P"] || colorMap["N/P"];
         if (bg) {
           el.style.background = bg;
-          const hideText = code === "LIC" && !el.classList.contains("shift-option") && !el.classList.contains("blk-first");
+          // La licencia no lleva texto (solo el color); en el selector de turnos sí, para saber qué se elige
+          const hideText = code === "LIC" && !el.classList.contains("shift-option");
           el.style.color = hideText ? bg : getTextColor(bg);
           if (el.classList.contains("blk")) {
             el.style.setProperty("--blk-bg", bg);

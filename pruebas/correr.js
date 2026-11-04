@@ -314,6 +314,9 @@ function chequear(nombre, cond, detalle) {
         abrirInfoCj(s.c, dC);
         const deB = document.getElementById("cjInfoBody").innerText;
         const abierto = document.getElementById("cjInfoOverlay").classList.contains("open");
+        // El celular de A mandó a CJ lo mismo que publicó en su fila: no se tiene que repetir
+        const uidA = Object.keys(celularesDocs).find(u => String(celularesDocs[u].id) === s.ida) || "uA";
+        cjDocs[s.mes + "_" + uidA] = { mes: s.mes, uid: uidA, edits: { [s.ida + ":" + s.d]: { c: s.y, t: Date.now() } } };
         abrirInfoCj(s.a, s.d);
         const deA = document.getElementById("cjInfoBody").innerText;
         cerrarInfoCj();
@@ -321,6 +324,7 @@ function chequear(nombre, cond, detalle) {
       }, [s, dC]);
       chequear("al tocar una celda en CJ dice de qué celular vino", info.abierto && info.deB.indexOf("celular de " + info.nomB) >= 0 && /hace 3 días/.test(info.deB), info);
       chequear("y si lo publicó el dueño de la fila, lo dice", info.deA.indexOf(info.nomA + " lo publicó en su fila") >= 0, info.deA);
+      chequear("y no lo repite si su celular mandó lo mismo", info.deA.indexOf("celular de") < 0, info.deA);
     }
     await AD2.close();
 

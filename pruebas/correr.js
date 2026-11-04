@@ -90,6 +90,23 @@ function chequear(nombre, cond, detalle) {
     console.log("\nCambios (pedidos)");
     const A = await cel("uA", s.ida), B = await cel("uB", s.idb), C = await cel("uC", s.idc);
     chequear("con nombre elegido ya no pregunta", !(await A.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    if (html.includes("function esLicencia")) {
+      // Días de licencia: no se pueden cambiar (ni el propio ni uno ajeno); el admin sí
+      const probarLic = pg => pg.evaluate(() => {
+        const me = miPersona();
+        const pi = people.findIndex((p, i) => !me || i !== me.pi), di = 2;
+        const filas = [[pi, di]].concat(me ? [[me.pi, 3]] : []);
+        const antes = filas.map(([p, d]) => [people[p].codes[d], ORIGINAL_CODES[p][d]]);
+        filas.forEach(([p, d]) => { people[p].codes[d] = "LIC"; ORIGINAL_CODES[p][d] = "LIC"; });
+        const ov = document.getElementById("shiftOverlay");
+        const abre = filas.map(([p, d]) => { openShiftPicker(p, d); const o = ov.classList.contains("open"); ov.classList.remove("open"); return o; });
+        filas.forEach(([p, d], i) => { people[p].codes[d] = antes[i][0]; ORIGINAL_CODES[p][d] = antes[i][1]; });
+        return abre;
+      });
+      const licA = await probarLic(A);
+      chequear("un día de licencia no se puede cambiar (ni propio ni ajeno)", licA.length === 2 && licA.every(x => !x), licA);
+      var probarLicAdmin = probarLic;
+    }
     const alm = await A.evaluate(() => ({ abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }));
     if (/const ABRIR_ALMANAQUE_AL_INICIO = true/.test(html)) chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
     else chequear("al abrir la app se ve la grilla (sin almanaque)", !alm.abierto, alm);
@@ -140,6 +157,10 @@ function chequear(nombre, cond, detalle) {
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
+    if (typeof probarLicAdmin === "function") {
+      const licAd = await probarLicAdmin(AD);
+      chequear("el admin sí puede corregir un día de licencia", licAd.length === 1 && licAd[0], licAd);
+    }
     if (html.includes('id="bancoOverlay"')) {
       const adC = await AD.evaluate(() => { setPedidosMode(true); const r = { banco: document.getElementById("bancoOverlay").classList.contains("open"),
         yo: document.getElementById("yoOverlay").classList.contains("open") }; setPedidosMode(false); return r; });

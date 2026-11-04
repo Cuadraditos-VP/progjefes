@@ -4883,6 +4883,7 @@
     }));
 
     // ---- Quién puede cambiar cada celda ----
+    function esLicencia(pi, di) { return oficialDe(pi, di) === "LIC" || actualDe(pi, di) === "LIC"; }
     function puedeEditar(pi, di) {
       const p = people[pi];
       if (!p) return false;
@@ -4890,6 +4891,11 @@
       if (currentUser !== "ADMIN" && !miPersona() && !soyExterno()) {
         alert("Para cambiar turnos primero tenés que decir quién sos.");
         openYo();
+        return false;
+      }
+      // Los días de licencia no se cambian (solo el admin, por si hay que corregir algo)
+      if (currentUser !== "ADMIN" && esLicencia(pi, di)) {
+        showShareToast("Es un día de licencia: no se puede cambiar.");
         return false;
       }
       // Admin: si toca algo que publicó otro, primero se le ofrece descartarlo

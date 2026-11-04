@@ -2988,8 +2988,9 @@
         const per = yo && people.find(x => String(x.id) === String(yo.id));
         const nom = per ? per.name : (yo && yo.name) || "";
         let quien = nom ? "el celular de " + nom : "un celular sin registrar";
-        if (yo && String(yo.id) === String(p.id)) quien += " (su propio celular)";
-        out.push({ tipo: "cel", c: String(e.c || ""), t: Number(e.t) || 0, quien });
+        const suyo = !!yo && String(yo.id) === String(p.id);
+        if (suyo) quien += " (su propio celular)";
+        out.push({ tipo: "cel", c: String(e.c || ""), t: Number(e.t) || 0, quien, suyo });
       });
       const pd = propDocs[currentMes + "_" + p.id];
       const dk = "d" + di;
@@ -2997,7 +2998,9 @@
         out.push({ tipo: "propio", c: String(pd.edits[dk] || ""), t: Number((pd.t || {})[dk]) || Number(pd.updated) || 0,
           quien: p.name + " lo publicó en su fila" });
       }
-      return out.sort((a, b) => b.t - a.t);
+      // Lo que su propio celular mandó igual a lo que publicó en su fila es lo mismo: va una sola vez
+      const pub = out.find(x => x.tipo === "propio");
+      return out.filter(x => !(pub && x.suyo && x.c === pub.c)).sort((a, b) => b.t - a.t);
     }
     let cjInfoPi = null, cjInfoDi = null;
     function abrirInfoCj(pi, di) {

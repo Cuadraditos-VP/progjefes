@@ -412,6 +412,10 @@ function chequear(nombre, cond, detalle) {
     if (html.includes("function pasarCjAOficial")) {
       // Desde el cuadro de CJ el admin pasa a lo oficial el cambio que mandó B en la fila de C
       const COLT = (html.match(/const TURNOS_COLLECTION = "(\w+)"/) || [])[1] || "jefes";
+      // Antes, el celular de B tenía cargada otra cosa en ese casillero (solo en su celular)
+      const otro = codC === "T" ? "N" : "T";
+      await B.evaluate(([s, dC, otro]) => { people[s.c].codes[dC] = otro; saveEdit(s.c, dC, otro); refreshAfterEdit(); }, [s, dC, otro]);
+      await wait(300);
       const vio = await AD2.evaluate(([s, dC]) => {
         window.confirm = () => true;
         rebuildCj(); abrirInfoCj(s.c, dC);
@@ -426,6 +430,13 @@ function chequear(nombre, cond, detalle) {
       const despues = await AD2.evaluate(([s, dC]) => { rebuildCj(); return { ofi: ORIGINAL_CODES[s.c][dC], marca: !!CJ_MARKS[s.c + ":" + dC] }; }, [s, dC]);
       chequear("desde CJ el admin lo pasa a lo oficial", vio && (filaC.codes || [])[dC] === codC && despues.ofi === codC && !despues.marca,
         { vio, enFb: (filaC.codes || [])[dC], codC, despues });
+      await wait(500);
+      const enB = await B.evaluate(([s, dC]) => ({ ve: people[s.c].codes[dC], local: (s.c + ":" + dC) in editsMap }), [s, dC]);
+      chequear("lo publicado por el admin pisa lo que ese celular tenía cargado de antes", enB.ve === codC && !enB.local, { enB, codC });
+      const enB2 = await B.evaluate(([s, dC, otro]) => { people[s.c].codes[dC] = otro; saveEdit(s.c, dC, otro); refreshAfterEdit();
+        resetPeopleFromOfficial(); return people[s.c].codes[dC]; }, [s, dC, otro]);
+      chequear("si lo vuelve a cambiar después, en su celular se respeta", enB2 === otro, enB2);
+      await B.evaluate(([s, dC]) => { removeEdit(s.c, dC); resetPeopleFromOfficial(); refreshAfterEdit(); }, [s, dC]);
     }
     await AD2.close();
 

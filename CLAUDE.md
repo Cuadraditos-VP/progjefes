@@ -74,6 +74,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Al tocar una celda marcada en CJ se abre un cuadro con **de dónde vino** cada dato (qué celular lo
   mandó, según `yo_*`, o si lo publicó el dueño en su fila) y cuándo (`abrirInfoCj`).
   Desde ese cuadro, **Pasar a lo oficial** publica solo esa celda (`pasarCjAOficial`).
+  En CJ se distinguen (`CJ_MARKS` = "propio"/"ajeno"): esquinita azul = lo cambió el dueño en su fila (ya lo ven
+  todos); borde violeta + esquinita violeta = lo cambió otro celular en una fila ajena (solo en ese celular).
 - Al abrir, la app muestra el inicio de la grilla principal (ni el grupo propio ni el almanaque:
   `ABRIR_ALMANAQUE_AL_INICIO = false`).
   Tras la recarga automática de 20 min vuelve a donde estaba (`recargaAutomatica` / `volverAPosicion`).

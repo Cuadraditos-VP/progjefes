@@ -383,6 +383,13 @@ function chequear(nombre, cond, detalle) {
     const AD2 = await cel("uAd2", null, "guillermo.nemaric@gmail.com");
     const marcas = await AD2.evaluate(m => { switchMonth(m); rebuildCj(); return CJ_MARKS; }, s.mes);
     chequear("en CJ el admin ve lo publicado en su fila aunque no lo haya mandado", !!marcas[s.a + ":" + s.d], marcas);
+    // Se distinguen: lo de su propia fila (azul) y lo que otro cambió en una fila ajena (violeta)
+    await wait(500);
+    const tipos = await AD2.evaluate(([s, dC]) => { const vm = viewMode; viewMode = "cj"; rebuildCj();
+      const r = { propio: CJ_MARKS[s.a + ":" + s.d], ajeno: CJ_MARKS[s.c + ":" + dC], clsP: markClass(s.a, s.d), clsA: markClass(s.c, dC) };
+      viewMode = vm; return r; }, [s, dC]);
+    chequear("en CJ se distingue lo de su propia fila y lo de filas ajenas",
+      tipos.propio === "propio" && tipos.ajeno === "ajeno" && tipos.clsP === "cjpropio" && tipos.clsA === "cjchanged", tipos);
     if (html.includes("function abrirInfoCj")) {
       await wait(500);
       const info = await AD2.evaluate(([s, dC]) => {

@@ -1121,7 +1121,15 @@
       border-color: transparent #2563eb transparent transparent;
       pointer-events: none; z-index: 3;
     }
-    td.cjchanged, .cal-day.cjchanged, .cal-day-h.cjchanged { position: relative; }
+    /* CJ: violeta = lo cambió otro en una fila ajena; azul = lo publicó el dueño en su fila */
+    td.cjpropio, .cal-day.cjpropio, .cal-day-h.cjpropio { position: relative; }
+    td.cjpropio::before, .cal-day.cjpropio::before, .cal-day-h.cjpropio::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+      border-style: solid; border-width: 0 12px 12px 0;
+      border-color: transparent #2563eb transparent transparent;
+      pointer-events: none; z-index: 3;
+    }
+    td.cjchanged, .cal-day.cjchanged, .cal-day-h.cjchanged { position: relative; box-shadow: inset 0 0 0 3px #9333ea; }
     td.cjchanged::before, .cal-day.cjchanged::before, .cal-day-h.cjchanged::before {
       content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
       border-style: solid; border-width: 0 12px 12px 0;
@@ -2078,7 +2086,7 @@
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
     function cellMark(pi, di) {
       if (viewMode === "inicial") return "";
-      if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return "cj";
+      if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return CJ_MARKS[pi + ":" + di] === "propio" ? "cjp" : "cj";
       const shown = (codesFor(pi)[di] || "");
       // Distinto de lo oficial: azul si ya está publicado por su dueño, ámbar si es solo de este celular
       if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || ""))
@@ -2089,7 +2097,7 @@
     }
     function markClass(pi, di) {
       const m = cellMark(pi, di);
-      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : ""));
+      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : (m === "cjp" ? "cjpropio" : "")));
     }
     function cellWasEdited(pi, fromDi, toDi) {
       if (viewMode !== "actual") return false;
@@ -2971,14 +2979,19 @@
     function rebuildCj() {
       const changedAt = ((loadFbCache(currentMes) || {}).changedAt) || {};
       const latest = {};
-      Object.values(cjDocs).forEach(doc => {
+      Object.keys(cjDocs).forEach(docKey => {
+        const doc = cjDocs[docKey];
         if (!doc || doc.mes !== currentMes || !doc.edits) return;
+        let yo = null;
+        try { yo = celularesDocs[doc.uid || docKey.slice(currentMes.length + 1)]; } catch (eYo) {}
         Object.keys(doc.edits).forEach(k => {
           const e = doc.edits[k];
           if (!e) return;
           const t = Number(e.t) || 0;
           if (changedAt[k] && t < changedAt[k]) return; // lo pisó una publicación posterior
-          if (!latest[k] || t > latest[k].t) latest[k] = { c: String(e.c || ""), t };
+          // ¿Lo mandó el celular del dueño de esa fila?
+          const dueno = !!yo && String(yo.id) === k.slice(0, k.lastIndexOf(":"));
+          if (!latest[k] || t > latest[k].t) latest[k] = { c: String(e.c || ""), t, dueno };
         });
       });
       // También lo que cada uno publicó en su propia fila (no depende de que su celular lo mande a CJ)
@@ -2988,7 +3001,7 @@
           const k = String(d.id) + ":" + Number(dk.slice(1));
           const t = Number((d.t || {})[dk]) || Number(d.updated) || 0;
           if (changedAt[k] && t < changedAt[k]) return;
-          if (!latest[k] || t >= latest[k].t) latest[k] = { c: String(d.edits[dk] || ""), t };
+          if (!latest[k] || t >= latest[k].t) latest[k] = { c: String(d.edits[dk] || ""), t, dueno: true };
         });
       });
       const idx = {};
@@ -3002,7 +3015,8 @@
         if (pi == null || di >= DAYS) return;
         if (latest[k].c === ((ORIGINAL_CODES[pi] || [])[di] || "")) return;
         CJ_CODES[pi][di] = latest[k].c;
-        CJ_MARKS[pi + ":" + di] = true;
+        // "propio" = lo cambió el dueño en su fila (ya lo ven todos); "ajeno" = otro, en una fila ajena
+        CJ_MARKS[pi + ":" + di] = latest[k].dueno ? "propio" : "ajeno";
       });
     }
 
@@ -5457,6 +5471,7 @@
         });
         if (celularesOverlay.classList.contains("open")) renderCelulares();
         updateCelularesBtn();
+        if (viewMode === "cj") refreshAfterEdit(); // en CJ, saber de quién es cada celular cambia el color
       }, err => console.warn("Celulares:", err));
     }
     function stopCelularesListener() {

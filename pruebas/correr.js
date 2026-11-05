@@ -107,6 +107,20 @@ function chequear(nombre, cond, detalle) {
       chequear("un día de licencia no se puede cambiar (ni propio ni ajeno)", licA.length === 2 && licA.every(x => !x), licA);
       var probarLicAdmin = probarLic;
     }
+    // Al tocar un turno en la ventana, el cambio se hace y la ventana se cierra sola
+    const toque = await A.evaluate(() => {
+      const me = miPersona(); if (!me) return { sin: true };
+      const di = 5, antes = people[me.pi].codes[di];
+      openShiftPicker(me.pi, di);
+      const ov = document.getElementById("shiftOverlay"), abrio = ov.classList.contains("open");
+      const opt = [...document.querySelectorAll("#shiftGrid .shift-option")].find(o => o.dataset.code !== antes);
+      opt.click();
+      const r = { abrio, cerro: !ov.classList.contains("open"), quedo: people[me.pi].codes[di] === opt.dataset.code };
+      openShiftPicker(me.pi, di); document.getElementById("restoreShift").click();
+      r.restaurado = people[me.pi].codes[di] === antes && !ov.classList.contains("open");
+      return r;
+    });
+    chequear("al tocar un turno se aplica y la ventana se cierra", toque.sin || (toque.abrio && toque.cerro && toque.quedo && toque.restaurado), toque);
     const alm = await A.evaluate(() => ({ abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }));
     if (/const ABRIR_ALMANAQUE_AL_INICIO = true/.test(html)) chequear("al abrir la app se abre su almanaque", alm.abierto && alm.pi === s.a, alm);
     else chequear("al abrir la app se ve la grilla (sin almanaque)", !alm.abierto, alm);

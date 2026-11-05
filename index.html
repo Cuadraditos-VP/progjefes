@@ -1918,7 +1918,30 @@
       el.appendChild(dot);
     }
 
+    // Lo que el admin publicó después manda: se borran los cambios de este celular en esas celdas
+    // que son anteriores a la publicación (si se cambió de nuevo después, se respeta).
+    function soltarEditsPisados() {
+      let ca = {};
+      try { ca = changedAtDe(currentMes) || {}; } catch (e) { return; }
+      if (!Object.keys(ca).length) return;
+      const times = loadEditTimes(currentMes);
+      let cambio = false;
+      Object.keys(editsMap).forEach(key => {
+        const [pi, di] = key.split(":").map(Number);
+        const p = people[pi];
+        if (!p) return;
+        const tk = p.id + ":" + di, tPub = Number(ca[tk]) || 0;
+        if (!tPub || (Number(times[tk]) || 0) > tPub) return;
+        delete editsMap[key]; delete times[tk]; cambio = true;
+      });
+      if (!cambio) return;
+      try {
+        localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap));
+        localStorage.setItem(editTimesKey(currentMes), JSON.stringify(times));
+      } catch (e) {}
+    }
     function applyLocalEdits() {
+      soltarEditsPisados();
       aplicarPropios();
       Object.keys(editsMap).forEach(key => {
         const [pi, di] = key.split(":").map(Number);

@@ -89,6 +89,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cosa en su fila, avisa y la descarta (`choquesConPropios` → `descartarPropio`, al dueño le llega aviso): manda
   lo del admin. Si después el dueño la vuelve a cambiar, al admin le llega un aviso (`avisosAdmin`, avisos con
   clave "admin"). Siguen en azul para todos porque se comparan con la inicial.
+  En cada celular, lo que tenía cargado en esa celda **antes** de la publicación del admin se borra y pasa a ver
+  lo del admin (`soltarEditsPisados`, compara la hora del cambio con `changedAt`); si lo cambia después, se respeta.
 - **Botón de admin (muñequito)**: solo aparece en dispositivos donde ya se entró como admin
   (`localStorage` `vpFueAdmin`). En cualquier otro se entra manteniendo apretado **Cambios** 3 segundos y soltando.
 - Vistas del admin (botón arriba a la izquierda): **A** (lo que ven todos, editable) → **I** (la programación

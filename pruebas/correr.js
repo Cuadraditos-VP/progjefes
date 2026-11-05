@@ -554,6 +554,92 @@ function chequear(nombre, cond, detalle) {
       }
     }
 
+    if (html.includes("function autorizarPedido")) {
+      console.log("\nDivisión: autoriza pedidos, pasa acordados a lo oficial y publica turnos");
+      const DIVC = "division_" + APP;
+      const idD = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre, libre2, DE_PRUEBA[14]].includes(id));
+      const D = await cel("uDv", idD);
+      const codDe = (id, di) => { const f = ((be.st[TURNOS] || {})[s.mes] || { people: [] }).people.find(p => String(p.id) === String(id));
+        return f ? (Array.isArray(f.codes) ? f.codes : String(f.codes).split(/\s+/))[di] : undefined; };
+      const esDiv = pg => pg.evaluate(() => ({ div: document.body.classList.contains("is-division"),
+        pub: getComputedStyle(document.getElementById("btnPublicarDiv")).display !== "none",
+        acu: getComputedStyle(document.getElementById("btnAcuerdos")).display !== "none" }));
+      chequear("un registrado común no es División (sin ⬆ Publicar ni Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: false, pub: false, acu: false }), await esDiv(D));
+      const dDen = (s.d + 9) % 28;
+      const rechazo = await D.evaluate(([id, di]) => publicarCeldas([{ id, di, code: "MD" }], false).then(() => "ok", e => e.code), [s.idc, dDen]);
+      chequear("Firebase no deja a un común publicar turnos", rechazo === "permission-denied", rechazo);
+      // El admin lo hace División desde Celulares
+      await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+        row.querySelector(".cel-div button").click(); document.getElementById("closeCelulares").click(); }, idD);
+      await wait(2500);
+      chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
+      chequear("ese celular pasa a ser División (⬆ Publicar y Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, pub: true, acu: true }), await esDiv(D));
+      const nomD = await D.evaluate(() => miPersona().p.name);
+      // A pide un cambio; la División lo autoriza sin contraparte
+      const d6 = (s.d + 7) % 28;
+      const quiere = await A.evaluate(([s, d6]) => { const t = actualDe(s.a, d6); const q = ["MD", "M", "N"].find(c => c !== t);
+        pedTengoSel = t; guardarPedido(s.a, d6, [q]); closePedido(); return q; }, [s, d6]);
+      await wait(1500);
+      const pedId = s.mes + "_" + s.ida + "_" + (d6 + 1);
+      const caja = await D.evaluate(([s, d6]) => { openPedido(s.a, d6); const b = document.querySelector("#pedidoBody .ped-div button");
+        return b ? b.textContent : ""; }, [s, d6]);
+      chequear("en el pedido de A la División ve \"Autorizar\"", /Autorizar/.test(caja) && caja.indexOf(quiere) >= 0, caja);
+      const cajaB = await B.evaluate(([s, d6]) => { openPedido(s.a, d6); const r = !!document.querySelector("#pedidoBody .ped-div"); closePedido(); return r; }, [s, d6]);
+      chequear("un común no ve \"Autorizar\"", !cajaB);
+      const opF = await D.evaluate(([s, d6]) => opcionesAutorizar({ ofrece: "T", acepta: ["F"], francos: [d6 + 3] }, s.a, d6), [s, d6]);
+      chequear("si ofrece un franco, autorizar da F ese día y su turno el día del franco",
+        opF.length === 1 && opF[0].code === "F" && JSON.stringify(opF[0].cambios) === JSON.stringify([{ di: d6, code: "F" }, { di: d6 + 2, code: "T" }]), opF);
+      await D.evaluate(() => document.querySelector("#pedidoBody .ped-div button").click());
+      await wait(3000);
+      chequear("lo autorizado pasa a lo oficial (Firebase)", codDe(s.ida, d6) === quiere, codDe(s.ida, d6));
+      const pp = (((be.st[TURNOS] || {})[s.mes] || {}).publicadoPor || {})[s.ida + ":" + d6];
+      chequear("queda anotado quién lo autorizó", !!pp && pp.n === nomD && pp.a === 1, pp);
+      const peds = be.st["pedidos_" + APP] || {};
+      chequear("el pedido se cierra como autorizado", !peds[pedId] && Object.values(peds).some(x => x.estado === "autorizado" && x.id === s.ida && x.dia === d6 + 1), Object.keys(peds));
+      chequear("C lo ve", (await C.evaluate(([s, d6]) => people[s.a].codes[d6], [s, d6])) === quiere);
+      const avZ = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
+      chequear("a A le llega \"Autorizado por la División\" con el nombre", /Autorizado por la División/.test(avZ) && avZ.indexOf(nomD) >= 0, avZ);
+      await A.evaluate(() => cerrarAvisos());
+      const enBanco = await A.evaluate(d6 => { setPedidosMode(true); bancoDiaSel = d6; renderBancoDia(); const t = document.getElementById("bancoDia").innerText; setPedidosMode(false); return t; }, d6);
+      chequear("en el banco, ese día A ve que se lo autorizaron", /Autorizado por la División/.test(enBanco), enBanco);
+      // La División pasa a lo oficial el acuerdo de A y B
+      await D.evaluate(() => { document.getElementById("btnAcuerdos").click(); });
+      const bo = await D.evaluate(() => [...document.querySelectorAll("#acuerdosList button")].map(b => b.textContent));
+      chequear("en Acordados la División tiene \"Pasar a lo oficial\"", bo.includes("Pasar a lo oficial"), bo);
+      await D.evaluate(() => { [...document.querySelectorAll("#acuerdosList button")].find(b => b.textContent === "Pasar a lo oficial").click(); });
+      await wait(3000);
+      chequear("el acuerdo queda en lo oficial (las dos filas)", codDe(s.ida, s.d) === s.y && codDe(s.idb, s.d) === s.x, [codDe(s.ida, s.d), codDe(s.idb, s.d)]);
+      const acu = Object.values(be.st["pedidos_" + APP] || {}).find(x => x.estado === "acordado" && x.id === s.ida && x.dia === s.d + 1);
+      chequear("el acuerdo queda como pasado por la División", !!acu && acu.pasado === true && acu.pasadoPor === nomD, acu);
+      const avP = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
+      chequear("a B le llega que la División lo pasó a lo oficial", /La División/.test(avP) && /pasó a la programación oficial/.test(avP), avP);
+      await B.evaluate(() => cerrarAvisos());
+      await D.evaluate(() => document.getElementById("closeAcuerdos").click());
+      // La División cambia un turno de otro y lo publica
+      const d7 = (s.d + 15) % 28;
+      const nuevo7 = await D.evaluate(([s, d7]) => { const t = ORIGINAL_CODES[s.c][d7]; const n = ["MD", "M", "N"].find(c => c !== t);
+        openShiftPicker(s.c, d7); applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
+      const btxt = await D.evaluate(() => document.getElementById("btnPublicarDiv").textContent);
+      chequear("⬆ Publicar de la División cuenta lo que cambió", /\(1\)/.test(btxt), btxt);
+      await D.evaluate(() => document.getElementById("btnPublicarDiv").click());
+      await wait(3000);
+      chequear("lo que publica la División queda en lo oficial", codDe(s.idc, d7) === nuevo7, codDe(s.idc, d7));
+      chequear("B lo ve", (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7);
+      const docM = (be.st[TURNOS] || {})[s.mes];
+      chequear("la División no toca nada más del mes (gente, inicial)", docM.people.length === M0.people.length && Array.isArray(docM.inicial) && docM.inicial.length === M0.people.length);
+      const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
+      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) publicó/.test(avAdD), avAdD);
+      await AD.evaluate(() => cerrarAvisos());
+      // El admin le saca la División
+      await AD.evaluate(id => { document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+        row.querySelector(".cel-div button").click(); document.getElementById("closeCelulares").click(); }, idD);
+      await wait(2000);
+      chequear("al sacarle la División deja de serlo", !(await esDiv(D)).div && !(be.st[DIVC] || {})[idD]);
+      await D.close();
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

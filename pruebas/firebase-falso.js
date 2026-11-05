@@ -65,7 +65,16 @@
     }),
     batch: () => { const ops = []; return {
       set: (r, d, o) => ops.push(() => r.set(d, o)), update: (r, d) => ops.push(() => r.update(d)), delete: (r) => ops.push(() => r.delete()),
-      commit: () => Promise.all(ops.map(f => f())) }; }
+      commit: () => Promise.all(ops.map(f => f())) }; },
+    // Transacción: lee lo último y escribe todo junto (acá, en orden; si algo falla, se corta)
+    runTransaction: async (fn) => {
+      const ops = [];
+      const tx = { get: r => r.get(), set: (r, d, o) => { ops.push(() => r.set(d, o)); return tx; },
+        update: (r, d) => { ops.push(() => r.update(d)); return tx; }, delete: (r) => { ops.push(() => r.delete()); return tx; } };
+      const res = await fn(tx);
+      for (const f of ops) await f();
+      return res;
+    }
   };
   const user = { uid: window.__UID, isAnonymous: !window.__EMAIL, email: window.__EMAIL || null };
   const auth = { currentUser: user, onAuthStateChanged: (cb) => { setTimeout(() => cb(user), 50); return () => {}; },

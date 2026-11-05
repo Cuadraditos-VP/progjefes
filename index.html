@@ -801,6 +801,16 @@
       font-weight: 700; cursor: pointer;
     }
     body:not(.is-admin) .admin-only { display: none !important; }
+    /* Las herramientas del admin van en una ventana (botón ☰), en el celular y en la PC. */
+    .adm-menu-btn { display: none; font-size: 0.95rem; padding: 4px 10px; }
+    body.is-admin .adm-menu-btn { display: inline-flex; align-items: center; }
+    .adm-menu-btn.pending { background: #dc2626; }
+    .adm-menu-modal { max-width: 320px; }
+    #adminMenuList { display: flex; flex-direction: column; gap: 8px; }
+    #adminMenuList button {
+      width: 100%; height: auto; margin: 0; padding: 12px; border-radius: 10px;
+      font-size: 0.92rem; font-weight: 700; justify-content: center; gap: 8px;
+    }
     body:not(.fb-on) .fb-only { display: none !important; }
     .publish-btn { background: #16a34a; }
     .publish-btn.pending { background: #dc2626; }
@@ -1519,12 +1529,12 @@
         <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
         <button type="button" id="btnDownload" class="json-btn dl-btn admin-only" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
-        <button type="button" id="btnCopyJson" class="json-btn admin-only" title="Copiar JSON al portapapeles">⧉ Copiar</button>
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
+        <button type="button" id="btnAdminMenu" class="json-btn admin-only adm-menu-btn" title="Herramientas de admin" aria-label="Herramientas de admin">☰</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
@@ -1691,6 +1701,15 @@
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Cambios que los jefes cerraron entre ellos. Ya los ven todos (cada uno lo tiene en su fila). Para que queden en lo oficial, cambialos en la grilla, tocá ⬆ Publicar y después "Ya lo pasé".</p>
       <div id="acuerdosList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="adminMenuOverlay">
+    <div class="palette-modal adm-menu-modal">
+      <div class="palette-header">
+        <h3>Admin</h3>
+        <button class="close-btn" id="closeAdminMenu" title="Cerrar">×</button>
+      </div>
+      <div id="adminMenuList"></div>
     </div>
   </div>
   <div class="palette-overlay" id="cjInfoOverlay">
@@ -3149,6 +3168,8 @@
       const n = pendingCount();
       btn.textContent = n ? "⬆ Publicar (" + n + ")" : "⬆ Publicar";
       btn.classList.toggle("pending", n > 0);
+      const mb = document.getElementById("btnAdminMenu");
+      if (mb) { mb.classList.toggle("pending", n > 0); mb.textContent = n ? "☰ " + n : "☰"; }
     }
 
     document.getElementById("btnPublish").addEventListener("click", async () => {
@@ -3229,32 +3250,6 @@
       a.download = MES.file;
       a.click();
       URL.revokeObjectURL(a.href);
-    });
-    document.getElementById("btnCopyJson").addEventListener("click", async () => {
-      const jsonText = JSON.stringify(currentJson(), null, 2);
-      const btn = document.getElementById("btnCopyJson");
-      const marcarCopiado = () => {
-        const prev = btn.textContent;
-        btn.textContent = "✓ Copiado";
-        setTimeout(() => { btn.textContent = prev; }, 1500);
-      };
-      try {
-        await navigator.clipboard.writeText(jsonText);
-        marcarCopiado();
-      } catch (err) {
-        // Fallback para navegadores que no permiten el portapapeles moderno
-        const ta = document.createElement("textarea");
-        ta.value = jsonText;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try { document.execCommand("copy"); marcarCopiado(); } catch (e2) {
-          alert("No se pudo copiar automáticamente. Mantené presionado el botón ↓ JSON y usá \"Compartir\".");
-        }
-        document.body.removeChild(ta);
-      }
     });
     // Admin: sube un mes nuevo a Firebase (queda visible solo para los registrados)
     async function subirMesAdmin(data) {
@@ -5855,6 +5850,22 @@
       dlOverlay.classList.add("open");
     });
     const closeDl = () => dlOverlay.classList.remove("open");
+    // Bajar, JSON, Colores y Publicar van en la ventana del botón ☰ (en el celular y en la PC).
+    (function menuAdmin() {
+      const IDS = ["btnDownload", "btnExportJson", "btnImportJson", "btnColors", "btnPublish"];
+      const QUEDA_ABIERTO = ["btnPublish"]; // para ver "Publicando…"
+      const overlay = document.getElementById("adminMenuOverlay");
+      const lista = document.getElementById("adminMenuList");
+      const cerrar = () => overlay.classList.remove("open");
+      IDS.forEach(id => { const b = document.getElementById(id); if (b) lista.appendChild(b); });
+      document.getElementById("btnAdminMenu").addEventListener("click", () => overlay.classList.add("open"));
+      document.getElementById("closeAdminMenu").addEventListener("click", cerrar);
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) return cerrar();
+        const b = e.target.closest("button");
+        if (b && IDS.includes(b.id) && !QUEDA_ABIERTO.includes(b.id)) cerrar();
+      });
+    })();
     document.getElementById("closeDl").addEventListener("click", closeDl);
     dlOverlay.addEventListener("click", e => { if (e.target === dlOverlay) closeDl(); });
 

@@ -514,23 +514,26 @@ function chequear(nombre, cond, detalle) {
       await N2.close();
     }
 
-    if (html.includes("function menuAdminCelular")) {
-      console.log("\nCelular del admin: herramientas en la ventana ☰ (en la PC quedan arriba)");
+    if (html.includes("function menuAdmin()")) {
+      console.log("\nHerramientas del admin en la ventana ☰ (celular y PC)");
       const enBarra = pg => pg.evaluate(() => !!document.querySelector("header .topbar #btnPublish"));
-      chequear("en la PC Publicar sigue en la barra de arriba", await enBarra(AD));
-      const ADC = await be.celular(browser, URL, "uAdC", "guillermo.nemaric@gmail.com", errores, { tactil: true });
-      await wait(2500);
-      chequear("en el celular Publicar no está en la barra", !(await enBarra(ADC)));
-      await ADC.evaluate(() => document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open")));
-      await ADC.click("#btnAdminMenu");
-      const m = await ADC.evaluate(() => ({ abierto: document.getElementById("adminMenuOverlay").classList.contains("open"),
-        botones: [...document.querySelectorAll("#adminMenuList button")].filter(b => b.offsetParent).length }));
-      chequear("el ☰ abre la ventana con las herramientas", m.abierto && m.botones >= 5, m);
-      await ADC.click("#adminMenuList #btnColores");
-      const tras = await ADC.evaluate(() => ({ menu: document.getElementById("adminMenuOverlay").classList.contains("open"),
-        abiertas: document.querySelectorAll(".palette-overlay.open").length }));
-      chequear("al tocar una herramienta se cierra el menú y abre lo suyo", !tras.menu && tras.abiertas === 1, tras);
-      await ADC.close();
+      chequear("no queda el botón Copiar", !html.includes('id="btnCopyJson"'));
+      for (const [nom, tactil] of [["PC", false], ["celular", true]]) {
+        const ADM = await be.celular(browser, URL, "uAdM" + nom, "guillermo.nemaric@gmail.com", errores, { tactil });
+        await wait(2500);
+        chequear("en " + nom + " Publicar no está en la barra de arriba", !(await enBarra(ADM)));
+        await ADM.evaluate(() => document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open")));
+        await ADM.click("#btnAdminMenu");
+        const m = await ADM.evaluate(() => ({ abierto: document.getElementById("adminMenuOverlay").classList.contains("open"),
+          botones: [...document.querySelectorAll("#adminMenuList button")].filter(b => b.offsetParent).map(b => b.id) }));
+        chequear("en " + nom + " el ☰ abre la ventana con las herramientas", m.abierto && m.botones.length >= 5 && m.botones.includes("btnPublish"), m);
+        const col = await ADM.evaluate(() => document.querySelector("#adminMenuList #btnColores, #adminMenuList #btnColors").id);
+        await ADM.click("#adminMenuList #" + col);
+        const tras = await ADM.evaluate(() => ({ menu: document.getElementById("adminMenuOverlay").classList.contains("open"),
+          abiertas: document.querySelectorAll(".palette-overlay.open").length }));
+        chequear("en " + nom + " al tocar una herramienta se cierra el menú y abre lo suyo", !tras.menu && tras.abiertas === 1, tras);
+        await ADM.close();
+      }
     }
 
     console.log("");

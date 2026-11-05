@@ -402,6 +402,24 @@ function chequear(nombre, cond, detalle) {
       chequear("y si lo publicó el dueño de la fila, lo dice", info.deA.indexOf(info.nomA + " lo publicó en su fila") >= 0, info.deA);
       chequear("y no lo repite si su celular mandó lo mismo", info.deA.indexOf("celular de") < 0, info.deA);
     }
+    if (html.includes("function pasarCjAOficial")) {
+      // Desde el cuadro de CJ el admin pasa a lo oficial el cambio que mandó B en la fila de C
+      const COLT = (html.match(/const TURNOS_COLLECTION = "(\w+)"/) || [])[1] || "jefes";
+      const vio = await AD2.evaluate(([s, dC]) => {
+        window.confirm = () => true;
+        rebuildCj(); abrirInfoCj(s.c, dC);
+        const btn = document.getElementById("cjInfoOficial");
+        const vis = getComputedStyle(btn).display !== "none";
+        btn.click();
+        return vis;
+      }, [s, dC]);
+      await wait(1000);
+      const ofDoc = (be.st[COLT] || {})[s.mes] || {};
+      const filaC = (ofDoc.people || []).find(p => String(p.id) === s.idc) || {};
+      const despues = await AD2.evaluate(([s, dC]) => { rebuildCj(); return { ofi: ORIGINAL_CODES[s.c][dC], marca: !!CJ_MARKS[s.c + ":" + dC] }; }, [s, dC]);
+      chequear("desde CJ el admin lo pasa a lo oficial", vio && (filaC.codes || [])[dC] === codC && despues.ofi === codC && !despues.marca,
+        { vio, enFb: (filaC.codes || [])[dC], codC, despues });
+    }
     await AD2.close();
 
     console.log("\nCopia de los turnos en el celular (para abrir al instante)");

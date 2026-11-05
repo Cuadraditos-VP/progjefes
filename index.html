@@ -324,6 +324,7 @@
       display: flex;
       gap: 8px;
     }
+    #cjInfoOverlay .palette-actions { flex-wrap: wrap; }
     #shiftOverlay .palette-modal {
       max-height: min(90dvh, 90vh);
       overflow: hidden;
@@ -1701,6 +1702,7 @@
       <div id="cjInfoBody"></div>
       <div class="palette-actions">
         <button class="btn btn-clear" id="cjInfoDescartar">Descartar</button>
+        <button class="btn btn-done" id="cjInfoOficial">Pasar a lo oficial</button>
         <button class="btn btn-done" id="cjInfoCerrar">Cerrar</button>
       </div>
     </div>
@@ -3054,6 +3056,7 @@
       }
       document.getElementById("cjInfoBody").innerHTML = html;
       document.getElementById("cjInfoDescartar").style.display = puedeDescartar ? "" : "none";
+      document.getElementById("cjInfoOficial").style.display = enCj !== orig && FB_MESES[currentMes] ? "" : "none";
       document.getElementById("cjInfoOverlay").classList.add("open");
     }
     function cerrarInfoCj() { document.getElementById("cjInfoOverlay").classList.remove("open"); }
@@ -3064,6 +3067,46 @@
       cerrarInfoCj();
       if (typeof descartarCj === "function" && cjInfoPi != null) descartarCj(cjInfoPi, cjInfoDi, true);
     });
+
+    // Desde CJ: pasa a lo oficial solo esa celda (lo ven todos). No toca los otros cambios del admin.
+    document.getElementById("cjInfoOficial").addEventListener("click", () => {
+      if (cjInfoPi != null) pasarCjAOficial(cjInfoPi, cjInfoDi);
+    });
+    async function pasarCjAOficial(pi, di) {
+      const p = people[pi];
+      if (!p || currentUser !== "ADMIN" || !fbReady || !FB_MESES[currentMes]) return;
+      const code = ((CJ_CODES[pi] || [])[di]) || "";
+      const orig = ((ORIGINAL_CODES[pi] || [])[di]) || "";
+      if (code === orig) return;
+      const codes = people.map((x, i) => (ORIGINAL_CODES[i] || []).slice());
+      codes[pi][di] = code;
+      const key = p.id + ":" + di;
+      const tp = { codes, cambiados: [key] };
+      const choques = choquesConPropios(tp);
+      if (!confirm("¿Pasar a lo oficial?\n\n" + p.name + " · día " + (di + 1) + ": " + (orig || "vacío") + " → " + (code || "vacío") +
+        "\n\nLo ven todos." + textoChoques(choques))) return;
+      cerrarInfoCj();
+      const version = Date.now();
+      try {
+        const prev = loadFbCache(currentMes) || {};
+        const changedAt = Object.assign({}, prev.changedAt || {}, { [key]: version });
+        await fbDb.collection("jefes").doc(currentMes).set({
+          mes: currentMes, version,
+          codigos: Array.isArray(prev.codigos) && prev.codigos.length ? prev.codigos : ALL_SHIFT_CODES.slice(),
+          colores: prev.colores || Object.assign({}, colorMap),
+          changedAt,
+          people: people.map((x, i) => ({ id: x.id, name: x.name, codes: tp.codes[i] })),
+          inicial: people.map((x, i) => ({ id: x.id, name: x.name, codes: (INITIAL_CODES[i] || x.codes).slice() }))
+        });
+        guardarPadron(people.map((x, i) => ({ id: x.id, name: x.name, codes: tp.codes[i] }))).catch(() => {});
+        choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
+        showShareToast("Listo: " + p.name + " día " + (di + 1) + " pasó a lo oficial.");
+      } catch (err) {
+        showShareToast(err && err.code === "permission-denied"
+          ? "Firebase no dejó publicar (revisá las reglas)."
+          : "No se pudo publicar. Revisá la conexión y probá de nuevo.");
+      }
+    }
 
     // Turnos que cambió el admin y todavía no publicó (programación oficial + sus cambios)
     function turnosAPublicar() {

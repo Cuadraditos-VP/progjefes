@@ -562,9 +562,8 @@ function chequear(nombre, cond, detalle) {
       const codDe = (id, di) => { const f = ((be.st[TURNOS] || {})[s.mes] || { people: [] }).people.find(p => String(p.id) === String(id));
         return f ? (Array.isArray(f.codes) ? f.codes : String(f.codes).split(/\s+/))[di] : undefined; };
       const esDiv = pg => pg.evaluate(() => ({ div: document.body.classList.contains("is-division"),
-        pub: getComputedStyle(document.getElementById("btnPublicarDiv")).display !== "none",
         acu: getComputedStyle(document.getElementById("btnAcuerdos")).display !== "none" }));
-      chequear("un registrado común no es División (sin ⬆ Publicar ni Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: false, pub: false, acu: false }), await esDiv(D));
+      chequear("un registrado común no es División (sin Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: false, acu: false }), await esDiv(D));
       const dDen = (s.d + 9) % 28;
       const rechazo = await D.evaluate(([id, di]) => publicarCeldas([{ id, di, code: "MD" }], false).then(() => "ok", e => e.code), [s.idc, dDen]);
       chequear("Firebase no deja a un común publicar turnos", rechazo === "permission-denied", rechazo);
@@ -574,7 +573,7 @@ function chequear(nombre, cond, detalle) {
         row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2500);
       chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
-      chequear("ese celular pasa a ser División (⬆ Publicar y Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, pub: true, acu: true }), await esDiv(D));
+      chequear("ese celular pasa a ser División (ve Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, acu: true }), await esDiv(D));
       const nomD = await D.evaluate(() => miPersona().p.name);
       // A pide un cambio; la División lo autoriza sin contraparte
       const d6 = (s.d + 7) % 28;
@@ -616,20 +615,19 @@ function chequear(nombre, cond, detalle) {
       chequear("a B le llega que la División lo pasó a lo oficial", /La División/.test(avP) && /pasó a la programación oficial/.test(avP), avP);
       await B.evaluate(() => cerrarAvisos());
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());
-      // La División cambia un turno de otro y lo publica
+      // La División NO publica cambios por su cuenta: lo que cambia en filas ajenas queda en su celular
       const d7 = (s.d + 15) % 28;
+      const ofi7 = codDe(s.idc, d7);
       const nuevo7 = await D.evaluate(([s, d7]) => { const t = ORIGINAL_CODES[s.c][d7]; const n = ["MD", "M", "N"].find(c => c !== t);
         openShiftPicker(s.c, d7); applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
-      const btxt = await D.evaluate(() => document.getElementById("btnPublicarDiv").textContent);
-      chequear("⬆ Publicar de la División cuenta lo que cambió", /⬆ 1$/.test(btxt), btxt);
-      await D.evaluate(() => document.getElementById("btnPublicarDiv").click());
-      await wait(3000);
-      chequear("lo que publica la División queda en lo oficial", codDe(s.idc, d7) === nuevo7, codDe(s.idc, d7));
-      chequear("B lo ve", (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7);
+      await wait(2500);
+      chequear("la División no tiene botón para publicar", !(await D.evaluate(() => [...document.querySelectorAll("header button")].some(b => b.offsetParent && /Publicar|⬆/.test(b.textContent)))));
+      chequear("lo que cambia en una fila ajena lo ve solo ella", (await D.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7 &&
+        codDe(s.idc, d7) === ofi7 && (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) !== nuevo7, codDe(s.idc, d7));
       const docM = (be.st[TURNOS] || {})[s.mes];
       chequear("la División no toca nada más del mes (gente, inicial)", docM.people.length === M0.people.length && Array.isArray(docM.inicial) && docM.inicial.length === M0.people.length);
       const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
-      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) publicó/.test(avAdD), avAdD);
+      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && !/\(División\) publicó/.test(avAdD), avAdD);
       await AD.evaluate(() => cerrarAvisos());
       // El admin le saca la División
       await AD.evaluate(id => { document.getElementById("btnCelulares").click();

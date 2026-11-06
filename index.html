@@ -804,7 +804,7 @@
     /* División: rol intermedio (autoriza pedidos, pasa acordados a lo oficial y publica turnos) */
     body:not(.is-division) .division-only { display: none !important; }
     body.is-division:not(.is-admin) #btnAcuerdos.admin-only { display: inline-block !important; }
-    .div-pub-btn { background: #7c3aed; }
+    .div-pub-btn { background: #7c3aed; white-space: nowrap; }
     .div-pub-btn.pending { background: #dc2626; }
     .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
     .ped-div { margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px solid #c4b5fd; background: #f5f3ff; }
@@ -3361,7 +3361,9 @@
       const b = document.getElementById("btnPublicarDiv");
       if (!b || b.disabled) return;
       const n = soyDivision() && FB_MESES[currentMes] ? turnosAPublicar().cambiados.length : 0;
-      b.textContent = n ? "⬆ Publicar (" + n + ")" : "⬆ Publicar";
+      // Con cambios queda corto ("⬆ 2"), como el ☰ del admin, para no apretar la barra
+      b.textContent = n ? "⬆ " + n : "⬆ Publicar";
+      b.title = n ? "División: publicar para todos " + (n === 1 ? "1 turno cambiado" : n + " turnos cambiados") : "División: publicar para todos los turnos que cambiaste";
       b.classList.toggle("pending", n > 0);
     }
     document.getElementById("btnPublicarDiv").addEventListener("click", async () => {

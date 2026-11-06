@@ -621,7 +621,7 @@ function chequear(nombre, cond, detalle) {
       const nuevo7 = await D.evaluate(([s, d7]) => { const t = ORIGINAL_CODES[s.c][d7]; const n = ["MD", "M", "N"].find(c => c !== t);
         openShiftPicker(s.c, d7); applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
       const btxt = await D.evaluate(() => document.getElementById("btnPublicarDiv").textContent);
-      chequear("⬆ Publicar de la División cuenta lo que cambió", /\(1\)/.test(btxt), btxt);
+      chequear("⬆ Publicar de la División cuenta lo que cambió", /⬆ 1$/.test(btxt), btxt);
       await D.evaluate(() => document.getElementById("btnPublicarDiv").click());
       await wait(3000);
       chequear("lo que publica la División queda en lo oficial", codDe(s.idc, d7) === nuevo7, codDe(s.idc, d7));

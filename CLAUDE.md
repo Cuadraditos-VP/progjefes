@@ -103,8 +103,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   al que pidió le llega "Autorizado por la División — Nombre"), **pasar acordados a lo oficial** (Acordados → "Pasar a lo
   oficial", queda `pasado` + `pasadoPor`). **No publica cambios por su cuenta** (a pedido de Guillermo: solo avala lo que
   acuerdan los empleados o autoriza pedidos); lo que cambie en filas ajenas queda en su celular, como a todos.
+  **Cambio de palabra** (botón violeta "＋ Cambio de palabra el N" en el día del banco, `abrirPalabra`): elige empleado y
+  con quién cambia (intercambian el turno de ese día; queda `estado: "acordado"`, `palabra: true`, `pasado`) o "Nadie"
+  (sin contraparte: elige el turno; queda `estado: "autorizado"`, `palabra: true`). Va a lo oficial y les llega aviso.
   Todo eso usa `publicarCeldas` (transacción: solo cambia esas celdas sobre lo último de Firebase y anota
-  `publicadoPor["legajo:día"] = {n, t, a}`, a: 1 autorizó / 2 acuerdo); al admin le llega aviso de lo que hizo. No toca Celulares, invitaciones,
+  `publicadoPor["legajo:día"] = {n, t, a}`, a: 1 autorizó / 2 acuerdo / 3 de palabra); al admin le llega aviso de lo que hizo. No toca Celulares, invitaciones,
   colores ni meses. Reglas: `REGLAS-FIREBASE-DIVISION.md`. El admin también puede autorizar ("Autorizado por el administrador").
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
   licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.

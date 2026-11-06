@@ -1465,6 +1465,9 @@
     .bd-card.acordado { background: #f1f5f9; cursor: default; }
     .bd-card.acordado .bd-tag { background: #64748b; color: #fff; }
     .bd-vacio { margin-top: 6px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.82rem; text-align: center; }
+    .bd-pedir.bd-palabra { background: #7c3aed; }
+    .pal-sel { width: 100%; padding: 9px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem; background: #fff; color: #1e293b; }
+    #palabraRes { margin-top: 10px; }
     .bd-pedir { display: block; width: 100%; margin-top: 10px; padding: 11px; border: 0; border-radius: 10px; background: #ea580c; color: #fff;
       font-weight: 800; font-size: 0.88rem; cursor: pointer; }
     .cji-row { margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 0.82rem; color: #1e293b; }
@@ -1684,6 +1687,25 @@
       <div class="palette-actions" id="pedidoActions">
         <button class="btn btn-clear" id="quitarPedido">Quitar pedido</button>
         <button class="btn btn-done" id="donePedido">Listo</button>
+      </div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="palabraOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="palabraTitle">Cambio de palabra</h3>
+        <button class="close-btn" id="closePalabra" title="Cerrar">×</button>
+      </div>
+      <div class="ped-lbl">Empleado</div>
+      <select id="palabraA" class="pal-sel"></select>
+      <div class="ped-lbl">Cambia con</div>
+      <select id="palabraB" class="pal-sel"></select>
+      <div id="palabraTurnoLbl" class="ped-lbl">Pasa a</div>
+      <div class="shift-grid" id="palabraTurno"></div>
+      <div id="palabraRes"></div>
+      <div class="palette-actions">
+        <button class="btn btn-clear" id="cancelPalabra">Cancelar</button>
+        <button class="btn btn-done" id="okPalabra">Pasar a lo oficial</button>
       </div>
     </div>
   </div>
@@ -3322,7 +3344,7 @@
       const ref = fbDb.collection(TURNOS_COLLECTION).doc(currentMes);
       const version = Date.now();
       const por = { n: nombreAutorizante(), t: version };
-      if (aut) por.a = aut === 2 ? 2 : 1;   // 1 = autorizó un pedido, 2 = avaló un acuerdo
+      if (aut) por.a = aut === 2 || aut === 3 ? aut : 1;   // 1 = autorizó un pedido, 2 = avaló un acuerdo, 3 = cambio de palabra
       if (currentUser === "ADMIN") por.adm = 1;
       return fbDb.runTransaction(async tx => {
         const snap = await tx.get(ref);
@@ -4317,7 +4339,7 @@
         }
         const yoPide = String(a.id) === String(miLegajo);
         const otro = yoPide ? a.con.name : a.name;
-        html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-l1"><span class="bd-nom">Acordado con ' + escH(otro) + "</span></div>" +
+        html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-l1"><span class="bd-nom">' + (a.palabra ? "Cambio de palabra con " : "Acordado con ") + escH(otro) + "</span></div>" +
           '<div class="bd-que">' + (a.pasado ? "Ya está en la programación oficial" : "Ya está cargado en tu celular") + "</div></span></div>";
       });
       if (!props.length) {
@@ -4327,6 +4349,10 @@
       if (me && !tengoPedido && !diaPasado(di) && actualDe(me.pi, di) !== "LIC") {
         html += '<button type="button" class="bd-pedir" id="bancoPedir">＋ Pedir cambio el ' + (di + 1) + "</button>";
       }
+      // División (y admin): cargar un cambio acordado de palabra, con o sin contraparte
+      if (puedeAutorizar() && FB_MESES[currentMes]) {
+        html += '<button type="button" class="bd-pedir bd-palabra" id="bancoPalabra">＋ Cambio de palabra el ' + (di + 1) + "</button>";
+      }
       box.innerHTML = html;
       box.querySelectorAll(".bd-card[data-i]").forEach(b => b.addEventListener("click", () => {
         const x = props[Number(b.dataset.i)];
@@ -4334,6 +4360,8 @@
       }));
       const bp = document.getElementById("bancoPedir");
       if (bp) bp.addEventListener("click", () => { const m = miPersona(); if (m) openPedido(m.pi, di); });
+      const bw = document.getElementById("bancoPalabra");
+      if (bw) bw.addEventListener("click", () => abrirPalabra(di));
     }
     document.getElementById("bancoCal").addEventListener("click", e => {
       const el = e.target.closest(".bc-day[data-di]");
@@ -4795,6 +4823,110 @@
       });
       body.appendChild(box);
     }
+    // ---- División: cambio acordado de palabra (fuera de la app) ----
+    // Con contraparte: los dos intercambian el turno de ese día. Sin contraparte: el empleado pasa
+    // al turno que elige la División. Va a lo oficial y queda en Acordados con "palabra: true".
+    let palDi = null, palCode = "";
+    const palabraOverlay = document.getElementById("palabraOverlay");
+    function abrirPalabra(di) {
+      if (!puedeAutorizar() || !FB_MESES[currentMes]) return;
+      palDi = di; palCode = "";
+      document.getElementById("palabraTitle").textContent = "Cambio de palabra · " + fechaTxt(di);
+      const opts = people.map((p, pi) => ({ pi, p })).filter(x => x.p.id && oficialDe(x.pi, di) !== "LIC")
+        .sort((a, b) => String(a.p.name).localeCompare(String(b.p.name)));
+      const html = opts.map(x => '<option value="' + x.pi + '">' + escH(x.p.name + " (" + (oficialDe(x.pi, di) || "vacío") + ")") + "</option>").join("");
+      document.getElementById("palabraA").innerHTML = '<option value="">Elegí…</option>' + html;
+      document.getElementById("palabraB").innerHTML = '<option value="">Nadie (sin contraparte)</option>' + html;
+      renderPalabra();
+      palabraOverlay.classList.add("open");
+    }
+    function palSel(id) { const v = document.getElementById(id).value; return v === "" ? -1 : Number(v); }
+    // Lo que va a pasar a lo oficial (o null si falta algo)
+    function cambiosPalabra() {
+      const a = palSel("palabraA"), b = palSel("palabraB"), di = palDi;
+      if (a < 0) return { msg: "Elegí el empleado." };
+      const ca = oficialDe(a, di);
+      if (b >= 0) {
+        if (b === a) return { msg: "Elegí otra persona para el cambio." };
+        const cb = oficialDe(b, di);
+        if (ca === cb) return { msg: "Los dos tienen " + (ca || "vacío") + " ese día: no hay nada que cambiar." };
+        return { a, b, ca, cb, cambios: [{ id: String(people[a].id), di, code: cb }, { id: String(people[b].id), di, code: ca }],
+          txt: [people[a].name + ": " + (ca || "vacío") + " → " + (cb || "vacío"), people[b].name + ": " + (cb || "vacío") + " → " + (ca || "vacío")] };
+      }
+      if (!palCode || palCode === ca) return { msg: "Elegí a qué turno pasa " + people[a].name + "." };
+      return { a, b: -1, ca, cambios: [{ id: String(people[a].id), di, code: palCode }], txt: [people[a].name + ": " + (ca || "vacío") + " → " + palCode] };
+    }
+    function renderPalabra() {
+      const a = palSel("palabraA"), b = palSel("palabraB");
+      const sin = a >= 0 && b < 0;
+      document.getElementById("palabraTurnoLbl").style.display = sin ? "" : "none";
+      const grid = document.getElementById("palabraTurno");
+      grid.style.display = sin ? "" : "none";
+      grid.innerHTML = "";
+      if (sin) {
+        const ca = oficialDe(a, palDi);
+        ALL_SHIFT_CODES.filter(c => BLOCK_CODES.indexOf(c) < 0 && c !== ca).forEach(code => {
+          const opt = document.createElement("div");
+          opt.className = "shift-option" + (code === palCode ? " selected" : "");
+          opt.textContent = code;
+          const bg = colorMap[code];
+          if (bg) { opt.style.background = bg; opt.style.color = fgFor(code, bg); }
+          opt.addEventListener("click", () => { palCode = code; renderPalabra(); });
+          grid.appendChild(opt);
+        });
+      }
+      const r = cambiosPalabra();
+      document.getElementById("palabraRes").innerHTML = r.cambios
+        ? '<div class="ped-info">' + r.txt.map(escH).join("<br>") + '</div><div class="ped-note info">Pasa a lo oficial y ' +
+          (r.b >= 0 ? "a los dos les" : "le") + " llega el aviso.</div>"
+        : '<div class="ped-note info">' + escH(r.msg) + "</div>";
+      document.getElementById("okPalabra").disabled = !r.cambios;
+    }
+    ["palabraA", "palabraB"].forEach(id => document.getElementById(id).addEventListener("change", () => { palCode = ""; renderPalabra(); }));
+    const cerrarPalabra = () => palabraOverlay.classList.remove("open");
+    document.getElementById("closePalabra").addEventListener("click", cerrarPalabra);
+    document.getElementById("cancelPalabra").addEventListener("click", cerrarPalabra);
+    palabraOverlay.addEventListener("click", e => { if (e.target === palabraOverlay) cerrarPalabra(); });
+    document.getElementById("okPalabra").addEventListener("click", () => registrarPalabra());
+    async function registrarPalabra() {
+      const r = cambiosPalabra(), di = palDi;
+      if (!r.cambios || !puedeAutorizar()) return;
+      if (!confirm("¿Pasar a lo oficial este cambio de palabra?\n\n" + fechaTxt(di) + "\n" + r.txt.join("\n") +
+        "\n\n" + (r.b >= 0 ? "A los dos les" : "Le") + " llega el aviso.")) return;
+      const A = people[r.a], B = r.b >= 0 ? people[r.b] : null;
+      const t = Date.now(), nom = nombreAutorizante(), adm = currentUser === "ADMIN";
+      const docId = "palabra_" + currentMes + "_" + A.id + "_" + (di + 1) + "_" + t;
+      const doc = B
+        ? { mes: currentMes, dia: di + 1, estado: "acordado", palabra: true, t, id: String(A.id), name: A.name, quiere: r.cb, ofrece: r.ca,
+            con: { id: String(B.id), name: B.name, tiene: r.cb, recibe: r.ca }, pasado: true }
+        : { mes: currentMes, dia: di + 1, estado: "autorizado", palabra: true, t, id: String(A.id), name: A.name, ofrece: r.ca, quiere: r.cambios[0].code,
+            descartados: [], por: { name: nom, id: String(miLegajo || "admin") } };
+      if (B && !adm) doc.pasadoPor = nom;
+      if (!B && adm) doc.por.adm = true;
+      // Si alguno tenía un pedido abierto para ese día, se cierra
+      const viejos = [A, B].filter(Boolean).map(x => pedDocId(currentMes, x.id, di)).filter(k => pedidosDocs[k]);
+      const choques = r.cambios.filter(c => { const pub = propCode(currentMes, c.id, c.di); return pub != null && pub !== c.code; });
+      cerrarPalabra();
+      pedidosDocs[docId] = doc;
+      const prevPed = {};
+      viejos.forEach(k => { prevPed[k] = pedidosDocs[k]; delete pedidosDocs[k]; });
+      refreshAfterEdit(); updatePedidosBar();
+      if (pedidosMode) renderBanco();
+      try {
+        await publicarCeldas(r.cambios, 3, tx => {
+          tx.set(fbDb.collection(PED_COLLECTION).doc(docId), doc);
+          viejos.forEach(k => tx.delete(fbDb.collection(PED_COLLECTION).doc(k)));
+        });
+        choques.forEach(c => descartarPropio(currentMes, c.id, c.di, true));
+        showShareToast("Listo: el cambio de palabra pasó a lo oficial.");
+      } catch (err) {
+        delete pedidosDocs[docId];
+        Object.keys(prevPed).forEach(k => { pedidosDocs[k] = prevPed[k]; });
+        refreshAfterEdit(); updatePedidosBar();
+        if (pedidosMode) renderBanco();
+        errDivision(err, "pasarlo a lo oficial");
+      }
+    }
     function textoAutorizado(a) {
       const p = a && a.por || {};
       return p.adm ? "Autorizado por el administrador" : "Autorizado por la División" + (p.name ? " — " + p.name : "");
@@ -4940,7 +5072,7 @@
         if (d.estado === "autorizado") {
           const f = fechaAviso(d.mes, d.dia);
           if (String(d.id) === yo) out.push({ k: "z:" + k, tipo: "z", t: d.t || 0,
-            txt: "✅ <b>" + escH(textoAutorizado(d)) + "</b>: tu pedido del " + f + (d.tipo === "franco"
+            txt: "✅ <b>" + escH(textoAutorizado(d)) + "</b>: tu " + (d.palabra ? "cambio de palabra" : "pedido") + " del " + f + (d.tipo === "franco"
               ? ". Ese día tenés franco y el " + d.dia2 + " trabajás " + escH(d.cubre) + "."
               : ". Pasás a " + escH(d.quiere) + ".") + " Ya está en la programación oficial." });
           else if (Array.isArray(d.descartados) && d.descartados.map(String).indexOf(yo) >= 0)
@@ -4961,6 +5093,12 @@
         if (!d.con) return;
         const soyPide = String(d.id) === yo, soyCon = String(d.con.id) === yo;
         const f = fechaAviso(d.mes, d.dia);
+        if (d.palabra) {
+          if (soyPide || soyCon) out.push({ k: "p:" + k, tipo: "p", t: d.t || 0,
+            txt: "✅ " + (d.pasadoPor ? "La División (" + escH(d.pasadoPor) + ")" : "El admin") + " cargó tu cambio de palabra del " + f +
+              " con <b>" + escH(soyPide ? d.con.name : d.name) + "</b>: pasás a " + escH(soyPide ? d.quiere : d.con.recibe) + ". Ya está en la programación oficial." });
+          return;
+        }
         if (soyCon) out.push({ k: "c:" + k, tipo: "c", t: d.t || 0,
           txt: "<b>" + d.name + "</b> confirmó el cambio" + (d.tipo === "franco"
             ? " de franco: el " + f + " trabajás " + d.ofrece + " y el " + d.dia2 + " tenés franco."
@@ -5004,7 +5142,7 @@
           const per = fb.people.find(q => String(q.id) === id);
           const c = per && Array.isArray(per.codes) ? String(per.codes[di] || "") : "";
           out.push({ k: "dv:" + mes + ":" + key + ":" + (x.t || 0), tipo: "d", t: x.t || 0,
-            txt: "<b>" + escH(x.n) + "</b> (División) " + (x.a === 2 ? "pasó a lo oficial un cambio acordado" : x.a ? "autorizó un pedido" : "publicó un cambio") + ": " +
+            txt: "<b>" + escH(x.n) + "</b> (División) " + (x.a === 3 ? "cargó un cambio de palabra" : x.a === 2 ? "pasó a lo oficial un cambio acordado" : x.a ? "autorizó un pedido" : "publicó un cambio") + ": " +
               escH(per ? per.name : id) + " el " + fechaAviso(mes, di + 1) + " pasa a " + (escH(c) || "vacío") + "." });
         });
       });
@@ -5494,7 +5632,7 @@
         if (a.estado === "autorizado") {
           row.className = "acu-row done";
           row.innerHTML = '<div class="acu-top"><span>' + (DAY_LABELS[di] ? fechaTxt(di) : a.dia) + '</span></div>' +
-            '<div style="color:#5b21b6;font-weight:700">' + escH(textoAutorizado(a)) + ' · sin contraparte</div>' +
+            '<div style="color:#5b21b6;font-weight:700">' + escH(textoAutorizado(a)) + ' · sin contraparte' + (a.palabra ? ' · de palabra' : '') + '</div>' +
             (a.tipo === "franco"
               ? '<div>' + escH(a.name) + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' → ' + a.cubre + '</div>'
               : '<div>' + escH(a.name) + ': ' + a.ofrece + ' → ' + a.quiere + '</div>');
@@ -5521,7 +5659,8 @@
               '<div>' + a.con.name + ': ' + a.dia + ' F → ' + a.ofrece + ' · ' + a.dia2 + ' ' + a.cubre + ' → F</div>'
             : '<div>' + a.name + ': ' + a.ofrece + ' → ' + a.quiere + '</div>' +
               '<div>' + a.con.name + ': ' + a.con.tiene + ' → ' + a.con.recibe + '</div>') +
-          (a.pasadoPor ? '<div style="font-size:0.72rem;color:#5b21b6">Lo pasó a lo oficial ' + escH(a.pasadoPor) + ' (División)</div>' : '');
+          (a.pasadoPor ? '<div style="font-size:0.72rem;color:#5b21b6">' + (a.palabra ? "De palabra · lo cargó " : "Lo pasó a lo oficial ") + escH(a.pasadoPor) + ' (División)</div>'
+            : a.palabra ? '<div style="font-size:0.72rem;color:#5b21b6">De palabra · lo cargó el admin</div>' : '');
         // La División: un solo botón, que lo pasa a lo oficial de verdad
         if (currentUser !== "ADMIN") {
           const bo = document.createElement("button");

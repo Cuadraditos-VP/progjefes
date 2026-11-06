@@ -571,7 +571,7 @@ function chequear(nombre, cond, detalle) {
       // El admin lo hace División desde Celulares
       await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
         const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
-        row.querySelector(".cel-div button").click(); document.getElementById("closeCelulares").click(); }, idD);
+        row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2500);
       chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
       chequear("ese celular pasa a ser División (⬆ Publicar y Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, pub: true, acu: true }), await esDiv(D));
@@ -634,7 +634,7 @@ function chequear(nombre, cond, detalle) {
       // El admin le saca la División
       await AD.evaluate(id => { document.getElementById("btnCelulares").click();
         const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
-        row.querySelector(".cel-div button").click(); document.getElementById("closeCelulares").click(); }, idD);
+        row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2000);
       chequear("al sacarle la División deja de serlo", !(await esDiv(D)).div && !(be.st[DIVC] || {})[idD]);
       await D.close();

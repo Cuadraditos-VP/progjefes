@@ -662,6 +662,16 @@ function chequear(nombre, cond, detalle) {
       await D.close();
     }
 
+    if (html.includes("function codigosIniciales")) {
+      console.log("\nHoras extras programadas: salen de la inicial (no de lo publicado)");
+      const docT = (be.st[TURNOS] || {})[s.mes];
+      const filaIni = docT.inicial.find(p => String(p.id) === s.idb), filaOfi = docT.people.find(p => String(p.id) === s.idb);
+      const dIni = filaIni.codes.findIndex((c, i) => c !== filaOfi.codes[i]);
+      const r = await C.evaluate(([id, di]) => ({ ini: codesInMonth(currentMes, id, "inicial")[di], ofi: codesInMonth(currentMes, id, "oficial")[di] }), [s.idb, dIni]);
+      chequear("lo publicado cambia lo oficial pero no lo programado (inicial)", dIni >= 0 && r.ini === filaIni.codes[dIni] && r.ofi === filaOfi.codes[dIni] && r.ini !== r.ofi, { dIni, r });
+      chequear("el resumen del almanaque usa la inicial", /overtimePeriod\(id, "inicial"\)/.test(html));
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

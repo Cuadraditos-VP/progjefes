@@ -801,6 +801,18 @@
       font-weight: 700; cursor: pointer;
     }
     body:not(.is-admin) .admin-only { display: none !important; }
+    /* División: rol intermedio (autoriza pedidos, pasa acordados a lo oficial y publica turnos) */
+    body:not(.is-division) .division-only { display: none !important; }
+    body.is-division:not(.is-admin) #btnAcuerdos.admin-only { display: inline-block !important; }
+    .div-pub-btn { background: #7c3aed; white-space: nowrap; }
+    .div-pub-btn.pending { background: #dc2626; }
+    .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
+    .ped-div { margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px solid #c4b5fd; background: #f5f3ff; }
+    .ped-div .ped-lbl { margin-top: 0; color: #5b21b6; }
+    .ped-div .ped-act { width: 100%; margin-top: 6px; background: #7c3aed; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .bd-card.autorizado .bd-tag { background: #7c3aed; color: #fff; }
+    .cel-div { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #5b21b6; }
+    .cel-div .ped-act.on { background: #7c3aed; }
     /* Las herramientas del admin van en una ventana (botón ☰), en el celular y en la PC. */
     .adm-menu-btn { display: none; font-size: 0.95rem; padding: 4px 10px; }
     body.is-admin .adm-menu-btn { display: inline-flex; align-items: center; }
@@ -1480,7 +1492,8 @@
     .aviso-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 9px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.85rem; color: #1e293b; line-height: 1.4; }
     .aviso-row.aviso-r { border-color: #fdba74; background: #fff7ed; }
     .aviso-row.aviso-x { border-color: #fca5a5; background: #fef2f2; }
-    .aviso-row.aviso-c, .aviso-row.aviso-p { border-color: #86efac; background: #f0fdf4; }
+    .aviso-row.aviso-c, .aviso-row.aviso-p, .aviso-row.aviso-z { border-color: #86efac; background: #f0fdf4; }
+    .aviso-row.aviso-d { border-color: #c4b5fd; background: #f5f3ff; }
     .ped-lbl { margin: 12px 0 6px; font-size: 0.75rem; font-weight: 700; color: #334155; }
     #yoList { display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 8px; }
     #yoList button { text-align: left; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 9px 10px; font-size: 0.85rem; font-weight: 600; color: #1e293b; cursor: pointer; }
@@ -1541,6 +1554,7 @@
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
+        <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos que cambiaste">⬆ Publicar</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <button type="button" id="btnAdminMenu" class="json-btn admin-only adm-menu-btn" title="Herramientas de admin" aria-label="Herramientas de admin">☰</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
@@ -1971,6 +1985,10 @@
     try { miLegajo = localStorage.getItem("jefYo") || ""; } catch (e) {}
     // Los externos fijos de antes ("ext-...") ahora entran con invitación
     if (/^ext-/.test(miLegajo)) { miLegajo = ""; try { localStorage.removeItem("jefYo"); } catch (e) {} }
+    // División (ver "DIVISIÓN" más abajo)
+    const DIV_COLLECTION = "division_jefes";
+    let divisionDoc = null, divUnsub = null, divLeg = "", divListUnsub = null;
+    const divisionDocs = {};   // (admin) legajo / inv-código -> datos
     let PED_REF = {};         // PED_REF["pi:di"] = día (0-based) del pedido de franco que ofrece ese día
     let selectedDay = null; // índice de día (0-based) o null = mes completo
     let daySortByShift = false;
@@ -2783,6 +2801,7 @@
       startTurnos();
       startPedidos();
       startPropios();
+      startDivision();
     }
     // Si Firebase no deja leer (todavía no terminó el registro), se reintenta más tarde
     function errProtegido(nombre, reset) {
@@ -2863,6 +2882,7 @@
         codigos: Array.isArray(data.codigos) && data.codigos.length ? data.codigos : ALL_SHIFT_CODES.slice(),
         colores: data.colores || Object.assign({}, colorMap),
         changedAt: (prev && prev.changedAt) || {},
+        publicadoPor: (prev && prev.publicadoPor) || {},
         people: lista.map(p => ({ id: p.id, name: p.name, codes: p.codes })),
         // La "inicial" del mes es la primera versión publicada: no se pisa al volver a subirlo
         inicial: prev && Array.isArray(prev.inicial) && prev.inicial.length ? prev.inicial
@@ -2927,6 +2947,7 @@
         setAdminUI();
         updatePublishBtn();
         if (isAdmin) { startCjListener(); startCelularesListener(); } else { stopCjListener(); stopCelularesListener(); }
+        if (isAdmin) stopDivision(); else setDivisionUI();
         if (u) startYoSync(u);
         if (u) startProtegidos();
         if (u) propTrasAuth();
@@ -3151,6 +3172,7 @@
           codigos: Array.isArray(prev.codigos) && prev.codigos.length ? prev.codigos : ALL_SHIFT_CODES.slice(),
           colores: prev.colores || Object.assign({}, colorMap),
           changedAt,
+          publicadoPor: publicadoPorSin(prev, [key]),
           people: people.map((x, i) => ({ id: x.id, name: x.name, codes: tp.codes[i] })),
           inicial: people.map((x, i) => ({ id: x.id, name: x.name, codes: (INITIAL_CODES[i] || x.codes).slice() }))
         });
@@ -3200,6 +3222,7 @@
       return Object.keys(colorOverrides).length + turnos;
     }
     function updatePublishBtn() {
+      updateDivPublishBtn();
       const btn = document.getElementById("btnPublish");
       if (!btn || btn.disabled) return;
       const n = pendingCount();
@@ -3232,6 +3255,7 @@
         codigos: ALL_SHIFT_CODES.slice(),
         colores: Object.assign({}, colorMap),
         changedAt: Object.assign({}, (loadFbCache(currentMes) || {}).changedAt || {}),
+        publicadoPor: publicadoPorSin(loadFbCache(currentMes), tp.cambiados),
         people: people.map((p, i) => ({ id: p.id, name: p.name, codes: tp.codes[i] })),
         inicial: people.map((p, i) => ({ id: p.id, name: p.name, codes: (INITIAL_CODES[i] || p.codes).slice() }))
       };
@@ -3252,6 +3276,123 @@
         alert(err && err.code === "permission-denied"
           ? "Firebase rechazó la publicación: esta cuenta no tiene permiso (revisá las reglas)."
           : "No se pudo publicar. Revisá la conexión y probá de nuevo.");
+      }
+    });
+
+
+    // ========== DIVISIÓN (rol intermedio entre el admin y los usuarios) ==========
+    // El admin marca en Celulares quién es "la División" (division_jefes/{legajo o inv-código}).
+    // La División puede: autorizar pedidos de cambio sin contraparte (pasan a lo oficial y al
+    // que pidió le llega "Autorizado por la División"), pasar los acordados a lo oficial y
+    // publicar cambios de turnos de cualquiera con su botón ⬆ Publicar.
+    // Lo que publica solo cambia esas celdas (sobre lo último de Firebase) y queda anotado en
+    // publicadoPor["legajo:día"] = { n: nombre, t: cuándo, a: 1 si fue una autorización }.
+    function soyDivision() { return !!divisionDoc && currentUser !== "ADMIN"; }
+    function puedeAutorizar() { return soyDivision() || currentUser === "ADMIN"; }
+    function nombreAutorizante() {
+      if (currentUser === "ADMIN") return "el administrador";
+      const me = miPersona();
+      if (me) return me.p.name;
+      return (divisionDoc && divisionDoc.name) || (soyExterno() ? externoDe(miLegajo).name : "la División");
+    }
+    function startDivision() {
+      if (!fbReady || currentUser === "ADMIN" || !miLegajo || !habilitado()) { stopDivision(); return; }
+      if (divUnsub && divLeg === String(miLegajo)) return;
+      stopDivision();
+      divLeg = String(miLegajo);
+      divUnsub = fbDb.collection(DIV_COLLECTION).doc(divLeg).onSnapshot(d => {
+        divisionDoc = d.exists ? d.data() : null;
+        setDivisionUI();
+      }, err => { console.warn("División:", err); divUnsub = null; });
+    }
+    function stopDivision() {
+      if (divUnsub) { divUnsub(); divUnsub = null; }
+      divLeg = "";
+      if (divisionDoc) { divisionDoc = null; setDivisionUI(); }
+    }
+    function setDivisionUI() {
+      document.body.classList.toggle("is-division", soyDivision());
+      updateDivPublishBtn();
+      updatePedidosBar();
+      if (pedidosMode) renderBanco();
+    }
+    // Lo que el admin ya tenía anotado de quién publicó cada celda, sin las que publica ahora
+    function publicadoPorSin(prev, keys) {
+      const pp = Object.assign({}, (prev && prev.publicadoPor) || {});
+      (keys || []).forEach(k => { delete pp[k]; });
+      return pp;
+    }
+    // Cambia en lo oficial solo esas celdas ({ id, di, code }), leyendo lo último de Firebase
+    // (así no pisa lo que haya publicado otro mientras tanto). "extra" suma más cosas a la misma operación.
+    function publicarCeldas(cambios, aut, extra) {
+      const ref = fbDb.collection(TURNOS_COLLECTION).doc(currentMes);
+      const version = Date.now();
+      const por = { n: nombreAutorizante(), t: version };
+      if (aut) por.a = 1;
+      if (currentUser === "ADMIN") por.adm = 1;
+      return fbDb.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        const d = snap.exists ? snap.data() : null;
+        if (!d || !Array.isArray(d.people)) { const e = new Error("sin-mes"); e.code = "sin-mes"; throw e; }
+        const ppl = JSON.parse(JSON.stringify(d.people));
+        const changedAt = Object.assign({}, d.changedAt || {});
+        const publicadoPor = Object.assign({}, d.publicadoPor || {});
+        cambios.forEach(c => {
+          const p = ppl.find(x => String(x.id) === String(c.id));
+          if (!p) return;
+          if (!Array.isArray(p.codes)) p.codes = String(p.codes || "").split(/\s+/);
+          while (p.codes.length <= c.di) p.codes.push("");
+          p.codes[c.di] = c.code || "";
+          const k = c.id + ":" + c.di;
+          changedAt[k] = version;
+          publicadoPor[k] = por;
+        });
+        tx.update(ref, { people: ppl, changedAt, publicadoPor, version });
+        if (extra) extra(tx);
+      });
+    }
+    function errDivision(err, que) {
+      showShareToast(err && err.code === "permission-denied"
+        ? "Firebase no dejó " + que + " (faltan las reglas de la División)."
+        : "No se pudo " + que + ". Revisá la conexión y probá de nuevo.");
+    }
+    // Botón ⬆ Publicar de la División: los turnos que cambió en su celular (en cualquier fila) pasan a lo oficial
+    function updateDivPublishBtn() {
+      const b = document.getElementById("btnPublicarDiv");
+      if (!b || b.disabled) return;
+      const n = soyDivision() && FB_MESES[currentMes] ? turnosAPublicar().cambiados.length : 0;
+      // Con cambios queda corto ("⬆ 2"), como el ☰ del admin, para no apretar la barra
+      b.textContent = n ? "⬆ " + n : "⬆ Publicar";
+      b.title = n ? "División: publicar para todos " + (n === 1 ? "1 turno cambiado" : n + " turnos cambiados") : "División: publicar para todos los turnos que cambiaste";
+      b.classList.toggle("pending", n > 0);
+    }
+    document.getElementById("btnPublicarDiv").addEventListener("click", async () => {
+      if (!soyDivision() || !fbReady || !FB_MESES[currentMes]) return;
+      const tp = turnosAPublicar();
+      if (!tp.cambiados.length) {
+        showShareToast("No cambiaste turnos. Tocá las celdas, cambialas y después tocá ⬆ Publicar.");
+        return;
+      }
+      const cambios = tp.cambiados.map(k => {
+        const cut = k.lastIndexOf(":"), id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+        const pi = people.findIndex(p => String(p.id) === id);
+        return { id, di, pi, code: (tp.codes[pi] || [])[di] || "", antes: (ORIGINAL_CODES[pi] || [])[di] || "" };
+      }).filter(c => c.pi >= 0).sort((a, b) => a.pi - b.pi || a.di - b.di);
+      const lineas = cambios.map(c => "• " + people[c.pi].name + " el " + (c.di + 1) + ": " + (c.antes || "vacío") + " → " + (c.code || "vacío"));
+      const choques = choquesConPropios(tp);
+      if (!confirm("¿Publicar para todos?\n\n" + (lineas.length > 15 ? lineas.slice(0, 15).concat("… y " + (lineas.length - 15) + " más") : lineas).join("\n") +
+        "\n\nPasan a la programación oficial." + textoChoques(choques))) return;
+      const b = document.getElementById("btnPublicarDiv");
+      b.disabled = true; b.textContent = "Publicando…";
+      try {
+        await publicarCeldas(cambios, false);
+        choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
+        b.disabled = false; b.textContent = "✓ Publicado"; b.classList.remove("pending");
+        setTimeout(updateDivPublishBtn, 2000);
+        showShareToast("Listo: " + (cambios.length === 1 ? "1 turno pasó" : cambios.length + " turnos pasaron") + " a lo oficial.");
+      } catch (err) {
+        b.disabled = false; updateDivPublishBtn();
+        errDivision(err, "publicar");
       }
     });
 
@@ -3891,8 +4032,10 @@
     function pedDocId(mes, id, di) { return mes + "_" + id + "_" + (di + 1); }
     function pedidoDe(id, di) {
       const d = pedidosDocs[pedDocId(currentMes, id, di)];
-      return d && d.quiere && d.estado !== "acordado" && !pedidoVencido(d) ? d : null;
+      return d && d.quiere && !cerrado(d) && !pedidoVencido(d) ? d : null;
     }
+    // Acordado entre dos, o autorizado por la División sin contraparte
+    function cerrado(d) { return !!d && (d.estado === "acordado" || d.estado === "autorizado"); }
     // Hoy (las pruebas lo pueden fijar con window.__HOY)
     function hoyFecha() { return window.__HOY ? new Date(window.__HOY) : new Date(); }
     // Un pedido sin acordar desaparece cuando ya pasó su día (los acordados quedan)
@@ -4030,7 +4173,7 @@
     function updatePedidosBar() {
       actualizarMiBoton();
       const me = miPersona();
-      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && d.estado !== "acordado" && !pedidoVencido(d)).length;
+      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && !cerrado(d) && !pedidoVencido(d)).length;
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
       document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
       document.getElementById("pedidosLabel").textContent = !veCambiosAjenos()
@@ -4124,8 +4267,9 @@
     function acordadosDelDia(di) {
       if (!miLegajo) return [];
       const yo = String(miLegajo);
-      return Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && a.mes === currentMes && a.con &&
-        (String(a.id) === yo || String(a.con.id) === yo) &&
+      return Object.values(pedidosDocs).filter(a => a && a.mes === currentMes &&
+        ((a.estado === "acordado" && a.con && (String(a.id) === yo || String(a.con.id) === yo)) ||
+         (a.estado === "autorizado" && String(a.id) === yo)) &&
         (Number(a.dia) === di + 1 || (a.tipo === "franco" && Number(a.dia2) === di + 1)));
     }
     function renderBanco() {
@@ -4211,6 +4355,11 @@
           '</span><span class="bd-ir">›</span></button>';
       });
       acordadosDelDia(di).forEach(a => {
+        if (a.estado === "autorizado") {
+          html += '<div class="bd-card acordado autorizado"><span class="bd-quien"><div class="bd-l1"><span class="bd-nom">' + escH(textoAutorizado(a)) +
+            '</span><span class="bd-tag">✓</span></div><div class="bd-que">Ya está en la programación oficial</div></span></div>';
+          return;
+        }
         const yoPide = String(a.id) === String(miLegajo);
         const otro = yoPide ? a.con.name : a.name;
         html += '<div class="bd-card acordado"><span class="bd-quien"><div class="bd-l1"><span class="bd-nom">Acordado con ' + escH(otro) + "</span></div>" +
@@ -4652,9 +4801,87 @@
           if (yaResp && yaResp.dia) body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve el franco del ' + yaResp.dia + '. Falta que ' + p.name + ' confirme.</div>');
         }
       }
+      // División (o admin): puede autorizarlo sin que haya otro que cambie
+      if (puedeAutorizar()) agregarAutorizar(body, pi, di, ped);
       acts.style.display = "flex";
       document.getElementById("quitarPedido").style.display = "none";
       pedidoOverlay.classList.add("open");
+    }
+    // ---- División: autorizar un pedido sin contraparte ----
+    // Opciones: cada turno que acepta (o todos si acepta "cualquiera") y, si ofrece francos,
+    // franco ese día a cambio de trabajar su turno en el franco que ofrece.
+    function opcionesAutorizar(ped, pi, di) {
+      const da = String(ped.ofrece || oficialDe(pi, di)).toUpperCase();
+      let ts = turnosDe(ped);
+      if (ts.indexOf("*") >= 0) ts = ALL_SHIFT_CODES.filter(c => BLOCK_CODES.indexOf(c) < 0 && trabaja(c));
+      const out = [];
+      ts.forEach(c => { if (c !== da && out.every(o => o.code !== c)) out.push({ code: c, cambios: [{ di, code: c }] }); });
+      if (esFranco(ped)) ped.francos.map(Number).forEach(n => {
+        if (n - 1 !== di && n >= 1 && n <= DAYS) out.push({ code: "F", dia2: n, cambios: [{ di, code: "F" }, { di: n - 1, code: da }] });
+      });
+      return out;
+    }
+    function agregarAutorizar(body, pi, di, ped) {
+      const ops = opcionesAutorizar(ped, pi, di);
+      if (!ops.length) return;
+      const da = String(ped.ofrece || oficialDe(pi, di)).toUpperCase();
+      const box = document.createElement("div");
+      box.className = "ped-div";
+      box.innerHTML = '<div class="ped-lbl">' + (soyDivision() ? "División" : "Admin") + ": autorizar sin contraparte</div>" +
+        '<div style="font-size:0.78rem;color:#4c1d95">Pasa a lo oficial y a ' + escH(people[pi].name) + " le llega el aviso.</div>";
+      ops.forEach(o => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ped-act";
+        b.innerHTML = o.dia2
+          ? "Autorizar " + pill("F") + " el " + (di + 1) + " · trabaja " + pill(da) + " el " + o.dia2
+          : "Autorizar " + pill(o.code);
+        b.addEventListener("click", () => autorizarPedido(pi, di, o));
+        box.appendChild(b);
+      });
+      body.appendChild(box);
+    }
+    function textoAutorizado(a) {
+      const p = a && a.por || {};
+      return p.adm ? "Autorizado por el administrador" : "Autorizado por la División" + (p.name ? " — " + p.name : "");
+    }
+    async function autorizarPedido(pi, di, o) {
+      const p = people[pi];
+      if (!p || !puedeAutorizar() || !FB_MESES[currentMes]) return;
+      const id = pedDocId(currentMes, p.id, di);
+      const d = pedidosDocs[id];
+      if (!d) return;
+      const da = String(d.ofrece || oficialDe(pi, di)).toUpperCase();
+      const cambios = o.cambios.map(c => ({ id: String(p.id), di: c.di, code: c.code }));
+      const lineas = cambios.map(c => "Día " + (c.di + 1) + ": " + (oficialDe(pi, c.di) || "vacío") + " → " + (c.code || "vacío"));
+      if (!confirm("¿Autorizar el pedido de " + p.name + "?\n\n" + lineas.join("\n") +
+        "\n\nPasa a la programación oficial y le llega el aviso: " + textoAutorizado({ por: { name: nombreAutorizante(), adm: currentUser === "ADMIN" } }) + ".")) return;
+      const t = Date.now();
+      const autId = "acuerdo_" + id + "_" + t;
+      const aut = { mes: currentMes, dia: di + 1, estado: "autorizado", t, id: String(p.id), name: p.name, ofrece: da, quiere: o.code,
+        descartados: Object.keys(d.respuestas || {}),
+        por: { name: nombreAutorizante(), id: String(miLegajo || "admin") } };
+      if (currentUser === "ADMIN") aut.por.adm = true;
+      if (o.dia2) { aut.tipo = "franco"; aut.dia2 = o.dia2; aut.cubre = da; }
+      // Si la persona había publicado otra cosa en esas celdas, se saca (manda lo autorizado)
+      const choques = cambios.filter(c => { const pub = propCode(currentMes, c.id, c.di); return pub != null && pub !== c.code; });
+      delete pedidosDocs[id];
+      pedidosDocs[autId] = aut;
+      closePedido();
+      refreshAfterEdit(); updatePedidosBar();
+      if (pedidosMode) renderBanco();
+      try {
+        await publicarCeldas(cambios, true, tx => {
+          tx.set(fbDb.collection(PED_COLLECTION).doc(autId), aut);
+          tx.delete(fbDb.collection(PED_COLLECTION).doc(id));
+        });
+        choques.forEach(c => descartarPropio(currentMes, c.id, c.di, true));
+        showShareToast("Autorizado: " + p.name + " el " + (di + 1) + ". Ya está en lo oficial.");
+      } catch (err) {
+        pedidosDocs[id] = d; delete pedidosDocs[autId];
+        refreshAfterEdit(); updatePedidosBar();
+        if (pedidosMode) renderBanco();
+        errDivision(err, "autorizar");
+      }
     }
     function errPed(err) {
       refreshAfterEdit();
@@ -4755,6 +4982,16 @@
       Object.keys(pedidosDocs).forEach(k => {
         const d = pedidosDocs[k];
         if (!d) return;
+        if (d.estado === "autorizado") {
+          const f = fechaAviso(d.mes, d.dia);
+          if (String(d.id) === yo) out.push({ k: "z:" + k, tipo: "z", t: d.t || 0,
+            txt: "✅ <b>" + escH(textoAutorizado(d)) + "</b>: tu pedido del " + f + (d.tipo === "franco"
+              ? ". Ese día tenés franco y el " + d.dia2 + " trabajás " + escH(d.cubre) + "."
+              : ". Pasás a " + escH(d.quiere) + ".") + " Ya está en la programación oficial." });
+          else if (Array.isArray(d.descartados) && d.descartados.map(String).indexOf(yo) >= 0)
+            out.push({ k: "o:" + k, tipo: "o", t: d.t || 0, txt: "El pedido de <b>" + escH(d.name) + "</b> del " + f + " lo resolvió la División (ya no hace falta tu cambio)." });
+          return;
+        }
         if (d.estado !== "acordado") {
           if (String(d.id) !== yo || !d.respuestas || pedidoVencido(d)) return;
           Object.values(d.respuestas).forEach(r => {
@@ -4774,7 +5011,7 @@
             ? " de franco: el " + f + " trabajás " + d.ofrece + " y el " + d.dia2 + " tenés franco."
             : " del " + f + ": pasás a " + d.con.recibe + ".") });
         if ((soyPide || soyCon) && d.pasado) out.push({ k: "p:" + k, tipo: "p", t: (d.t || 0) + 1,
-          txt: "El admin pasó a la programación oficial tu cambio del " + f + " con <b>" + (soyPide ? d.con.name : d.name) + "</b>." });
+          txt: (d.pasadoPor ? "La División (" + escH(d.pasadoPor) + ")" : "El admin") + " pasó a la programación oficial tu cambio del " + f + " con <b>" + (soyPide ? d.con.name : d.name) + "</b>." });
         if (!soyPide && !soyCon && Array.isArray(d.descartados) && d.descartados.map(String).indexOf(yo) >= 0)
           out.push({ k: "o:" + k, tipo: "o", t: d.t || 0, txt: "<b>" + d.name + "</b> cerró su pedido del " + f + " con otra persona." });
       });
@@ -4787,7 +5024,7 @@
           const ds = d.descartados[dk] || {}, di = Number(dk.slice(1));
           const ofi = p ? ((p.codes || [])[di] || "") : "";
           out.push({ k: "x:" + k + ":" + dk + ":" + (ds.t || 0), tipo: "x", t: ds.t || 0,
-            txt: "El admin descartó tu cambio del " + fechaAviso(d.mes, di + 1) + " (" + (ds.c || "vacío") + "). Vuelve a " + (ofi || "vacío") + "." });
+            txt: (ds.por ? "La División (" + escH(ds.por) + ")" : "El admin") + " descartó tu cambio del " + fechaAviso(d.mes, di + 1) + " (" + (ds.c || "vacío") + "). Vuelve a " + (ofi || "vacío") + "." });
         });
       });
       if (currentUser === "ADMIN") avisosAdmin().forEach(a => out.push(a));
@@ -4801,6 +5038,21 @@
     // Para el admin: alguien volvió a cambiar en su fila un turno que el admin había publicado
     function avisosAdmin() {
       const out = [];
+      AVAILABLE_MESES.forEach(mes => {
+        const fb = loadFbCache(mes);
+        const pp = fb && fb.publicadoPor;
+        if (!pp || !Array.isArray(fb.people)) return;
+        Object.keys(pp).forEach(key => {
+          const x = pp[key] || {};
+          if (x.adm || !x.n) return;
+          const cut = key.lastIndexOf(":"), id = key.slice(0, cut), di = Number(key.slice(cut + 1));
+          const per = fb.people.find(q => String(q.id) === id);
+          const c = per && Array.isArray(per.codes) ? String(per.codes[di] || "") : "";
+          out.push({ k: "dv:" + mes + ":" + key + ":" + (x.t || 0), tipo: "d", t: x.t || 0,
+            txt: "<b>" + escH(x.n) + "</b> (División) " + (x.a ? "autorizó un pedido" : "publicó un cambio") + ": " +
+              escH(per ? per.name : id) + " el " + fechaAviso(mes, di + 1) + " pasa a " + (escH(c) || "vacío") + "." });
+        });
+      });
       Object.keys(propDocs).forEach(k => {
         const d = propDocs[k];
         if (!d || !d.edits || !d.id || !d.mes) return;
@@ -5156,6 +5408,7 @@
       if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
       if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar." };
       if (soyExterno()) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
+      if (soyDivision()) return { cls: "priv", txt: "División: lo ven todos cuando toques ⬆ Publicar." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }
@@ -5169,7 +5422,7 @@
       descartarPropio(currentMes, p.id, di);
       return true;
     }
-    function descartarPropio(mes, id, di) {
+    function descartarPropio(mes, id, di, silencioso) {
       const docId = mes + "_" + id;
       const d = propDocs[docId];
       if (!d || !d.edits) return;
@@ -5178,14 +5431,17 @@
       const nd = JSON.parse(JSON.stringify(d));
       delete nd.edits[k];
       if (nd.t) delete nd.t[k];
-      nd.descartados = Object.assign({}, nd.descartados || {}, { [k]: { c, t: Date.now() } });
+      const ds = { c, t: Date.now() };
+      if (soyDivision()) ds.por = nombreAutorizante();
+      if (!silencioso) nd.descartados = Object.assign({}, nd.descartados || {}, { [k]: ds });
       propDocs[docId] = nd;
       resetPeopleFromOfficial();
       refreshAfterEdit();
       const FV = firebase.firestore.FieldValue;
-      fbDb.collection(PROP_COLLECTION).doc(docId).update({
-        ["edits." + k]: FV.delete(), ["t." + k]: FV.delete(), ["descartados." + k]: nd.descartados[k]
-      }).then(() => showShareToast("Cambio descartado. Se le avisa a " + (d.name || "la persona") + "."))
+      const upd = { ["edits." + k]: FV.delete(), ["t." + k]: FV.delete() };
+      if (!silencioso) upd["descartados." + k] = ds;
+      fbDb.collection(PROP_COLLECTION).doc(docId).update(upd)
+        .then(() => { if (!silencioso) showShareToast("Cambio descartado. Se le avisa a " + (d.name || "la persona") + "."); })
         .catch(err => {
           propDocs[docId] = d;
           resetPeopleFromOfficial();
@@ -5194,6 +5450,51 @@
             ? "Firebase no deja descartar (revisá las reglas de " + PROP_COLLECTION + ")."
             : "No se pudo descartar. Revisá la conexión.");
         });
+    }
+    // Las celdas que cambia un acuerdo (en las filas de los dos)
+    function cambiosDeAcuerdo(a) {
+      const di = Number(a.dia) - 1;
+      if (!(di >= 0 && di < DAYS) || !a.con) return null;
+      if (a.tipo === "franco") {
+        const d2 = Number(a.dia2) - 1;
+        if (!(d2 >= 0 && d2 < DAYS)) return null;
+        const nA = "Cambio de franco con " + a.con.name + " (" + (di + 1) + ": " + a.ofrece + "→F · " + (d2 + 1) + ": F→" + a.cubre + ")";
+        const nB = "Cambio de franco con " + a.name + " (" + (di + 1) + ": F→" + a.ofrece + " · " + (d2 + 1) + ": " + a.cubre + "→F)";
+        return [
+          { id: a.id, di, code: "F", nota: nA },
+          { id: a.id, di: d2, code: a.cubre, nota: nA },
+          { id: a.con.id, di, code: a.ofrece, nota: nB },
+          { id: a.con.id, di: d2, code: "F", nota: nB }
+        ];
+      }
+      return [
+        { id: a.id, di, code: a.quiere, nota: "Cambio con " + a.con.name + " (" + a.ofrece + " → " + a.quiere + ")" },
+        { id: a.con.id, di, code: a.con.recibe, nota: "Cambio con " + a.name + " (" + a.con.tiene + " → " + a.con.recibe + ")" }
+      ];
+    }
+    // División: pasa un acuerdo a lo oficial (las celdas de los dos) y lo marca como pasado
+    async function oficializarAcuerdo(k, a) {
+      const cambios = cambiosDeAcuerdo(a);
+      if (!cambios || !soyDivision() || !FB_MESES[currentMes]) return;
+      const lineas = cambios.map(c => {
+        const pi = people.findIndex(p => String(p.id) === String(c.id));
+        return "• " + (pi >= 0 ? people[pi].name : c.id) + " el " + (c.di + 1) + ": " + ((pi >= 0 && oficialDe(pi, c.di)) || "vacío") + " → " + (c.code || "vacío");
+      });
+      if (!confirm("¿Pasar este cambio a lo oficial?\n\n" + lineas.join("\n") + "\n\nLo ven todos y a los dos les llega un aviso.")) return;
+      const choques = cambios.filter(c => { const pub = propCode(currentMes, c.id, c.di); return pub != null && pub !== c.code; });
+      const nom = nombreAutorizante();
+      a.pasado = true; a.pasadoPor = nom;
+      renderAcuerdos(); updatePedidosBar();
+      try {
+        await publicarCeldas(cambios.map(c => ({ id: String(c.id), di: c.di, code: c.code })), false,
+          tx => tx.update(fbDb.collection(PED_COLLECTION).doc(k), { pasado: true, pasadoPor: nom }));
+        choques.forEach(c => descartarPropio(currentMes, String(c.id), c.di, true));
+        showShareToast("Listo: el cambio pasó a lo oficial.");
+      } catch (err) {
+        a.pasado = false; delete a.pasadoPor;
+        renderAcuerdos(); updatePedidosBar();
+        errDivision(err, "pasarlo a lo oficial");
+      }
     }
     // Carga en ESTE celular los acuerdos donde participa quien lo usa (una sola vez cada uno)
     function aplicarAcuerdos() {
@@ -5207,27 +5508,8 @@
         if (!soyYo) return;
         const flag = "jefAcu:" + k + ":" + miLegajo;
         try { if (localStorage.getItem(flag)) return; } catch (e) {}
-        const di = Number(a.dia) - 1;
-        if (!(di >= 0 && di < DAYS)) return;
-        // En el celular de cualquiera de los dos se cargan AMBAS filas
-        let cambios;
-        if (a.tipo === "franco") {
-          const d2 = Number(a.dia2) - 1;
-          if (!(d2 >= 0 && d2 < DAYS)) return;
-          const nA = "Cambio de franco con " + a.con.name + " (" + (di + 1) + ": " + a.ofrece + "→F · " + (d2 + 1) + ": F→" + a.cubre + ")";
-          const nB = "Cambio de franco con " + a.name + " (" + (di + 1) + ": F→" + a.ofrece + " · " + (d2 + 1) + ": " + a.cubre + "→F)";
-          cambios = [
-            { id: a.id, di, code: "F", nota: nA },
-            { id: a.id, di: d2, code: a.cubre, nota: nA },
-            { id: a.con.id, di, code: a.ofrece, nota: nB },
-            { id: a.con.id, di: d2, code: "F", nota: nB }
-          ];
-        } else {
-          cambios = [
-            { id: a.id, di, code: a.quiere, nota: "Cambio con " + a.con.name + " (" + a.ofrece + " → " + a.quiere + ")" },
-            { id: a.con.id, di, code: a.con.recibe, nota: "Cambio con " + a.name + " (" + a.con.tiene + " → " + a.con.recibe + ")" }
-          ];
-        }
+        const cambios = cambiosDeAcuerdo(a);
+        if (!cambios) return;
         cambios.forEach(x => {
           const di = x.di;
           if (String(x.id) !== String(miLegajo)) return; // la fila del otro la publica su celular
@@ -5248,20 +5530,55 @@
     function renderAcuerdos() {
       const list = document.getElementById("acuerdosList");
       const items = Object.keys(pedidosDocs).map(k => ({ k, a: pedidosDocs[k] }))
-        .filter(x => x.a && x.a.estado === "acordado" && x.a.mes === currentMes)
-        .sort((x, y) => (x.a.pasado ? 1 : 0) - (y.a.pasado ? 1 : 0) || x.a.dia - y.a.dia);
+        .filter(x => x.a && cerrado(x.a) && x.a.mes === currentMes)
+        .sort((x, y) => (x.a.pasado || x.a.estado === "autorizado" ? 1 : 0) - (y.a.pasado || y.a.estado === "autorizado" ? 1 : 0) || x.a.dia - y.a.dia);
       list.innerHTML = items.length ? "" : '<div class="ped-note info">No hay cambios acordados en ' + MES.nombre.toLowerCase() + '.</div>';
       items.forEach(({ k, a }) => {
         const row = document.createElement("div");
-        row.className = "acu-row" + (a.pasado ? " done" : "");
         const di = Number(a.dia) - 1;
+        // Autorizado por la División (sin contraparte): ya está en lo oficial
+        if (a.estado === "autorizado") {
+          row.className = "acu-row done";
+          row.innerHTML = '<div class="acu-top"><span>' + (DAY_LABELS[di] ? fechaTxt(di) : a.dia) + '</span></div>' +
+            '<div style="color:#5b21b6;font-weight:700">' + escH(textoAutorizado(a)) + ' · sin contraparte</div>' +
+            (a.tipo === "franco"
+              ? '<div>' + escH(a.name) + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' → ' + a.cubre + '</div>'
+              : '<div>' + escH(a.name) + ': ' + a.ofrece + ' → ' + a.quiere + '</div>');
+          if (currentUser === "ADMIN") {
+            const del = document.createElement("button");
+            del.type = "button"; del.className = "ped-act sec"; del.textContent = "Eliminar";
+            del.addEventListener("click", () => {
+              if (!confirm("¿Sacar este autorizado de la lista?\n\nLo que ya está en la programación oficial queda como está.")) return;
+              const prev = pedidosDocs[k];
+              delete pedidosDocs[k];
+              renderAcuerdos(); updatePedidosBar();
+              fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
+            });
+            row.querySelector(".acu-top").appendChild(del);
+          }
+          list.appendChild(row);
+          return;
+        }
+        row.className = "acu-row" + (a.pasado ? " done" : "");
         row.innerHTML = '<div class="acu-top"><span>' + (DAY_LABELS[di] ? fechaTxt(di) : a.dia) + '</span></div>' +
           (a.tipo === "franco"
             ? '<div>Cambio de franco · días ' + a.dia + ' y ' + a.dia2 + '</div>' +
               '<div>' + a.name + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' F → ' + a.cubre + '</div>' +
               '<div>' + a.con.name + ': ' + a.dia + ' F → ' + a.ofrece + ' · ' + a.dia2 + ' ' + a.cubre + ' → F</div>'
             : '<div>' + a.name + ': ' + a.ofrece + ' → ' + a.quiere + '</div>' +
-              '<div>' + a.con.name + ': ' + a.con.tiene + ' → ' + a.con.recibe + '</div>');
+              '<div>' + a.con.name + ': ' + a.con.tiene + ' → ' + a.con.recibe + '</div>') +
+          (a.pasadoPor ? '<div style="font-size:0.72rem;color:#5b21b6">Lo pasó a lo oficial ' + escH(a.pasadoPor) + ' (División)</div>' : '');
+        // La División: un solo botón, que lo pasa a lo oficial de verdad
+        if (currentUser !== "ADMIN") {
+          const bo = document.createElement("button");
+          bo.type = "button"; bo.className = "ped-act" + (a.pasado ? " sec" : "");
+          bo.textContent = a.pasado ? "En lo oficial ✓" : "Pasar a lo oficial";
+          bo.disabled = !!a.pasado || !soyDivision();
+          bo.addEventListener("click", () => oficializarAcuerdo(k, a));
+          row.querySelector(".acu-top").appendChild(bo);
+          list.appendChild(row);
+          return;
+        }
         const b = document.createElement("button");
         b.type = "button"; b.className = "ped-act" + (a.pasado ? " sec" : "");
         b.textContent = a.pasado ? "Pasado ✓" : "Ya lo pasé";
@@ -5473,6 +5790,7 @@
         borrarCopiaLocal("ctFb:");
         miLegajo = "";
         registroOk = false;
+        stopDivision();
         actualizarSinDatos();
         updatePedidosBar();
         resetPeopleFromOfficial();
@@ -5487,6 +5805,13 @@
     function startCelularesListener() {
       if (celUnsub || !fbReady) return;
       startInvitaciones();
+      if (!divListUnsub) divListUnsub = fbDb.collection(DIV_COLLECTION).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete divisionDocs[ch.doc.id];
+          else divisionDocs[ch.doc.id] = ch.doc.data();
+        });
+        if (celularesOverlay.classList.contains("open")) renderCelulares();
+      }, err => { console.warn("División:", err); divListUnsub = null; });
       celUnsub = fbDb.collection(YO_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete celularesDocs[ch.doc.id];
@@ -5498,6 +5823,8 @@
       }, err => console.warn("Celulares:", err));
     }
     function stopCelularesListener() {
+      if (divListUnsub) { divListUnsub(); divListUnsub = null; }
+      Object.keys(divisionDocs).forEach(k => delete divisionDocs[k]);
       if (invUnsub) { invUnsub(); invUnsub = null; }
       Object.keys(invitacionesDocs).forEach(k => delete invitacionesDocs[k]);
       if (celUnsub) { celUnsub(); celUnsub = null; }
@@ -5548,7 +5875,10 @@
           delete celularesDocs[k];
           renderCelulares(); updateCelularesBtn();
           // Se borra la reserva del legajo (si es de este celular) y el registro del celular
-          if (esInvitado(d.id)) fbDb.collection(INV_COLLECTION).doc(String(d.id).slice(INV_PREF.length)).delete().catch(() => {});
+          if (esInvitado(d.id)) {
+            fbDb.collection(INV_COLLECTION).doc(String(d.id).slice(INV_PREF.length)).delete().catch(() => {});
+            if (divisionDocs[String(d.id)]) fbDb.collection(DIV_COLLECTION).doc(String(d.id)).delete().catch(() => {});
+          }
           const legRef = fbDb.collection(LEG_COLLECTION).doc(String(d.id));
           legRef.get().then(x => { if (x.exists && x.data() && x.data().uid === k) return legRef.delete(); }).catch(() => {});
           fbDb.collection(YO_COLLECTION).doc(k).delete().catch(err => {
@@ -5559,8 +5889,36 @@
           });
         });
         row.querySelector(".acu-top").appendChild(b);
+        // División: el admin elige quién puede autorizar pedidos y publicar turnos
+        const esDiv = !!divisionDocs[String(d.id)];
+        const dv = document.createElement("div");
+        dv.className = "cel-div";
+        const bd = document.createElement("button");
+        bd.type = "button"; bd.className = "ped-act " + (esDiv ? "on" : "sec");
+        bd.textContent = esDiv ? "✓ División" : "Hacer División";
+        bd.addEventListener("click", () => toggleDivision(d, esDiv));
+        dv.appendChild(bd);
+        if (esDiv) dv.appendChild(document.createTextNode("Autoriza pedidos y publica turnos"));
+        row.appendChild(dv);
         list.appendChild(row);
       });
+    }
+    function toggleDivision(d, esDiv) {
+      const id = String(d.id);
+      if (esDiv) {
+        if (!confirm("¿Sacar a " + d.name + " de la División?")) return;
+        const prev = divisionDocs[id];
+        delete divisionDocs[id]; renderCelulares();
+        fbDb.collection(DIV_COLLECTION).doc(id).delete().catch(err => { divisionDocs[id] = prev; renderCelulares(); errDivision(err, "guardar"); });
+        return;
+      }
+      if (!confirm("¿Hacer a " + d.name + " parte de la División?\n\nVa a poder:\n" +
+        "• autorizar pedidos de cambio aunque no haya contraparte\n• pasar los cambios acordados a lo oficial\n" +
+        "• cambiar y publicar turnos de cualquiera\n\nNo puede tocar Celulares, invitaciones, colores ni subir meses.")) return;
+      const per = people.find(p => String(p.id) === id);
+      const data = { name: String((per && per.name) || (esInvitado(id) && (invitacionesDocs[id.slice(INV_PREF.length)] || {}).name) || d.name || id), t: Date.now() };
+      divisionDocs[id] = data; renderCelulares();
+      fbDb.collection(DIV_COLLECTION).doc(id).set(data).catch(err => { delete divisionDocs[id]; renderCelulares(); errDivision(err, "guardar"); });
     }
     document.getElementById("btnCelulares").addEventListener("click", () => {
       // Se marcan como "nuevo" en la lista y desde ahora dejan de contarse en el botón

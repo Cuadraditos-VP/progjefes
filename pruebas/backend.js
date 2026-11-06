@@ -35,10 +35,15 @@ module.exports = function crearBackend(app, turnosColl) {
     }
     return false;
   }
+  // ¿Es de la División? (registrado y su legajo o invitación está en division_<app>)
+  function esDivision(uid) {
+    const yo = (st["yo_" + app] || {})[uid];
+    return registrado(uid) && !!(st["division_" + app] || {})[yo.id];
+  }
   function puedeLeer(coll, id, uid, email) {
     if (email === ADMIN) return true;
     if (coll === "padron_" + app) return id != null;  // de a un legajo, nunca la lista
-    if (coll === turnosColl || coll === "pedidos_" + app || coll === "propios_" + app) return registrado(uid);
+    if (coll === turnosColl || coll === "pedidos_" + app || coll === "propios_" + app || coll === "division_" + app) return registrado(uid);
     return true;
   }
   const pages = new Set();
@@ -50,8 +55,20 @@ module.exports = function crearBackend(app, turnosColl) {
       if (w.email === ADMIN) return true;
       return w.op === "update" && !!prev && !prev.uid && !!next && next.uid === w.uid;
     }
+    // division_<app>: la arma solo el admin
+    if (w.coll === "division_" + app) return w.email === ADMIN;
+    // Turnos oficiales: el admin todo; la División solo cambia turnos (misma gente), sin tocar lo demás
+    if (w.coll === turnosColl) {
+      if (w.email === ADMIN) return true;
+      if (!esDivision(w.uid) || w.op !== "update" || !prev || !next) return false;
+      const keys = new Set(Object.keys(prev).concat(Object.keys(next)));
+      const toca = [...keys].filter(k => JSON.stringify(prev[k]) !== JSON.stringify(next[k]));
+      return toca.every(k => ["people", "changedAt", "publicadoPor", "version"].includes(k)) &&
+        Array.isArray(next.people) && next.people.length === (prev.people || []).length;
+    }
     if (w.coll !== "propios_" + app) return true;
     if (w.email === ADMIN) return true;
+    if (esDivision(w.uid) && w.op === "update") return true;
     if (w.op === "delete" || !next) return false;
     const leg = (st["legajos_" + app] || {})[next.id];
     return next.uid === w.uid && leg && leg.uid === w.uid && w.id === next.mes + "_" + next.id;

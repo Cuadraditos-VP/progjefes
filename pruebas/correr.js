@@ -555,7 +555,7 @@ function chequear(nombre, cond, detalle) {
     }
 
     if (html.includes("function autorizarPedido")) {
-      console.log("\nDivisión: autoriza pedidos, pasa acordados a lo oficial y publica turnos");
+      console.log("\nDivisión: autoriza pedidos, pasa acordados a lo oficial y carga cambios de palabra");
       const DIVC = "division_" + APP;
       const idD = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre, libre2, DE_PRUEBA[14]].includes(id));
       const D = await cel("uDv", idD);
@@ -624,10 +624,34 @@ function chequear(nombre, cond, detalle) {
       chequear("la División no tiene botón para publicar", !(await D.evaluate(() => [...document.querySelectorAll("header button")].some(b => b.offsetParent && /Publicar|⬆/.test(b.textContent)))));
       chequear("lo que cambia en una fila ajena lo ve solo ella", (await D.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7 &&
         codDe(s.idc, d7) === ofi7 && (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) !== nuevo7, codDe(s.idc, d7));
+      // Cambio de palabra: con contraparte (A y C intercambian) y sin contraparte (C pasa a otro turno)
+      const d8 = (s.d + 17) % 28, d9 = (s.d + 19) % 28;
+      const antes8 = [codDe(s.ida, d8), codDe(s.idc, d8)];
+      const pal1 = await D.evaluate(([s, d8]) => { setPedidosMode(true); bancoDiaSel = d8; renderBancoDia();
+        const b = document.getElementById("bancoPalabra"); if (!b) return "sin botón"; b.click();
+        const sa = document.getElementById("palabraA"), sb = document.getElementById("palabraB");
+        sa.value = String(s.a); sa.dispatchEvent(new Event("change")); sb.value = String(s.c); sb.dispatchEvent(new Event("change"));
+        const r = document.getElementById("palabraRes").innerText; document.getElementById("okPalabra").click(); return r; }, [s, d8]);
+      await wait(3000);
+      chequear("la División carga un cambio de palabra entre dos (intercambian el turno)", antes8[0] !== antes8[1] ?
+        codDe(s.ida, d8) === antes8[1] && codDe(s.idc, d8) === antes8[0] : true, { pal1, antes8, despues: [codDe(s.ida, d8), codDe(s.idc, d8)] });
+      const antes9 = codDe(s.idc, d9);
+      const quiere9 = ["MD", "M", "N"].find(c => c !== antes9);
+      await D.evaluate(([s, d9, q]) => { bancoDiaSel = d9; renderBancoDia(); document.getElementById("bancoPalabra").click();
+        const sa = document.getElementById("palabraA"); sa.value = String(s.c); sa.dispatchEvent(new Event("change"));
+        [...document.querySelectorAll("#palabraTurno .shift-option")].find(o => o.textContent === q).click();
+        document.getElementById("okPalabra").click(); setPedidosMode(false); }, [s, d9, quiere9]);
+      await wait(3000);
+      chequear("y uno sin contraparte (pasa al turno elegido)", codDe(s.idc, d9) === quiere9, codDe(s.idc, d9));
+      const avPal = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
+      chequear("a C le llegan los dos avisos de palabra", /cargó tu cambio de palabra/.test(avPal) && /tu cambio de palabra/.test(avPal.replace(/cargó tu cambio de palabra/, "")), avPal);
+      await C.evaluate(() => cerrarAvisos());
+      const cB = await B.evaluate(() => { const ov = document.getElementById("bancoPalabra"); return !!ov; });
+      chequear("un común no tiene \"Cambio de palabra\"", !cB && !(await B.evaluate(d => { setPedidosMode(true); bancoDiaSel = d; renderBancoDia(); const r = !!document.getElementById("bancoPalabra"); setPedidosMode(false); return r; }, d8)));
       const docM = (be.st[TURNOS] || {})[s.mes];
       chequear("la División no toca nada más del mes (gente, inicial)", docM.people.length === M0.people.length && Array.isArray(docM.inicial) && docM.inicial.length === M0.people.length);
       const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
-      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && !/\(División\) publicó/.test(avAdD), avAdD);
+      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && /\(División\) cargó un cambio de palabra/.test(avAdD) && !/\(División\) publicó/.test(avAdD), avAdD);
       await AD.evaluate(() => cerrarAvisos());
       // El admin le saca la División
       await AD.evaluate(id => { document.getElementById("btnCelulares").click();

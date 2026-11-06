@@ -811,8 +811,8 @@
     .ped-div .ped-lbl { margin-top: 0; color: #5b21b6; }
     .ped-div .ped-act { width: 100%; margin-top: 6px; background: #7c3aed; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .bd-card.autorizado .bd-tag { background: #7c3aed; color: #fff; }
-    .cel-div { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #5b21b6; }
-    .cel-div .ped-act.on { background: #7c3aed; }
+    .ped-act.btn-div { background: #e2e8f0; padding: 6px 9px; font-size: 0.95rem; line-height: 1; filter: grayscale(1); opacity: 0.55; }
+    .ped-act.btn-div.on { background: #7c3aed; filter: none; opacity: 1; }
     /* Las herramientas del admin van en una ventana (botón ☰), en el celular y en la PC. */
     .adm-menu-btn { display: none; font-size: 0.95rem; padding: 4px 10px; }
     body.is-admin .adm-menu-btn { display: inline-flex; align-items: center; }
@@ -5888,18 +5888,18 @@
               : "No se pudo liberar. Revisá la conexión.");
           });
         });
-        row.querySelector(".acu-top").appendChild(b);
-        // División: el admin elige quién puede autorizar pedidos y publicar turnos
+        // División: coronita al lado de Liberar (violeta = es División)
         const esDiv = !!divisionDocs[String(d.id)];
-        const dv = document.createElement("div");
-        dv.className = "cel-div";
         const bd = document.createElement("button");
-        bd.type = "button"; bd.className = "ped-act " + (esDiv ? "on" : "sec");
-        bd.textContent = esDiv ? "✓ División" : "Hacer División";
+        bd.type = "button"; bd.className = "ped-act btn-div" + (esDiv ? " on" : "");
+        bd.textContent = "👑";
+        bd.title = esDiv ? "Es División (tocá para sacarla)" : "Hacer División";
+        bd.setAttribute("aria-label", bd.title);
         bd.addEventListener("click", () => toggleDivision(d, esDiv));
-        dv.appendChild(bd);
-        if (esDiv) dv.appendChild(document.createTextNode("Autoriza pedidos y publica turnos"));
-        row.appendChild(dv);
+        const btns = document.createElement("span");
+        btns.style.cssText = "display:flex;gap:6px;flex-shrink:0";
+        btns.appendChild(bd); btns.appendChild(b);
+        row.querySelector(".acu-top").appendChild(btns);
         list.appendChild(row);
       });
     }

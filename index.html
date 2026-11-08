@@ -1429,6 +1429,24 @@
     .ped-act.sec { background: #e2e8f0; color: #334155; }
     .acu-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 0.82rem; color: #1e293b; }
     .acu-row.done { opacity: .5; }
+    #ticketPrint { display: none; }
+    @media print {
+      @page { size: 80mm auto; margin: 2mm 4mm; }
+      body.imprimiendo-ticket { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+      body.imprimiendo-ticket > *:not(#ticketPrint) { display: none !important; }
+      body.imprimiendo-ticket #ticketPrint { display: block !important; }
+    }
+    #ticketPrint { width: 72mm; color: #000; font-family: "Courier New", monospace; font-size: 11pt; line-height: 1.25; }
+    #ticketPrint .tk { padding: 2mm 0; }
+    #ticketPrint .tk-c { text-align: center; }
+    #ticketPrint .tk-b { font-weight: 700; }
+    #ticketPrint .tk-g { font-size: 13pt; }
+    #ticketPrint .tk-chico { font-size: 8.5pt; }
+    #ticketPrint .tk-sep { border-top: 1px dashed #000; margin: 2mm 0; }
+    #ticketPrint .tk-p { margin-top: 1.5mm; }
+    #ticketPrint .tk-l { padding-left: 2mm; }
+    #ticketPrint .tk-firma { margin-top: 9mm; text-align: center; font-size: 9.5pt; }
+    #ticketPrint .tk-raya { border-top: 1px solid #000; margin: 0 4mm 0.5mm; }
     .acu-row .acu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
     /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
     #bancoCambios { overscroll-behavior: contain; }
@@ -4229,7 +4247,7 @@
     function updatePedidosBar() {
       actualizarMiBoton();
       const me = miPersona();
-      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && !cerrado(d) && !pedidoVencido(d)).length;
+      const n = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.quiere && !cerrado(d) && d.estado !== "rechazado" && !pedidoVencido(d)).length;
       const nAcu = Object.values(pedidosDocs).filter(d => d && d.mes === currentMes && d.estado === "acordado" && !d.pasado).length;
       document.getElementById("btnAcuerdos").textContent = "Acordados" + (nAcu ? " (" + nAcu + ")" : "");
       document.getElementById("pedidosLabel").textContent = !veCambiosAjenos()
@@ -5155,6 +5173,14 @@
       Object.keys(pedidosDocs).forEach(k => {
         const d = pedidosDocs[k];
         if (!d) return;
+        if (d.estado === "rechazado") {
+          if (!d.con || (String(d.id) !== yo && String(d.con.id) !== yo)) return;
+          const r = d.rechazo || {};
+          out.push({ k: "n:" + k, tipo: "x", t: r.t || d.t || 0,
+            txt: "❌ " + escH(textoRechazo(d)) + " rechazó tu cambio del " + fechaAviso(d.mes, d.dia) + " con <b>" + escH(String(d.id) === yo ? d.con.name : d.name) +
+              "</b>." + (r.motivo ? " Motivo: " + escH(r.motivo) + "." : "") + " Volvés a tu turno oficial." });
+          return;
+        }
         if (d.estado === "autorizado") {
           const f = fechaAviso(d.mes, d.dia);
           if (String(d.id) === yo) out.push({ k: "z:" + k, tipo: "z", t: d.t || 0,
@@ -5217,6 +5243,13 @@
     // Para el admin: alguien volvió a cambiar en su fila un turno que el admin había publicado
     function avisosAdmin() {
       const out = [];
+      Object.keys(pedidosDocs).forEach(k => {
+        const d = pedidosDocs[k], r = d && d.rechazo;
+        if (!d || d.estado !== "rechazado" || !r || r.adm || !d.con) return;
+        out.push({ k: "dr:" + k, tipo: "d", t: r.t || 0,
+          txt: "<b>" + escH(r.por || "") + "</b> (División) rechazó el cambio del " + fechaAviso(d.mes, d.dia) + " entre " + escH(d.name) + " y " + escH(d.con.name) +
+            (r.motivo ? ". Motivo: " + escH(r.motivo) : "") + "." });
+      });
       AVAILABLE_MESES.forEach(mes => {
         const fb = loadFbCache(mes);
         const pp = fb && fb.publicadoPor;
@@ -5714,9 +5747,61 @@
         errDivision(err, "pasarlo a lo oficial");
       }
     }
+    // División o admin: rechaza un acuerdo que todavía no está en lo oficial (con motivo).
+    // A los dos les llega el aviso y cada uno vuelve a su turno oficial (ver deshacerRechazados).
+    function textoRechazo(a) {
+      const r = a && a.rechazo || {};
+      return r.adm ? "El administrador" : "La División" + (r.por ? " (" + r.por + ")" : "");
+    }
+    function rechazarAcuerdo(k, a) {
+      if (!puedeAutorizar() || !a || a.estado !== "acordado" || a.pasado || !a.con) return;
+      const motivo = prompt("¿Por qué se rechaza el cambio del " + fechaTxt(Number(a.dia) - 1) + " entre " + a.name + " y " + a.con.name + "?\n\n" +
+        "A los dos les llega el aviso con el motivo y cada uno vuelve a su turno oficial.");
+      if (motivo == null) return;
+      const m = String(motivo).trim().slice(0, 200);
+      if (!m) { alert("Escribí el motivo del rechazo."); return; }
+      const rechazo = { motivo: m, por: nombreAutorizante(), t: Date.now() };
+      if (currentUser === "ADMIN") rechazo.adm = true;
+      const prev = { estado: a.estado, rechazo: a.rechazo };
+      a.estado = "rechazado"; a.rechazo = rechazo;
+      // Lo que publicaron en su fila por este acuerdo se saca ya (sin aviso aparte: les llega el del rechazo)
+      (cambiosDeAcuerdo(Object.assign({}, a, { estado: "acordado" })) || []).forEach(c => {
+        if (propCode(a.mes, String(c.id), c.di) === c.code) descartarPropio(a.mes, String(c.id), c.di, true);
+      });
+      renderAcuerdos(); updatePedidosBar();
+      if (vistaD || pedidosMode) refreshAfterEdit();
+      fbDb.collection(PED_COLLECTION).doc(k).update({ estado: "rechazado", rechazo })
+        .then(() => showShareToast("Cambio rechazado. A los dos les llega el aviso."))
+        .catch(err => { a.estado = prev.estado; if (prev.rechazo) a.rechazo = prev.rechazo; else delete a.rechazo; renderAcuerdos(); updatePedidosBar(); errPed(err); });
+    }
+    // En MI celular: si rechazaron un acuerdo mío, mi fila vuelve a lo oficial en esas celdas (una sola vez)
+    function deshacerRechazados() {
+      if (!miLegajo) return false;
+      let hecho = false;
+      Object.keys(pedidosDocs).forEach(k => {
+        const a = pedidosDocs[k];
+        if (!a || a.estado !== "rechazado" || a.mes !== currentMes || !a.con) return;
+        if (String(a.id) !== String(miLegajo) && String(a.con.id) !== String(miLegajo)) return;
+        const flag = "jefRech:" + k + ":" + miLegajo;
+        try { if (localStorage.getItem(flag)) return; } catch (e) {}
+        const pi = people.findIndex(pp => String(pp.id) === String(miLegajo));
+        if (pi < 0) return;
+        (cambiosDeAcuerdo(Object.assign({}, a, { estado: "acordado" })) || []).forEach(x => {
+          if (String(x.id) !== String(miLegajo)) return;
+          const key = pi + ":" + x.di;
+          if (key in editsMap && String(editsMap[key] || "") === String(x.code || "")) removeEdit(pi, x.di);
+          limpiarNotaCambio(pi, x.di);
+          hecho = true;
+        });
+        try { localStorage.setItem(flag, "1"); } catch (e) {}
+      });
+      if (hecho) resetPeopleFromOfficial();
+      return hecho;
+    }
     // Carga en ESTE celular los acuerdos donde participa quien lo usa (una sola vez cada uno)
     function aplicarAcuerdos() {
       if (!miLegajo) return;
+      if (deshacerRechazados()) refreshAfterEdit();
       let hecho = false;
       Object.keys(pedidosDocs).forEach(k => {
         const a = pedidosDocs[k];
@@ -5748,8 +5833,8 @@
     function renderAcuerdos() {
       const list = document.getElementById("acuerdosList");
       const items = Object.keys(pedidosDocs).map(k => ({ k, a: pedidosDocs[k] }))
-        .filter(x => x.a && cerrado(x.a) && x.a.mes === currentMes)
-        .sort((x, y) => (x.a.pasado || x.a.estado === "autorizado" ? 1 : 0) - (y.a.pasado || y.a.estado === "autorizado" ? 1 : 0) || x.a.dia - y.a.dia);
+        .filter(x => x.a && (cerrado(x.a) || (x.a.estado === "rechazado" && x.a.con)) && x.a.mes === currentMes)
+        .sort((x, y) => (x.a.estado === "rechazado" ? 2 : x.a.pasado || x.a.estado === "autorizado" ? 1 : 0) - (y.a.estado === "rechazado" ? 2 : y.a.pasado || y.a.estado === "autorizado" ? 1 : 0) || x.a.dia - y.a.dia);
       list.innerHTML = items.length ? "" : '<div class="ped-note info">No hay cambios acordados en ' + MES.nombre.toLowerCase() + '.</div>';
       items.forEach(({ k, a }) => {
         const row = document.createElement("div");
@@ -5762,6 +5847,10 @@
             (a.tipo === "franco"
               ? '<div>' + escH(a.name) + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' → ' + a.cubre + '</div>'
               : '<div>' + escH(a.name) + ': ' + a.ofrece + ' → ' + a.quiere + '</div>');
+          const tb = document.createElement("span");
+          tb.style.cssText = "display:flex;gap:6px";
+          if (puedeAutorizar()) tb.appendChild(botonTicket(k, a));
+          row.querySelector(".acu-top").appendChild(tb);
           if (currentUser === "ADMIN") {
             const del = document.createElement("button");
             del.type = "button"; del.className = "ped-act sec"; del.textContent = "Eliminar";
@@ -5772,12 +5861,18 @@
               renderAcuerdos(); updatePedidosBar();
               fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
             });
-            row.querySelector(".acu-top").appendChild(del);
+            tb.appendChild(del);
           }
           list.appendChild(row);
           return;
         }
-        row.className = "acu-row" + (a.pasado ? " done" : "");
+        const botonRechazar = () => {
+          const br = document.createElement("button");
+          br.type = "button"; br.className = "ped-act sec"; br.textContent = "Rechazar";
+          br.addEventListener("click", () => rechazarAcuerdo(k, a));
+          return br;
+        };
+        row.className = "acu-row" + (a.pasado || a.estado === "rechazado" ? " done" : "");
         row.innerHTML = '<div class="acu-top"><span>' + (DAY_LABELS[di] ? fechaTxt(di) : a.dia) + '</span></div>' +
           (a.tipo === "franco"
             ? '<div>Cambio de franco · días ' + a.dia + ' y ' + a.dia2 + '</div>' +
@@ -5786,7 +5881,25 @@
             : '<div>' + a.name + ': ' + a.ofrece + ' → ' + a.quiere + '</div>' +
               '<div>' + a.con.name + ': ' + a.con.tiene + ' → ' + a.con.recibe + '</div>') +
           (a.pasadoPor ? '<div style="font-size:0.72rem;color:#5b21b6">' + (a.palabra ? "De palabra · lo cargó " : "Lo pasó a lo oficial ") + escH(a.pasadoPor) + ' (División)</div>'
-            : a.palabra ? '<div style="font-size:0.72rem;color:#5b21b6">De palabra · lo cargó el admin</div>' : '');
+            : a.palabra ? '<div style="font-size:0.72rem;color:#5b21b6">De palabra · lo cargó el admin</div>' : '') +
+          (a.estado === "rechazado" ? '<div style="font-size:0.75rem;color:#b91c1c;font-weight:700">❌ Rechazado por ' + escH(a.rechazo && a.rechazo.adm ? "el admin" : (a.rechazo && a.rechazo.por || "la División")) +
+            (a.rechazo && a.rechazo.motivo ? ' · ' + escH(a.rechazo.motivo) : '') + '</div>' : '');
+        if (a.estado === "rechazado") {
+          if (currentUser === "ADMIN") {
+            const del = document.createElement("button");
+            del.type = "button"; del.className = "ped-act sec"; del.textContent = "Eliminar";
+            del.addEventListener("click", () => {
+              if (!confirm("¿Sacar este rechazado de la lista?")) return;
+              const prev = pedidosDocs[k];
+              delete pedidosDocs[k];
+              renderAcuerdos(); updatePedidosBar();
+              fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
+            });
+            row.querySelector(".acu-top").appendChild(del);
+          }
+          list.appendChild(row);
+          return;
+        }
         // La División: un solo botón, que lo pasa a lo oficial de verdad
         if (currentUser !== "ADMIN") {
           const bo = document.createElement("button");
@@ -5794,7 +5907,12 @@
           bo.textContent = a.pasado ? "En lo oficial ✓" : "Pasar a lo oficial";
           bo.disabled = !!a.pasado || !soyDivision();
           bo.addEventListener("click", () => oficializarAcuerdo(k, a));
-          row.querySelector(".acu-top").appendChild(bo);
+          const tb = document.createElement("span");
+          tb.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end";
+          if (soyDivision()) tb.appendChild(botonTicket(k, a));
+          if (soyDivision() && !a.pasado) tb.appendChild(botonRechazar());
+          tb.appendChild(bo);
+          row.querySelector(".acu-top").appendChild(tb);
           list.appendChild(row);
           return;
         }
@@ -5823,8 +5941,8 @@
           fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
         });
         const btns = document.createElement("span");
-        btns.style.cssText = "display:flex;gap:6px";
-        btns.appendChild(b); btns.appendChild(del);
+        btns.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end";
+        btns.appendChild(botonTicket(k, a)); if (!a.pasado) btns.appendChild(botonRechazar()); btns.appendChild(b); btns.appendChild(del);
         row.querySelector(".acu-top").appendChild(btns);
         list.appendChild(row);
       });
@@ -5832,6 +5950,63 @@
     document.getElementById("btnAcuerdos").addEventListener("click", () => { renderAcuerdos(); acuerdosOverlay.classList.add("open"); });
     document.getElementById("closeAcuerdos").addEventListener("click", () => acuerdosOverlay.classList.remove("open"));
     acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
+
+    // ===== TICKET PARA FIRMAR (División y admin) =====
+    // Imprime el cambio cerrado en formato de ticketera (80 mm): un ticket que firman los empleados y presentan a la División.
+    const TICKET_APP = "PROGRAMACIÓN JEFES";
+    function ticketHtml(k, a) {
+      const di = Number(a.dia) - 1, d2 = Number(a.dia2) - 1;
+      const f1 = DAY_LABELS[di] ? fechaTxt(di) : String(a.dia), f2 = DAY_LABELS[d2] ? fechaTxt(d2) : String(a.dia2 || "");
+      const quien = (n, id) => '<div class="tk-p"><b>' + escH(n) + '</b>' + (id && !esInvitado(id) ? ' · Leg. ' + escH(id) : '') + '</div>';
+      const linea = (txt) => '<div class="tk-l">' + txt + '</div>';
+      let det = "";
+      if (a.tipo === "franco") {
+        det += quien(a.name, a.id) + linea(f1 + ": " + escH(a.ofrece) + " → F") + linea(f2 + ": F → " + escH(a.cubre));
+        if (a.con) det += quien(a.con.name, a.con.id) + linea(f1 + ": F → " + escH(a.ofrece)) + linea(f2 + ": " + escH(a.cubre) + " → F");
+      } else {
+        det += quien(a.name, a.id) + linea(f1 + ": " + escH(a.ofrece) + " → " + escH(a.quiere));
+        if (a.con) det += quien(a.con.name, a.con.id) + linea(f1 + ": " + escH(a.con.tiene) + " → " + escH(a.con.recibe));
+      }
+      const estado = a.estado === "autorizado" ? textoAutorizado(a) + " (sin contraparte)"
+        : a.pasado ? (a.pasadoPor ? "Pasado a lo oficial por " + a.pasadoPor + " (División)" : "Pasado a lo oficial")
+        : "Acordado entre los dos · falta el aval de la División";
+      const dosD = (n) => String(n).padStart(2, "0");
+      const fh = (ms) => { const x = new Date(ms); return dosD(x.getDate()) + "/" + dosD(x.getMonth() + 1) + "/" + x.getFullYear() + " " + dosD(x.getHours()) + ":" + dosD(x.getMinutes()); };
+      const nro = String(a.t || "").slice(-6) || String(k).slice(-6);
+      // Un solo ticket: lo firman los empleados y cualquiera de ellos lo presenta a la División
+      const empleados = [a.name].concat(a.con ? [a.con.name] : []);
+      const firma = (n) => '<div class="tk-firma"><div class="tk-raya"></div><div>Firma ' + escH(n) + '</div></div>';
+      return '<div class="tk">' +
+          '<div class="tk-c tk-b">' + TICKET_APP + '</div>' +
+          '<div class="tk-c tk-b tk-g">CAMBIO DE TURNO</div>' +
+          '<div class="tk-c">' + escH(MES.nombre) + ' ' + MES.y + ' · Nº ' + escH(nro) + '</div>' +
+          '<div class="tk-sep"></div>' +
+          det +
+          '<div class="tk-sep"></div>' +
+          '<div class="tk-l">' + escH(estado) + (a.palabra ? ' · de palabra' : '') + '</div>' +
+          (a.t ? '<div class="tk-l">Cerrado: ' + fh(a.t) + '</div>' : '') +
+          '<div class="tk-sep"></div>' +
+          empleados.map(firma).join("") +
+          '<div class="tk-sep"></div>' +
+          '<div class="tk-c tk-b">' + (a.con ? "PRESENTAR A LA DIVISIÓN FIRMADO POR LOS DOS" : "PRESENTAR FIRMADO A LA DIVISIÓN") + '</div>' +
+          '<div class="tk-c tk-chico">Impreso ' + fh(Date.now()) + ' por ' + escH(nombreAutorizante()) + '</div>' +
+        '</div>';
+    }
+    function imprimirTicket(k, a) {
+      let box = document.getElementById("ticketPrint");
+      if (!box) { box = document.createElement("div"); box.id = "ticketPrint"; document.body.appendChild(box); }
+      box.innerHTML = ticketHtml(k, a);
+      document.body.classList.add("imprimiendo-ticket");
+      setTimeout(() => { try { window.print(); } catch (e) { showShareToast("Este dispositivo no deja imprimir."); } }, 50);
+    }
+    window.addEventListener("afterprint", () => document.body.classList.remove("imprimiendo-ticket"));
+    function botonTicket(k, a) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ped-act sec"; b.textContent = "🖨 Ticket";
+      b.title = "Imprimir el ticket para que lo firmen los dos";
+      b.addEventListener("click", () => imprimirTicket(k, a));
+      return b;
+    }
 
     // acepta: lista de lo que acepta a cambio ("*" = cualquier turno). F solo vale con francos ofrecidos.
     function guardarPedido(pi, di, acepta, francos) {

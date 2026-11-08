@@ -1429,6 +1429,27 @@
     .ped-act.sec { background: #e2e8f0; color: #334155; }
     .acu-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 0.82rem; color: #1e293b; }
     .acu-row.done { opacity: .5; }
+    #ticketPrint { display: none; }
+    @media print {
+      @page { size: 80mm auto; margin: 2mm 4mm; }
+      body.imprimiendo-ticket { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+      body.imprimiendo-ticket > *:not(#ticketPrint) { display: none !important; }
+      body.imprimiendo-ticket #ticketPrint { display: block !important; }
+    }
+    #ticketPrint { width: 72mm; color: #000; font-family: "Courier New", monospace; font-size: 11pt; line-height: 1.25; }
+    #ticketPrint .tk { break-after: page; page-break-after: always; padding: 2mm 0; }
+    #ticketPrint .tk:last-child { break-after: auto; page-break-after: auto; }
+    #ticketPrint .tk-c { text-align: center; }
+    #ticketPrint .tk-b { font-weight: 700; }
+    #ticketPrint .tk-g { font-size: 13pt; }
+    #ticketPrint .tk-chico { font-size: 8.5pt; }
+    #ticketPrint .tk-sep { border-top: 1px dashed #000; margin: 2mm 0; }
+    #ticketPrint .tk-p { margin-top: 1.5mm; }
+    #ticketPrint .tk-l { padding-left: 2mm; }
+    #ticketPrint .tk-firma { margin-top: 9mm; text-align: center; font-size: 9.5pt; }
+    #ticketPrint .tk-raya { border-top: 1px solid #000; margin: 0 4mm 0.5mm; }
+    #ticketPrint .tk-acl { margin-top: 7mm; }
+    #ticketPrint .tk-corte { margin-top: 3mm; white-space: nowrap; overflow: hidden; }
     .acu-row .acu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
     /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
     #bancoCambios { overscroll-behavior: contain; }
@@ -5762,6 +5783,10 @@
             (a.tipo === "franco"
               ? '<div>' + escH(a.name) + ': ' + a.dia + ' ' + a.ofrece + ' → F · ' + a.dia2 + ' → ' + a.cubre + '</div>'
               : '<div>' + escH(a.name) + ': ' + a.ofrece + ' → ' + a.quiere + '</div>');
+          const tb = document.createElement("span");
+          tb.style.cssText = "display:flex;gap:6px";
+          if (puedeAutorizar()) tb.appendChild(botonTicket(k, a));
+          row.querySelector(".acu-top").appendChild(tb);
           if (currentUser === "ADMIN") {
             const del = document.createElement("button");
             del.type = "button"; del.className = "ped-act sec"; del.textContent = "Eliminar";
@@ -5772,7 +5797,7 @@
               renderAcuerdos(); updatePedidosBar();
               fbDb.collection(PED_COLLECTION).doc(k).delete().catch(err => { pedidosDocs[k] = prev; renderAcuerdos(); updatePedidosBar(); errPed(err); });
             });
-            row.querySelector(".acu-top").appendChild(del);
+            tb.appendChild(del);
           }
           list.appendChild(row);
           return;
@@ -5794,7 +5819,11 @@
           bo.textContent = a.pasado ? "En lo oficial ✓" : "Pasar a lo oficial";
           bo.disabled = !!a.pasado || !soyDivision();
           bo.addEventListener("click", () => oficializarAcuerdo(k, a));
-          row.querySelector(".acu-top").appendChild(bo);
+          const tb = document.createElement("span");
+          tb.style.cssText = "display:flex;gap:6px";
+          if (soyDivision()) tb.appendChild(botonTicket(k, a));
+          tb.appendChild(bo);
+          row.querySelector(".acu-top").appendChild(tb);
           list.appendChild(row);
           return;
         }
@@ -5824,7 +5853,7 @@
         });
         const btns = document.createElement("span");
         btns.style.cssText = "display:flex;gap:6px";
-        btns.appendChild(b); btns.appendChild(del);
+        btns.appendChild(botonTicket(k, a)); btns.appendChild(b); btns.appendChild(del);
         row.querySelector(".acu-top").appendChild(btns);
         list.appendChild(row);
       });
@@ -5832,6 +5861,68 @@
     document.getElementById("btnAcuerdos").addEventListener("click", () => { renderAcuerdos(); acuerdosOverlay.classList.add("open"); });
     document.getElementById("closeAcuerdos").addEventListener("click", () => acuerdosOverlay.classList.remove("open"));
     acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
+
+    // ===== TICKET PARA FIRMAR (División y admin) =====
+    // Imprime el cambio cerrado en formato de ticketera (80 mm): una copia para cada empleado y otra para la División.
+    const TICKET_APP = "PROGRAMACIÓN JEFES";
+    function ticketHtml(k, a) {
+      const di = Number(a.dia) - 1, d2 = Number(a.dia2) - 1;
+      const f1 = DAY_LABELS[di] ? fechaTxt(di) : String(a.dia), f2 = DAY_LABELS[d2] ? fechaTxt(d2) : String(a.dia2 || "");
+      const quien = (n, id) => '<div class="tk-p"><b>' + escH(n) + '</b>' + (id && !esInvitado(id) ? ' · Leg. ' + escH(id) : '') + '</div>';
+      const linea = (txt) => '<div class="tk-l">' + txt + '</div>';
+      let det = "";
+      if (a.tipo === "franco") {
+        det += quien(a.name, a.id) + linea(f1 + ": " + escH(a.ofrece) + " → F") + linea(f2 + ": F → " + escH(a.cubre));
+        if (a.con) det += quien(a.con.name, a.con.id) + linea(f1 + ": F → " + escH(a.ofrece)) + linea(f2 + ": " + escH(a.cubre) + " → F");
+      } else {
+        det += quien(a.name, a.id) + linea(f1 + ": " + escH(a.ofrece) + " → " + escH(a.quiere));
+        if (a.con) det += quien(a.con.name, a.con.id) + linea(f1 + ": " + escH(a.con.tiene) + " → " + escH(a.con.recibe));
+      }
+      const estado = a.estado === "autorizado" ? textoAutorizado(a) + " (sin contraparte)"
+        : a.pasado ? (a.pasadoPor ? "Pasado a lo oficial por " + a.pasadoPor + " (División)" : "Pasado a lo oficial")
+        : "Acordado entre los dos · falta el aval de la División";
+      const dosD = (n) => String(n).padStart(2, "0");
+      const fh = (ms) => { const x = new Date(ms); return dosD(x.getDate()) + "/" + dosD(x.getMonth() + 1) + "/" + x.getFullYear() + " " + dosD(x.getHours()) + ":" + dosD(x.getMinutes()); };
+      const nro = String(a.t || "").slice(-6) || String(k).slice(-6);
+      // Una copia por empleado (la firma la División, para entregársela) y la de la División (la firman los empleados)
+      const empleados = [{ n: a.name }].concat(a.con ? [{ n: a.con.name }] : []);
+      const copias = empleados.concat([{ n: "División", div: true }]);
+      const firma = (txt, acl) => '<div class="tk-firma"><div class="tk-raya"></div><div>' + txt + '</div>' +
+        (acl ? '<div class="tk-raya tk-acl"></div><div>Aclaración</div>' : '') + '</div>';
+      const firmasDe = (c) => c.div ? empleados.map(e => firma("Firma " + escH(e.n))).join("") : firma("Firma División", true);
+      return copias.map(c =>
+        '<div class="tk">' +
+          '<div class="tk-c tk-b">' + TICKET_APP + '</div>' +
+          '<div class="tk-c tk-b tk-g">CAMBIO DE TURNO</div>' +
+          '<div class="tk-c">' + escH(MES.nombre) + ' ' + MES.y + ' · Nº ' + escH(nro) + '</div>' +
+          '<div class="tk-sep"></div>' +
+          det +
+          '<div class="tk-sep"></div>' +
+          '<div class="tk-l">' + escH(estado) + (a.palabra ? ' · de palabra' : '') + '</div>' +
+          (a.t ? '<div class="tk-l">Cerrado: ' + fh(a.t) + '</div>' : '') +
+          '<div class="tk-sep"></div>' +
+          firmasDe(c) +
+          '<div class="tk-sep"></div>' +
+          '<div class="tk-c tk-b">COPIA: ' + escH(c.div ? "DIVISIÓN" : String(c.n).toUpperCase()) + '</div>' +
+          '<div class="tk-c tk-chico">Impreso ' + fh(Date.now()) + ' por ' + escH(nombreAutorizante()) + '</div>' +
+          '<div class="tk-corte">✂ - - - - - - - - - - - - - - - - - - - - - - - - - -</div>' +
+        '</div>').join("");
+    }
+    function imprimirTicket(k, a) {
+      let box = document.getElementById("ticketPrint");
+      if (!box) { box = document.createElement("div"); box.id = "ticketPrint"; document.body.appendChild(box); }
+      box.innerHTML = ticketHtml(k, a);
+      document.body.classList.add("imprimiendo-ticket");
+      setTimeout(() => { try { window.print(); } catch (e) { showShareToast("Este dispositivo no deja imprimir."); } }, 50);
+    }
+    window.addEventListener("afterprint", () => document.body.classList.remove("imprimiendo-ticket"));
+    function botonTicket(k, a) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ped-act sec"; b.textContent = "🖨 Ticket";
+      b.title = "Imprimir el ticket para firmar (3 copias)";
+      b.addEventListener("click", () => imprimirTicket(k, a));
+      return b;
+    }
 
     // acepta: lista de lo que acepta a cambio ("*" = cualquier turno). F solo vale con francos ofrecidos.
     function guardarPedido(pi, di, acepta, francos) {

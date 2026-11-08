@@ -80,7 +80,7 @@
   const auth = { currentUser: user, onAuthStateChanged: (cb) => { setTimeout(() => cb(user), 50); return () => {}; },
     signInAnonymously: () => Promise.resolve(), signOut: () => Promise.resolve() };
   const firestore = () => db;
-  firestore.FieldValue = { delete: () => DEL, serverTimestamp: () => Date.now() };
+  firestore.FieldValue = { delete: () => DEL, serverTimestamp: () => Date.now(), increment: n => ({ __inc: n }) };
   firestore.FieldPath = function () {};
   const authFn = () => auth;
   authFn.GoogleAuthProvider = function () { this.setCustomParameters = () => {}; };

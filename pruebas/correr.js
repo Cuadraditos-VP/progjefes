@@ -707,6 +707,26 @@ function chequear(nombre, cond, detalle) {
       chequear("el resumen del almanaque usa la inicial", /overtimePeriod\(id, "inicial"\)/.test(html));
     }
 
+    console.log("\nCuántas veces se abre la app (Celulares)");
+    const YOC = "yo_" + APP;
+    const abC = () => Number(((be.st[YOC] || {})["uC"] || {}).ab) || 0;
+    const ab0 = abC();
+    await C.reload(); await wait(2500);
+    const ab1 = abC();
+    await C.evaluate(() => sessionStorage.setItem("recargaAuto", "1")); await C.reload(); await wait(2500);
+    const ab2 = abC();
+    chequear("al abrir la app suma 1 (y guarda cuándo)", ab0 >= 1 && ab1 === ab0 + 1 && ((be.st[YOC] || {})["uC"] || {}).ult > 0, { ab0, ab1 });
+    chequear("la recarga automática no cuenta", ab2 === ab1, { ab1, ab2 });
+    const usoAd = await AD.evaluate(id => {
+      renderCelulares();
+      const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+      const r = { resumen: document.getElementById("celularesUso").textContent, fila: fila ? fila.querySelector(".cel-uso").textContent : "" };
+      document.getElementById("celularesOverlay").classList.remove("open");
+      return r;
+    }, s.idc);
+    chequear("el admin ve en Celulares cuántas veces la abrió cada uno", /^Abrió \d+ veces · última: hoy/.test(usoAd.fila) && /hoy \d+ .*Aperturas en total: \d+/.test(usoAd.resumen), usoAd);
+    chequear("el admin no suma aperturas", !((be.st[YOC] || {})["uAd"] || {}).ab);
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

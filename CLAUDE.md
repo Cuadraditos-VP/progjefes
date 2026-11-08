@@ -112,6 +112,10 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Todo eso usa `publicarCeldas` (transacción: solo cambia esas celdas sobre lo último de Firebase y anota
   `publicadoPor["legajo:día"] = {n, t, a}`, a: 1 autorizó / 2 acuerdo / 3 de palabra); al admin le llega aviso de lo que hizo. No toca Celulares, invitaciones,
   colores ni meses. Reglas: `REGLAS-FIREBASE-DIVISION.md`. El admin también puede autorizar ("Autorizado por el administrador").
+- **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =
+  última vez) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
+  no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. Arriba de la lista, un resumen: cuántos la abrieron
+  hoy, en 7 y en 30 días, y el total de aperturas. Cuenta desde el 8/11/2026. Sirve para los números del concurso.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
   licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
 

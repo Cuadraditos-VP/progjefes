@@ -89,7 +89,10 @@ module.exports = function crearBackend(app, turnosColl) {
       for (const [p, v] of Object.entries(w.data)) {
         const parts = p.split("."); let o = cur;
         for (let i = 0; i < parts.length - 1; i++) { if (!o[parts[i]] || typeof o[parts[i]] !== "object") o[parts[i]] = {}; o = o[parts[i]]; }
-        if (v && v.__del) delete o[parts[parts.length - 1]]; else o[parts[parts.length - 1]] = v;
+        const last = parts[parts.length - 1];
+        if (v && v.__del) delete o[last];
+        else if (v && typeof v === "object" && "__inc" in v) o[last] = (Number(o[last]) || 0) + v.__inc;
+        else o[last] = v;
       }
     }
     if (!permitido(w, cur, prev)) return "permission-denied";
@@ -112,7 +115,7 @@ module.exports = function crearBackend(app, turnosColl) {
     await pg.exposeBinding("__fbState", () => JSON.stringify(st));
     await pg.exposeBinding("__fbCanRead", (_, coll, id) => puedeLeer(coll, id, uid, email || null));
     await pg.addInitScript(([u, e]) => { window.__UID = u; window.__EMAIL = e; }, [uid, email || null]);
-    // "Hoy" fijo en el día 1 del mes de prueba, así los pedidos no quedan vencidos según la fecha real
+    // "Hoy" fijo antes del mes de prueba, así los pedidos no quedan vencidos según la fecha real
     const h = new Date(); await pg.addInitScript(t => { window.__HOY = t; }, new Date(h.getFullYear(), h.getMonth(), 0, 12).getTime()); // "hoy" = el día antes del mes de prueba (todo el mes se puede cambiar)
     await pg.addInitScript({ path: path.join(__dirname, "firebase-falso.js") });
     pg.on("pageerror", e => errores.push(uid + ": " + e.message));

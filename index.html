@@ -4056,12 +4056,12 @@
     function cerrado(d) { return !!d && (d.estado === "acordado" || d.estado === "autorizado"); }
     // Hoy (las pruebas lo pueden fijar con window.__HOY)
     function hoyFecha() { return window.__HOY ? new Date(window.__HOY) : new Date(); }
-    // Un pedido sin acordar desaparece cuando ya pasó su día (los acordados quedan)
+    // Un pedido sin acordar desaparece cuando llega su día (los acordados quedan)
     function pedidoVencido(d) {
       const m = /^(\d{4})-(\d{2})$/.exec(String(d && d.mes || ""));
       if (!m || !d.dia) return false;
       const h = hoyFecha();
-      return new Date(+m[1], +m[2] - 1, +d.dia) < new Date(h.getFullYear(), h.getMonth(), h.getDate());
+      return new Date(+m[1], +m[2] - 1, +d.dia) <= new Date(h.getFullYear(), h.getMonth(), h.getDate());
     }
     function rebuildPedidos() {
       PED_REF = {};
@@ -4247,9 +4247,10 @@
     // al tocarlo se listan abajo y cada una abre el cuadro de siempre (responder / confirmar / pedir). ----
     let bancoDiaSel = null, bancoMesSel = null;
     function escH(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    // Vencido: ya pasó o es hoy. Los cambios se piden y se responden hasta el día anterior.
     function diaPasado(di) {
       const h = hoyFecha();
-      return new Date(MES.y, MES.m - 1, di + 1) < new Date(h.getFullYear(), h.getMonth(), h.getDate());
+      return new Date(MES.y, MES.m - 1, di + 1) <= new Date(h.getFullYear(), h.getMonth(), h.getDate());
     }
     function diaHoy() {
       const h = hoyFecha();
@@ -4296,11 +4297,13 @@
       const me = miPersona();
       if (bancoMesSel !== currentMes) {
         bancoMesSel = currentMes;
-        const h = diaHoy();
-        bancoDiaSel = h >= 0 ? h : 0;
-        // Si hoy no hay nada, el primer día que viene con propuestas
+        // Arranca en el primer día que todavía se puede cambiar (mañana); si ese no tiene nada,
+        // el primero que viene con propuestas
+        let desde = 0;
+        while (desde < DAYS - 1 && diaPasado(desde)) desde++;
+        bancoDiaSel = desde;
         if (!propuestasDelDia(bancoDiaSel).length) {
-          for (let x = Math.max(h, 0); x < DAYS; x++) if (propuestasDelDia(x).length) { bancoDiaSel = x; break; }
+          for (let x = desde; x < DAYS; x++) if (propuestasDelDia(x).length) { bancoDiaSel = x; break; }
         }
       }
       if (bancoDiaSel == null || bancoDiaSel >= DAYS) bancoDiaSel = 0;
@@ -4316,7 +4319,8 @@
         if ((MES.startWd + di) % 7 >= 5) cls.push("finde");
         if (sirve) cls.push("sirve");
         if (mio) cls.push(mio.nResp ? "tengo interesados" : "tengo");
-        if (diaPasado(di)) cls.push("pasado");
+        // Hoy ya venció para todos, salvo la División y el admin (cambio de palabra el mismo día)
+        if (diaPasado(di) && !(di === hoy && puedeAutorizar() && FB_MESES[currentMes])) cls.push("pasado");
         if (di === hoy) cls.push("hoy");
         if (di === bancoDiaSel) cls.push("sel");
         let mioHtml = "";

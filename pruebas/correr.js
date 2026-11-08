@@ -507,7 +507,7 @@ function chequear(nombre, cond, detalle) {
       pedTengoSel = actualDe(s.a, d); guardarPedido(s.a, d, ["*"]); closePedido();
       setPedidosMode(true);
       const antes = !!pedidoDe(people[s.a].id, d);
-      const h = hoyFecha(); window.__HOY = new Date(h.getFullYear(), h.getMonth() + 1, 1, 12).getTime(); // ya pasó todo el mes
+      const h = hoyFecha(); window.__HOY = new Date(MES.y, MES.m, 1, 12).getTime(); // ya pasó todo el mes
       renderGroups(); updatePedidosBar();
       const celda = propuestasDelDia(d).some(x => x.pi === s.a);
       const r = { antes, despues: !!pedidoDe(people[s.a].id, d), celda: !!celda, label: document.getElementById("pedidosLabel").textContent,
@@ -519,6 +519,41 @@ function chequear(nombre, cond, detalle) {
       chequear("pasado su día, el pedido desaparece de la grilla", ven.antes && !ven.despues && !ven.celda && /^0 pedidos/.test(ven.label), ven);
       chequear("el cambio acordado sigue estando", ven.acordado === s.y && /Acordados \(\d+\)/.test(ven.acordados), ven);
     } else console.log("  (sin días para probar)");
+    // El mismo día ya no se puede cambiar: el pedido de hoy vence y el día queda gris
+    const hoyV = await A.evaluate(s => {
+      const d = [...Array(DAYS).keys()].find(x => x > 0 && x !== s.d && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)));
+      if (d == null) return null;
+      pedTengoSel = actualDe(s.a, d); guardarPedido(s.a, d, ["*"]); closePedido();
+      const antes = !!pedidoDe(people[s.a].id, d);
+      const h = hoyFecha(); window.__HOY = new Date(MES.y, MES.m - 1, d + 1, 12).getTime();
+      bancoMesSel = null; bancoDiaSel = d; setPedidosMode(true); renderBanco();
+      const el = document.querySelector('#bancoCal .bc-day[data-di="' + d + '"]');
+      const sig = document.querySelector('#bancoCal .bc-day[data-di="' + (d + 1) + '"]');
+      const r = { antes, hoy: !!pedidoDe(people[s.a].id, d), gris: !!el && el.classList.contains("pasado"),
+        sigAbierto: !sig || !sig.classList.contains("pasado"), arranca: bancoDiaSel };
+      bancoDiaSel = d; renderBancoDia();
+      r.pedir = !!document.getElementById("bancoPedir");
+      window.__HOY = h.getTime(); setPedidosMode(false); renderGroups(); updatePedidosBar();
+      r.vuelve = !!pedidoDe(people[s.a].id, d); quitarPedidoDoc(s.a, d, true);
+      r.d = d; return r;
+    }, s);
+    if (hoyV) {
+      chequear("el día de hoy ya no se puede cambiar (queda gris, sin \"Pedir cambio\")", hoyV.antes && !hoyV.hoy && hoyV.gris && !hoyV.pedir, hoyV);
+      chequear("el banco arranca en mañana", hoyV.sigAbierto && hoyV.arranca > hoyV.d, hoyV);
+    }
+    // La División y el admin sí pueden cargar un cambio de palabra para hoy
+    const hoyAd = await AD.evaluate(() => {
+      const h = hoyFecha(); const d = 3; window.__HOY = new Date(MES.y, MES.m - 1, d + 1, 12).getTime();
+      bancoMesSel = null; setPedidosMode(true); renderBanco();
+      const el = document.querySelector('#bancoCal .bc-day[data-di="' + d + '"]');
+      const ayer = document.querySelector('#bancoCal .bc-day[data-di="' + (d - 1) + '"]');
+      const r = { hoyAbierto: !!el && !el.classList.contains("pasado"), ayerGris: !!ayer && ayer.classList.contains("pasado") };
+      if (el) el.click();
+      r.palabra = !!document.getElementById("bancoPalabra"); r.pedir = !!document.getElementById("bancoPedir");
+      window.__HOY = h.getTime(); setPedidosMode(false);
+      return r;
+    });
+    chequear("el admin sí puede cargar un cambio de palabra para hoy (los días pasados no)", hoyAd.hoyAbierto && hoyAd.ayerGris && hoyAd.palabra, hoyAd);
     if (fr) {
       await wait(1500);
       const N2 = await cel("uN2");

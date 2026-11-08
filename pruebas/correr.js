@@ -720,11 +720,18 @@ function chequear(nombre, cond, detalle) {
     const usoAd = await AD.evaluate(id => {
       renderCelulares();
       const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+      const visible = () => getComputedStyle(document.getElementById("celularesUso")).display !== "none" &&
+        [...document.querySelectorAll("#celularesList .cel-uso")].every(e => getComputedStyle(e).display !== "none");
       const r = { resumen: document.getElementById("celularesUso").textContent, fila: fila ? fila.querySelector(".cel-uso").textContent : "" };
+      if (document.getElementById("btnVerUso")) {
+        r.oculto = !visible(); document.getElementById("btnVerUso").click(); r.alPedir = visible();
+        document.getElementById("btnVerUso").click(); r.otraVez = !visible();
+      }
       document.getElementById("celularesOverlay").classList.remove("open");
       return r;
     }, s.idc);
     chequear("el admin ve en Celulares cuántas veces la abrió cada uno", /^Abrió \d+ veces · última: hoy/.test(usoAd.fila) && /hoy \d+ .*Aperturas en total: \d+/.test(usoAd.resumen), usoAd);
+    if ("oculto" in usoAd) chequear("el uso se ve solo cuando el admin toca 📊 (todos juntos) y se vuelve a ocultar", usoAd.oculto && usoAd.alPedir && usoAd.otraVez, usoAd);
     chequear("el admin no suma aperturas", !((be.st[YOC] || {})["uAd"] || {}).ab);
 
     console.log("");

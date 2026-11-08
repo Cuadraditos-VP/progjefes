@@ -170,8 +170,8 @@ function chequear(nombre, cond, detalle) {
     console.log("\nAdmin descarta un cambio publicado");
     const AD = await cel("uAd", null, "guillermo.nemaric@gmail.com");
     const vistas = await AD.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [b.textContent];
-      for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(" → "); });
-    chequear("las vistas del admin son A → I → CJ (sin O)", vistas === "A → I → CJ → A", vistas);
+      for (let i = 0; i < 4; i++) { b.click(); r.push(b.textContent); } return r.join(" → "); });
+    chequear("las vistas del admin son A → I → CJ → D (sin O)", vistas === "A → I → CJ → D → A", vistas);
     if (html.includes("vpFueAdmin")) {
       const visible = pg => pg.evaluate(() => getComputedStyle(document.getElementById("btnUser")).display !== "none");
       chequear("en el celular de un empleado no aparece el botón de admin", !(await visible(B)));
@@ -610,6 +610,20 @@ function chequear(nombre, cond, detalle) {
       chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
       chequear("ese celular pasa a ser División (ve Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, acu: true }), await esDiv(D));
       const nomD = await D.evaluate(() => miPersona().p.name);
+      // Vista D: la División arranca en D y su botón solo pasa a I y vuelve
+      const vD = pg => pg.evaluate(() => { const b = document.getElementById("btnOriginalView");
+        return { txt: b.textContent, vis: getComputedStyle(b).display !== "none", d: vistaD, modo: viewMode }; });
+      const vd0 = await vD(D);
+      chequear("la División arranca en la vista D", vd0.vis && vd0.txt === "D" && vd0.d && vd0.modo === "actual", vd0);
+      const ciclo = await D.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [];
+        for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(""); });
+      chequear("la División solo ve D e I", ciclo === "IDI", ciclo);
+      await D.evaluate(() => document.getElementById("btnOriginalView").click());
+      chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
+      chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
+        (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",
+        await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));
+      chequear("en D se puede tocar la grilla como siempre", await D.evaluate(() => viewMode === "actual"));
       // A pide un cambio; la División lo autoriza sin contraparte
       const d6 = (s.d + 7) % 28;
       const quiere = await A.evaluate(([s, d6]) => { const t = actualDe(s.a, d6); const q = ["MD", "M", "N"].find(c => c !== t);
@@ -632,6 +646,25 @@ function chequear(nombre, cond, detalle) {
       const peds = be.st["pedidos_" + APP] || {};
       chequear("el pedido se cierra como autorizado", !peds[pedId] && Object.values(peds).some(x => x.estado === "autorizado" && x.id === s.ida && x.dia === d6 + 1), Object.keys(peds));
       chequear("C lo ve", (await C.evaluate(([s, d6]) => people[s.a].codes[d6], [s, d6])) === quiere);
+      chequear("en D, lo autorizado se marca como avalado", (await D.evaluate(([s, d6]) => cellMark(s.a, d6), [s, d6])) === "daval");
+      // Lo avalado queda trabado: el dueño no lo cambia, no pide cambio ese día y no responde "Me sirve" con ese día
+      const traba = await A.evaluate(([s, d6]) => { const ov = document.getElementById("shiftOverlay"); const antes = people[s.a].codes[d6];
+        openShiftPicker(s.a, d6); const abre = ov.classList.contains("open"); ov.classList.remove("open");
+        setPedidosMode(true); bancoDiaSel = d6; renderBancoDia(); const pedir = !!document.getElementById("bancoPedir"); setPedidosMode(false);
+        openPedido(s.a, d6); const cuadro = document.getElementById("pedidoOverlay").classList.contains("open"); closePedido();
+        return { abre, pedir, cuadro, igual: people[s.a].codes[d6] === antes }; }, [s, d6]);
+      chequear("el dueño no puede cambiar ni pedir cambio en un turno avalado", !traba.abre && !traba.pedir && !traba.cuadro && traba.igual, traba);
+      const pidC = await C.evaluate(d6 => { const me = miPersona(); pedTengoSel = actualDe(me.pi, d6);
+        guardarPedido(me.pi, d6, ["*"]); closePedido(); return me.pi; }, d6);
+      await wait(1500);
+      const resp = await A.evaluate(([pi, d6]) => { openPedido(pi, d6); const t = document.getElementById("pedidoBody").innerText;
+        const b = [...document.querySelectorAll("#pedidoBody button")].some(x => x.textContent === "Me sirve"); closePedido(); return { t, b }; }, [pidC, d6]);
+      chequear("ni puede responder \"Me sirve\" con un turno avalado", !resp.b && /avalado/.test(resp.t), resp);
+      await C.evaluate(d6 => quitarPedidoDoc(miPersona().pi, d6), d6);
+      await wait(1000);
+      const admEd = await AD.evaluate(([s, d6]) => { const ov = document.getElementById("shiftOverlay"); openShiftPicker(s.a, d6);
+        const r = ov.classList.contains("open"); ov.classList.remove("open"); return r; }, [s, d6]);
+      chequear("el admin sí lo puede cambiar", admEd);
       const avZ = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a A le llega \"Autorizado por la División\" con el nombre", /Autorizado por la División/.test(avZ) && avZ.indexOf(nomD) >= 0, avZ);
       await A.evaluate(() => cerrarAvisos());
@@ -646,6 +679,9 @@ function chequear(nombre, cond, detalle) {
       chequear("el acuerdo queda en lo oficial (las dos filas)", codDe(s.ida, s.d) === s.y && codDe(s.idb, s.d) === s.x, [codDe(s.ida, s.d), codDe(s.idb, s.d)]);
       const acu = Object.values(be.st["pedidos_" + APP] || {}).find(x => x.estado === "acordado" && x.id === s.ida && x.dia === s.d + 1);
       chequear("el acuerdo queda como pasado por la División", !!acu && acu.pasado === true && acu.pasadoPor === nomD, acu);
+      chequear("en D, el acuerdo pasado a lo oficial pasa a avalado (en otro color)",
+        (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.davalado").length > 0], [s])).join() === "daval,daval,true",
+        await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));
       const avP = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a B le llega que la División lo pasó a lo oficial", /La División/.test(avP) && /pasó a la programación oficial/.test(avP), avP);
       await B.evaluate(() => cerrarAvisos());
@@ -694,6 +730,8 @@ function chequear(nombre, cond, detalle) {
         row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2000);
       chequear("al sacarle la División deja de serlo", !(await esDiv(D)).div && !(be.st[DIVC] || {})[idD]);
+      const vd1 = await vD(D);
+      chequear("y vuelve a la vista normal (sin botón de vistas)", !vd1.vis && !vd1.d && vd1.modo === "actual", vd1);
       await D.close();
     }
 

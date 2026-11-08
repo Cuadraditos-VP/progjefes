@@ -685,7 +685,7 @@ function chequear(nombre, cond, detalle) {
       const avP = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a B le llega que la División lo pasó a lo oficial", /La División/.test(avP) && /pasó a la programación oficial/.test(avP), avP);
       await B.evaluate(() => cerrarAvisos());
-      // La División imprime el ticket del acuerdo para firmar: 3 copias (una por empleado y otra para ella)
+      // La División imprime el ticket del acuerdo: uno solo, que firman los dos y se lo presentan
       const tk = await D.evaluate(([s]) => {
         let impreso = 0; const orig = window.print; window.print = () => { impreso++; };
         renderAcuerdos();
@@ -699,11 +699,9 @@ function chequear(nombre, cond, detalle) {
         }, 200));
       }, [s]);
       chequear("en Acordados la División tiene \"🖨 Ticket\" y manda a imprimir", tk.boton && tk.impreso === 1, tk);
-      chequear("el ticket sale en 3 copias (los dos y la División)", tk.copias.length === 3 &&
-        /COPIA: DIVISIÓN/.test(tk.copias[2]) && tk.copias.every(c => c.indexOf(tk.a) >= 0 && c.indexOf(tk.b) >= 0), tk.copias);
-      chequear("la copia de cada uno la firma la División y la de la División, los dos",
-        tk.copias.slice(0, 2).every(c => /Firma División/.test(c) && c.indexOf("Firma " + tk.a) < 0 && c.indexOf("Firma " + tk.b) < 0) &&
-        !/Firma División/.test(tk.copias[2]) && tk.copias[2].indexOf("Firma " + tk.a) >= 0 && tk.copias[2].indexOf("Firma " + tk.b) >= 0, tk.copias);
+      chequear("el ticket sale en una sola copia, con la firma de los dos (no de la División)", tk.copias.length === 1 &&
+        tk.copias[0].indexOf("Firma " + tk.a) >= 0 && tk.copias[0].indexOf("Firma " + tk.b) >= 0 && !/Firma División/.test(tk.copias[0]) &&
+        /FIRMADO POR LOS DOS/.test(tk.copias[0]), tk.copias);
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());
       // La División NO publica cambios por su cuenta: lo que cambia en filas ajenas queda en su celular
       const d7 = (s.d + 15) % 28;

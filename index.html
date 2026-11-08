@@ -1437,8 +1437,7 @@
       body.imprimiendo-ticket #ticketPrint { display: block !important; }
     }
     #ticketPrint { width: 72mm; color: #000; font-family: "Courier New", monospace; font-size: 11pt; line-height: 1.25; }
-    #ticketPrint .tk { break-after: page; page-break-after: always; padding: 2mm 0; }
-    #ticketPrint .tk:last-child { break-after: auto; page-break-after: auto; }
+    #ticketPrint .tk { padding: 2mm 0; }
     #ticketPrint .tk-c { text-align: center; }
     #ticketPrint .tk-b { font-weight: 700; }
     #ticketPrint .tk-g { font-size: 13pt; }
@@ -1448,8 +1447,6 @@
     #ticketPrint .tk-l { padding-left: 2mm; }
     #ticketPrint .tk-firma { margin-top: 9mm; text-align: center; font-size: 9.5pt; }
     #ticketPrint .tk-raya { border-top: 1px solid #000; margin: 0 4mm 0.5mm; }
-    #ticketPrint .tk-acl { margin-top: 7mm; }
-    #ticketPrint .tk-corte { margin-top: 3mm; white-space: nowrap; overflow: hidden; }
     .acu-row .acu-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; }
     /* ---- Banco de cambios: almanaque del mes con las propuestas de cada día ---- */
     #bancoCambios { overscroll-behavior: contain; }
@@ -5863,7 +5860,7 @@
     acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
 
     // ===== TICKET PARA FIRMAR (División y admin) =====
-    // Imprime el cambio cerrado en formato de ticketera (80 mm): una copia para cada empleado y otra para la División.
+    // Imprime el cambio cerrado en formato de ticketera (80 mm): un ticket que firman los empleados y presentan a la División.
     const TICKET_APP = "PROGRAMACIÓN JEFES";
     function ticketHtml(k, a) {
       const di = Number(a.dia) - 1, d2 = Number(a.dia2) - 1;
@@ -5884,14 +5881,10 @@
       const dosD = (n) => String(n).padStart(2, "0");
       const fh = (ms) => { const x = new Date(ms); return dosD(x.getDate()) + "/" + dosD(x.getMonth() + 1) + "/" + x.getFullYear() + " " + dosD(x.getHours()) + ":" + dosD(x.getMinutes()); };
       const nro = String(a.t || "").slice(-6) || String(k).slice(-6);
-      // Una copia por empleado (la firma la División, para entregársela) y la de la División (la firman los empleados)
-      const empleados = [{ n: a.name }].concat(a.con ? [{ n: a.con.name }] : []);
-      const copias = empleados.concat([{ n: "División", div: true }]);
-      const firma = (txt, acl) => '<div class="tk-firma"><div class="tk-raya"></div><div>' + txt + '</div>' +
-        (acl ? '<div class="tk-raya tk-acl"></div><div>Aclaración</div>' : '') + '</div>';
-      const firmasDe = (c) => c.div ? empleados.map(e => firma("Firma " + escH(e.n))).join("") : firma("Firma División", true);
-      return copias.map(c =>
-        '<div class="tk">' +
+      // Un solo ticket: lo firman los empleados y cualquiera de ellos lo presenta a la División
+      const empleados = [a.name].concat(a.con ? [a.con.name] : []);
+      const firma = (n) => '<div class="tk-firma"><div class="tk-raya"></div><div>Firma ' + escH(n) + '</div></div>';
+      return '<div class="tk">' +
           '<div class="tk-c tk-b">' + TICKET_APP + '</div>' +
           '<div class="tk-c tk-b tk-g">CAMBIO DE TURNO</div>' +
           '<div class="tk-c">' + escH(MES.nombre) + ' ' + MES.y + ' · Nº ' + escH(nro) + '</div>' +
@@ -5901,12 +5894,11 @@
           '<div class="tk-l">' + escH(estado) + (a.palabra ? ' · de palabra' : '') + '</div>' +
           (a.t ? '<div class="tk-l">Cerrado: ' + fh(a.t) + '</div>' : '') +
           '<div class="tk-sep"></div>' +
-          firmasDe(c) +
+          empleados.map(firma).join("") +
           '<div class="tk-sep"></div>' +
-          '<div class="tk-c tk-b">COPIA: ' + escH(c.div ? "DIVISIÓN" : String(c.n).toUpperCase()) + '</div>' +
+          '<div class="tk-c tk-b">' + (a.con ? "PRESENTAR A LA DIVISIÓN FIRMADO POR LOS DOS" : "PRESENTAR FIRMADO A LA DIVISIÓN") + '</div>' +
           '<div class="tk-c tk-chico">Impreso ' + fh(Date.now()) + ' por ' + escH(nombreAutorizante()) + '</div>' +
-          '<div class="tk-corte">✂ - - - - - - - - - - - - - - - - - - - - - - - - - -</div>' +
-        '</div>').join("");
+        '</div>';
     }
     function imprimirTicket(k, a) {
       let box = document.getElementById("ticketPrint");
@@ -5919,7 +5911,7 @@
     function botonTicket(k, a) {
       const b = document.createElement("button");
       b.type = "button"; b.className = "ped-act sec"; b.textContent = "🖨 Ticket";
-      b.title = "Imprimir el ticket para firmar (3 copias)";
+      b.title = "Imprimir el ticket para que lo firmen los dos";
       b.addEventListener("click", () => imprimirTicket(k, a));
       return b;
     }

@@ -1429,6 +1429,7 @@
     .ped-act.sec { background: #e2e8f0; color: #334155; }
     .acu-row { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 0.82rem; color: #1e293b; }
     .acu-row.done { opacity: .5; }
+    .acu-row.uso-nuevo { background: #ecfdf5; border-color: #34d399; }
     #ticketPrint { display: none; }
     @media print {
       @page { size: 80mm auto; margin: 2mm 4mm; }
@@ -6268,6 +6269,27 @@
       if (f.toDateString() === h.toDateString()) return "ayer " + hm;
       return f.getDate() + "/" + (f.getMonth() + 1) + " " + hm;
     }
+    // Usos nuevos: los celulares que abrieron la app desde la última vez que el admin miró el uso (📊).
+    // Van arriba y en verde; la próxima vez que lo mira vuelven a su lugar (orden alfabético).
+    const USO_VISTO_KEY = PROP_PREF + "UsoVisto";
+    let usoVisto = null, usoAntes = null;
+    try { usoVisto = JSON.parse(localStorage.getItem(USO_VISTO_KEY) || "null"); } catch (e) {}
+    function marcarUsoVisto() {
+      if (!Object.keys(celularesDocs).length) return;
+      usoVisto = {};
+      Object.keys(celularesDocs).forEach(k => { const d = celularesDocs[k]; if (d) usoVisto[k] = Number(d.ab) || 0; });
+      try { localStorage.setItem(USO_VISTO_KEY, JSON.stringify(usoVisto)); } catch (e) {}
+    }
+    function verUsoOn() { return celularesOverlay.classList.contains("ver-uso"); }
+    function usosNuevos(k, d) {
+      if (!usoAntes || !verUsoOn() || !d) return 0;
+      return Math.max(0, (Number(d.ab) || 0) - (Number(usoAntes[k]) || 0));
+    }
+    function empezarVerUso() { usoAntes = usoVisto; marcarUsoVisto(); }
+    function cerrarCelulares() {
+      if (celularesOverlay.classList.contains("open") && verUsoOn()) marcarUsoVisto();
+      celularesOverlay.classList.remove("open");
+    }
     function usoTxt(d) {
       const n = Number(d.ab) || 0;
       if (!n) return "Todavía no la abrió desde que se cuenta";
@@ -6282,17 +6304,19 @@
       return "Abrieron la app: hoy " + en(h0.getTime()) + " · últimos 7 días " + en(ahora - 7 * dia) +
         " · últimos 30 días " + en(ahora - 30 * dia) + " (de " + ds.length + " celulares). Aperturas en total: " + tot + ".";
     }
-    // 📊 Ver uso: muestra u oculta el uso de todos los celulares a la vez (queda recordado en este dispositivo)
+    // 📊 Ver uso: muestra u oculta el uso de todos los celulares a la vez. Siempre arranca oculto al abrir
+    // Celulares: el momento en que el admin lo toca es el que marca los usos como vistos.
     function aplicarVerUso(on) {
       celularesOverlay.classList.toggle("ver-uso", on);
       const b = document.getElementById("btnVerUso");
       if (b) b.textContent = on ? "📊 Ocultar uso de la app" : "📊 Ver uso de la app";
     }
-    try { aplicarVerUso(localStorage.getItem("celVerUso") === "1"); } catch (e) { aplicarVerUso(false); }
+    aplicarVerUso(false);
     document.getElementById("btnVerUso").addEventListener("click", () => {
       const on = !celularesOverlay.classList.contains("ver-uso");
-      try { localStorage.setItem("celVerUso", on ? "1" : "0"); } catch (e) {}
       aplicarVerUso(on);
+      if (on) empezarVerUso(); else usoAntes = null;
+      renderCelulares();
     });
     function renderCelulares() {
       const list = document.getElementById("celularesList");
@@ -6301,16 +6325,19 @@
       const cnt = repetidos();
       const items = Object.keys(celularesDocs).map(k => ({ k, d: celularesDocs[k] })).filter(x => x.d)
         .sort((a, b) => (cnt[b.d.id] > 1) - (cnt[a.d.id] > 1) ||
-          esNuevoCel(b.d, celVistosAntes) - esNuevoCel(a.d, celVistosAntes) || String(a.d.name).localeCompare(String(b.d.name)));
+          esNuevoCel(b.d, celVistosAntes) - esNuevoCel(a.d, celVistosAntes) ||
+          (usosNuevos(b.k, b.d) > 0) - (usosNuevos(a.k, a.d) > 0) || String(a.d.name).localeCompare(String(b.d.name)));
       list.innerHTML = items.length ? "" : '<div class="ped-note info">Todavía ningún celular eligió nombre.</div>';
       items.forEach(({ k, d }) => {
         const row = document.createElement("div");
-        row.className = "acu-row";
+        const usoN = usosNuevos(k, d);
+        row.className = "acu-row" + (usoN ? " uso-nuevo" : "");
         const dup = cnt[d.id] > 1;
         const f = d.t ? new Date(d.t) : null;
         const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
         row.innerHTML = '<div class="acu-top"><span>' + d.name + (esInvitado(d.id) ? ' · invitado' : externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
-          (esNuevoCel(d, celVistosAntes) ? '<span style="color:#059669;font-weight:700">nuevo</span>' : '') + '</div>' +
+          (esNuevoCel(d, celVistosAntes) ? '<span style="color:#059669;font-weight:700">nuevo</span>' : '') +
+          (usoN ? '<span class="uso-nuevo-n" style="color:#047857;font-weight:700;white-space:nowrap">+' + usoN + (usoN === 1 ? ' uso' : ' usos') + '</span>' : '') + '</div>' +
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
           '<div class="cel-uso" style="font-size:0.72rem;color:#0f766e;font-weight:600">' + usoTxt(d) + '</div>' +
           (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
@@ -6371,11 +6398,12 @@
       celVistosAntes = celVistos;
       celVistos = Math.max(Date.now(), ...Object.values(celularesDocs).map(d => (d && d.t) || 0));
       try { localStorage.setItem(CEL_VISTOS_KEY, String(celVistos)); } catch (e) {}
+      aplicarVerUso(false); usoAntes = null;
       renderCelulares(); renderInvitaciones(); updateCelularesBtn();
       celularesOverlay.classList.add("open");
     });
-    document.getElementById("closeCelulares").addEventListener("click", () => celularesOverlay.classList.remove("open"));
-    celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) celularesOverlay.classList.remove("open"); });
+    document.getElementById("closeCelulares").addEventListener("click", cerrarCelulares);
+    celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) cerrarCelulares(); });
 
 
     // ========== INVITACIONES (externos que habilita el admin) ==========

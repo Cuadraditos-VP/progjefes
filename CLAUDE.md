@@ -112,6 +112,13 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Todo eso usa `publicarCeldas` (transacción: solo cambia esas celdas sobre lo último de Firebase y anota
   `publicadoPor["legajo:día"] = {n, t, a}`, a: 1 autorizó / 2 acuerdo / 3 de palabra); al admin le llega aviso de lo que hizo. No toca Celulares, invitaciones,
   colores ni meses. Reglas: `REGLAS-FIREBASE-DIVISION.md`. El admin también puede autorizar ("Autorizado por el administrador").
+  **Ticket** (Acordados → "🖨 Ticket", División y admin; `imprimirTicket`): imprime UN solo ticket chico (ticketera 80 mm)
+  con el cambio y lugar para la firma de los dos empleados; cualquiera de ellos se lo presenta firmado a la División, que recién
+  ahí lo pasa a lo oficial (la app no controla la firma). Sin copias para los empleados: les alcanza el aviso de la app.
+  **Rechazar** (Acordados, División y admin, solo si no está en lo oficial; `rechazarAcuerdo`): pide el motivo, el pedido queda
+  `estado: "rechazado"` con `rechazo = {motivo, por, t, adm?}`, se sacan los propios de esas celdas y cada celular de los dos
+  vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo; al admin, si fue la División.
+  Queda en Acordados en gris; ese día se puede volver a pedir.
   **Vista D** (de la División): la División arranca en D y su botón de vistas solo pasa a I y vuelve; el admin ve
   A → I → CJ → D. D es la vista A (se toca igual) con una esquinita en las celdas de los cambios cerrados del mes
   (`D_MARKS`, `marcasCerrados`): naranja = acordado entre los dos (falta avalarlo), verde = avalado (pasado a lo oficial,

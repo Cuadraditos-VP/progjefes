@@ -702,6 +702,38 @@ function chequear(nombre, cond, detalle) {
       chequear("el ticket sale en una sola copia, con la firma de los dos (no de la División)", tk.copias.length === 1 &&
         tk.copias[0].indexOf("Firma " + tk.a) >= 0 && tk.copias[0].indexOf("Firma " + tk.b) >= 0 && !/Firma División/.test(tk.copias[0]) &&
         /FIRMADO POR LOS DOS/.test(tk.copias[0]), tk.copias);
+      // La División rechaza un acuerdo (con motivo): los dos vuelven a lo oficial y les llega el aviso
+      const dR = await A.evaluate(([s]) => { for (let o = 22; o < 28; o++) { const d = (s.d + o) % 28;
+        const x = actualDe(s.a, d), y = actualDe(s.b, d);
+        if (trabaja(x) && trabaja(y) && x !== y && !esLicencia(s.a, d) && !esLicencia(s.b, d) && !diaPasado(d)) return d; } return -1; }, [s]);
+      if (dR < 0) chequear("hay un día para probar el rechazo", false);
+      else {
+        const [xR, yR] = await A.evaluate(([s, d]) => [actualDe(s.a, d), actualDe(s.b, d)], [s, dR]);
+        await A.evaluate(([s, d, y]) => { pedTengoSel = actualDe(s.a, d); guardarPedido(s.a, d, [y]); closePedido(); }, [s, dR, yR]);
+        await wait(1000);
+        await B.evaluate(([s, d]) => { responderPedido(s.a, d, true); closePedido(); }, [s, dR]);
+        await wait(1000);
+        await A.evaluate(([s, d]) => { const r = pedidoDe(people[s.a].id, d).respuestas[s.idb]; confirmarAcuerdo(s.a, d, r); }, [s, dR]);
+        await wait(3000);
+        chequear("(rechazo) el acuerdo nuevo lo ve un tercero", (await C.evaluate(([s, d]) => people[s.a].codes[d] + "/" + people[s.b].codes[d], [s, dR])) === yR + "/" + xR);
+        const btR = await D.evaluate(() => { renderAcuerdos(); return [...document.querySelectorAll("#acuerdosList button")].map(b => b.textContent); });
+        chequear("en Acordados la División tiene \"Rechazar\"", btR.includes("Rechazar"), btR);
+        await D.evaluate(([s, d]) => { const k = Object.keys(pedidosDocs).find(k => { const a = pedidosDocs[k];
+          return a && a.estado === "acordado" && String(a.id) === s.ida && a.dia === d + 1; });
+          const orig = window.prompt; window.prompt = () => "Falta personal ese turno"; rechazarAcuerdo(k, pedidosDocs[k]); window.prompt = orig; }, [s, dR]);
+        await wait(3500);
+        const docR = Object.values(be.st["pedidos_" + APP] || {}).find(x => x.id === s.ida && x.dia === dR + 1 && x.con);
+        chequear("el acuerdo queda rechazado con el motivo y quién", !!docR && docR.estado === "rechazado" && docR.rechazo && docR.rechazo.motivo === "Falta personal ese turno" && docR.rechazo.por === nomD, docR);
+        const verR = pg => pg.evaluate(([s, d]) => people[s.a].codes[d] + "/" + people[s.b].codes[d], [s, dR]);
+        chequear("A y B vuelven a su turno oficial (en sus celulares y para un tercero)",
+          (await verR(A)) === xR + "/" + yR && (await verR(B)) === xR + "/" + yR && (await verR(C)) === xR + "/" + yR, [await verR(A), await verR(B), await verR(C)]);
+        const avR = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
+        chequear("a B le llega que la División lo rechazó, con el motivo", /rechazó tu cambio/.test(avR) && /Falta personal/.test(avR), avR);
+        await B.evaluate(() => cerrarAvisos());
+        const avRA = await AD.evaluate(() => avisosAdmin().map(a => a.txt).join(" | "));
+        chequear("al admin le llega que la División rechazó un cambio", /rechazó el cambio/.test(avRA), avRA);
+        chequear("A puede volver a pedir cambio ese día", await A.evaluate(([s, d]) => !pedidoDe(people[s.a].id, d) && !celdaAvalada(s.a, d) && acordadosDelDia(d).length === 0, [s, dR]));
+      }
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());
       // La División NO publica cambios por su cuenta: lo que cambia en filas ajenas queda en su celular
       const d7 = (s.d + 15) % 28;

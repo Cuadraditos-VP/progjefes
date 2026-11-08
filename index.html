@@ -1526,6 +1526,19 @@
     #sinDatos.show { display: block; }
     body.sin-datos .group, body.sin-datos #groupCards, body.sin-datos .day-split { display: none !important; }
     #sinDatos button { margin-top: 12px; border: 0; border-radius: 8px; padding: 9px 16px; background: #0f766e; color: #fff; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+    /* ===== RETOQUES VISUALES ===== */
+    /* Logo de la app al lado del mes */
+    .app-logo { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+    @media (max-width: 520px) { .app-logo { width: 26px; height: 26px; border-radius: 8px; } }
+    /* Tu fila: nombre con fondo suave y una barra al costado */
+    tr.mi-fila td.person-id, tr.mi-fila td.person-name { background: #ccfbf1 !important; color: #115e59 !important; font-weight: 800; }
+    tr.mi-fila td.person-id { box-shadow: inset 4px 0 0 #0f766e; }
+    /* Botones de arriba con la misma forma */
+    .mi-btn, .ped-btn { height: 34px !important; border-radius: 17px !important; padding: 0 14px !important; font-size: 0.8rem !important;
+      font-weight: 700 !important; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+    .mi-btn { background: #0f766e; color: #fff; border-color: #0f766e; }
+    /* Banco de cambios: los días sin propuestas quedan limpios */
+    .bc-day .bc-cant.cero { visibility: hidden; }
 </style>
 </head>
 <body class="month-view">
@@ -1547,6 +1560,7 @@
         <button id="btnOriginalView" class="view-original-btn admin-only" title="Actual">A</button>
         <button type="button" id="btnToggleNames" class="names-toggle-btn admin-only" title="Ocultar nombres">N</button>
         <select id="monthSelect" class="month-select" title="Mes" aria-label="Mes" style="display:none"></select>
+        <img class="app-logo" src="icon-192.png" alt="" aria-hidden="true">
         <h1><span class="title-full" id="titleFull">PROGRAMACIÓN JEFES</span><span class="title-short" id="titleShort"></span></h1>
         <button type="button" id="btnDownload" class="json-btn dl-btn admin-only" title="Descargar imagen o PDF del mes">⬇ Bajar</button>
         <button type="button" id="btnExportJson" class="json-btn admin-only" title="Exportar JSON">↓ JSON</button>
@@ -2172,9 +2186,14 @@
     // Códigos que se fusionan en un solo bloque cuando aparecen varios días seguidos
     const BLOCK_CODES = ["LAO", "10A", "10J", "C/A", "LIC"];
 
+    // La fila de quien usa el celular se resalta (el admin no tiene fila propia)
+    function esMiFila(person) {
+      return !!miLegajo && currentUser !== "ADMIN" && String(person.id) === String(miLegajo);
+    }
     function buildRow(person, pi) {
       const tr = document.createElement("tr");
       tr.dataset.pi = String(pi);
+      if (esMiFila(person)) tr.classList.add("mi-fila");
       tr.innerHTML = `
         <td class="sticky-col person-id" data-pi="${pi}">${person.id}</td>
         <td class="sticky-col-2 person-name" data-pi="${pi}">${person.name}</td>

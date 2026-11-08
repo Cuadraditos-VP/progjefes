@@ -4429,7 +4429,7 @@
         html += '<div class="bd-vacio">' + "Ese día no hay propuestas de cambio." + "</div>";
       }
       const tengoPedido = todas.some(x => x.mio && x.tipo === "pide");
-      if (me && !tengoPedido && !diaPasado(di) && actualDe(me.pi, di) !== "LIC") {
+      if (me && !tengoPedido && !diaPasado(di) && actualDe(me.pi, di) !== "LIC" && !celdaAvalada(me.pi, di)) {
         html += '<button type="button" class="bd-pedir" id="bancoPedir">＋ Pedir cambio el ' + (di + 1) + "</button>";
       }
       // División (y admin): cargar un cambio acordado de palabra, con o sin contraparte
@@ -4664,6 +4664,7 @@
       const me = miPersona();
       const esMio = me && me.pi === pi;
       const ped = pedidoDe(p.id, di);
+      if (esMio && !ped && currentUser !== "ADMIN" && celdaAvalada(pi, di)) { showShareToast(AVALADO_MSG); return; }
       const ofrece = oficialDe(pi, di);
       const body = document.getElementById("pedidoBody");
       const grid = document.getElementById("pedidoGrid");
@@ -4839,6 +4840,8 @@
         if (yaResp && !yaResp.dia) {
           body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve (le das ' + (yaResp.tiene || "—") + '). Falta que ' + p.name + ' confirme.</div>');
           body.appendChild(mkBtn("Ya no me sirve", true, () => responderPedido(pi, di, false)));
+        } else if (!yaResp && celdaAvalada(me.pi, di)) {
+          body.insertAdjacentHTML("beforeend", '<div class="ped-note info">Ese día tu turno ya está avalado (es oficial): no lo podés cambiar.</div>');
         } else if (!yaResp && aceptaTurno(ped, yoTengo)) {
           body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Vos tenés ' + yoTengo + ' ese día: este cambio te sirve.</div>');
           body.appendChild(mkBtn("Me sirve", false, () => responderPedido(pi, di, true)));
@@ -4850,7 +4853,7 @@
           const francosOrden = ped.francos.slice().sort((a, b) => (b === diTocado + 1) - (a === diTocado + 1));
           francosOrden.forEach(n => {
             const deja = actualDe(me.pi, n - 1);
-            const sirve = tieneF && trabaja(deja);
+            const sirve = tieneF && trabaja(deja) && !celdaAvalada(me.pi, di) && !celdaAvalada(me.pi, n - 1);
             const elegido = yaResp && Number(yaResp.dia) === n;
             const row = document.createElement("div");
             row.className = "ped-opc" + (sirve || elegido ? " ok" : "");
@@ -5572,6 +5575,10 @@
         showShareToast("Es un día de licencia: no se puede cambiar.");
         return false;
       }
+      if (currentUser !== "ADMIN" && celdaAvalada(pi, di)) {
+        showShareToast(AVALADO_MSG);
+        return false;
+      }
       // Admin: si toca algo que publicó otro, primero se le ofrece descartarlo
       if (currentUser === "ADMIN" && String(p.id) !== String(miLegajo) && propCode(currentMes, p.id, di) != null) {
         if (ofrecerDescartar(pi, di)) return false;
@@ -5661,8 +5668,13 @@
       return r;
     }
     function esAvalado(a) { return a.estado === "autorizado" || !!a.pasado; }
-    function rebuildDMarks() {
-      D_MARKS = {};
+    function rebuildDMarks() { D_MARKS = marcasCerrados(); }
+    // Una celda avalada (ya oficializada por la División o el admin) no la cambia nadie más que el admin:
+    // ni el dueño en su fila, ni con un pedido nuevo, ni respondiendo "Me sirve".
+    function celdaAvalada(pi, di) { return marcasCerrados()[pi + ":" + di] === "daval"; }
+    const AVALADO_MSG = "Este turno ya está avalado (es oficial): no se puede cambiar. Si hace falta, hablalo con la División.";
+    function marcasCerrados() {
+      const D_MARKS = {};
       const pos = {};
       people.forEach((p, pi) => { if (p && p.id != null) pos[String(p.id)] = pi; });
       Object.keys(pedidosDocs).forEach(k => {
@@ -5676,6 +5688,7 @@
           if (m === "daval" || !D_MARKS[key]) D_MARKS[key] = m;
         });
       });
+      return D_MARKS;
     }
     // División: pasa un acuerdo a lo oficial (las celdas de los dos) y lo marca como pasado
     async function oficializarAcuerdo(k, a) {

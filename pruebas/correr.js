@@ -647,6 +647,24 @@ function chequear(nombre, cond, detalle) {
       chequear("el pedido se cierra como autorizado", !peds[pedId] && Object.values(peds).some(x => x.estado === "autorizado" && x.id === s.ida && x.dia === d6 + 1), Object.keys(peds));
       chequear("C lo ve", (await C.evaluate(([s, d6]) => people[s.a].codes[d6], [s, d6])) === quiere);
       chequear("en D, lo autorizado se marca como avalado", (await D.evaluate(([s, d6]) => cellMark(s.a, d6), [s, d6])) === "daval");
+      // Lo avalado queda trabado: el dueño no lo cambia, no pide cambio ese día y no responde "Me sirve" con ese día
+      const traba = await A.evaluate(([s, d6]) => { const ov = document.getElementById("shiftOverlay"); const antes = people[s.a].codes[d6];
+        openShiftPicker(s.a, d6); const abre = ov.classList.contains("open"); ov.classList.remove("open");
+        setPedidosMode(true); bancoDiaSel = d6; renderBancoDia(); const pedir = !!document.getElementById("bancoPedir"); setPedidosMode(false);
+        openPedido(s.a, d6); const cuadro = document.getElementById("pedidoOverlay").classList.contains("open"); closePedido();
+        return { abre, pedir, cuadro, igual: people[s.a].codes[d6] === antes }; }, [s, d6]);
+      chequear("el dueño no puede cambiar ni pedir cambio en un turno avalado", !traba.abre && !traba.pedir && !traba.cuadro && traba.igual, traba);
+      const pidC = await C.evaluate(d6 => { const me = miPersona(); pedTengoSel = actualDe(me.pi, d6);
+        guardarPedido(me.pi, d6, ["*"]); closePedido(); return me.pi; }, d6);
+      await wait(1500);
+      const resp = await A.evaluate(([pi, d6]) => { openPedido(pi, d6); const t = document.getElementById("pedidoBody").innerText;
+        const b = [...document.querySelectorAll("#pedidoBody button")].some(x => x.textContent === "Me sirve"); closePedido(); return { t, b }; }, [pidC, d6]);
+      chequear("ni puede responder \"Me sirve\" con un turno avalado", !resp.b && /avalado/.test(resp.t), resp);
+      await C.evaluate(d6 => quitarPedidoDoc(miPersona().pi, d6), d6);
+      await wait(1000);
+      const admEd = await AD.evaluate(([s, d6]) => { const ov = document.getElementById("shiftOverlay"); openShiftPicker(s.a, d6);
+        const r = ov.classList.contains("open"); ov.classList.remove("open"); return r; }, [s, d6]);
+      chequear("el admin sí lo puede cambiar", admEd);
       const avZ = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a A le llega \"Autorizado por la División\" con el nombre", /Autorizado por la División/.test(avZ) && avZ.indexOf(nomD) >= 0, avZ);
       await A.evaluate(() => cerrarAvisos());

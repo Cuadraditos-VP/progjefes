@@ -541,6 +541,19 @@ function chequear(nombre, cond, detalle) {
       chequear("el día de hoy ya no se puede cambiar (queda gris, sin \"Pedir cambio\")", hoyV.antes && !hoyV.hoy && hoyV.gris && !hoyV.pedir, hoyV);
       chequear("el banco arranca en mañana", hoyV.sigAbierto && hoyV.arranca > hoyV.d, hoyV);
     }
+    // La División y el admin sí pueden cargar un cambio de palabra para hoy
+    const hoyAd = await AD.evaluate(() => {
+      const h = hoyFecha(); const d = 3; window.__HOY = new Date(MES.y, MES.m - 1, d + 1, 12).getTime();
+      bancoMesSel = null; setPedidosMode(true); renderBanco();
+      const el = document.querySelector('#bancoCal .bc-day[data-di="' + d + '"]');
+      const ayer = document.querySelector('#bancoCal .bc-day[data-di="' + (d - 1) + '"]');
+      const r = { hoyAbierto: !!el && !el.classList.contains("pasado"), ayerGris: !!ayer && ayer.classList.contains("pasado") };
+      if (el) el.click();
+      r.palabra = !!document.getElementById("bancoPalabra"); r.pedir = !!document.getElementById("bancoPedir");
+      window.__HOY = h.getTime(); setPedidosMode(false);
+      return r;
+    });
+    chequear("el admin sí puede cargar un cambio de palabra para hoy (los días pasados no)", hoyAd.hoyAbierto && hoyAd.ayerGris && hoyAd.palabra, hoyAd);
     if (fr) {
       await wait(1500);
       const N2 = await cel("uN2");

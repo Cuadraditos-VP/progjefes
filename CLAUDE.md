@@ -67,6 +67,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   (`openPedido`), y "＋ Pedir cambio el N" carga uno propio. La grilla ya no muestra pedidos.
   Los cambios vencen el mismo día: hoy y los días pasados quedan grises en el banco (`diaPasado`),
   y los pedidos sin acordar de hoy desaparecen (`pedidoVencido`). El banco arranca en mañana.
+  Excepción: la División y el admin sí pueden tocar hoy en el banco (para un cambio de palabra).
   "Acordados" y "Celulares" (admin) y "¿Quién sos?" están arriba de ese cuadro.
 - **Avisos** ("Novedades de tus cambios"): interesados en tu pedido, confirmación, pedido
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.

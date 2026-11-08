@@ -4319,7 +4319,8 @@
         if ((MES.startWd + di) % 7 >= 5) cls.push("finde");
         if (sirve) cls.push("sirve");
         if (mio) cls.push(mio.nResp ? "tengo interesados" : "tengo");
-        if (diaPasado(di)) cls.push("pasado");
+        // Hoy ya venció para todos, salvo la División y el admin (cambio de palabra el mismo día)
+        if (diaPasado(di) && !(di === hoy && puedeAutorizar() && FB_MESES[currentMes])) cls.push("pasado");
         if (di === hoy) cls.push("hoy");
         if (di === bancoDiaSel) cls.push("sel");
         let mioHtml = "";

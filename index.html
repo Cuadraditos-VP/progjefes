@@ -3445,6 +3445,24 @@
           : "No se pudo publicar. Revisá la conexión y probá de nuevo.");
       }
     }
+    // Colores de un JSON ({"colores": {"F": "#E5E7EB", ...}}): quedan en este dispositivo,
+    // como si se eligieran en Colores; para que los vean todos, ⬆ Publicar.
+    function cargarColoresJson(cols) {
+      let n = 0;
+      Object.keys(cols).forEach(k => {
+        const v = String(cols[k] || "").trim().toUpperCase();
+        if (!/^#[0-9A-F]{6}$/.test(v)) return;
+        const c = normCode(k);
+        if (!c) return;
+        colorOverrides[c] = v;
+        colorMap[c] = v;
+        n++;
+      });
+      if (!n) { alert("El JSON no trae colores válidos"); return; }
+      saveColorOverrides();
+      afterColorChange(); updatePublishBtn();
+      alert(n + (n === 1 ? " color cargado" : " colores cargados") + " solo en este dispositivo.\nPara que los vean todos: ⬆ Publicar. Para volver atrás: Colores → “Color original” en cada turno.");
+    }
     document.getElementById("btnImportJson").addEventListener("click", () => {
       document.getElementById("importJsonFile").click();
     });
@@ -3456,6 +3474,10 @@
       reader.onload = () => {
         try {
           const data = JSON.parse(reader.result);
+          // Un JSON con solo colores: se prueban en este dispositivo (no toca el mes ni Firebase)
+          if (data && !Array.isArray(data) && !data.people && data.colores && typeof data.colores === "object") {
+            cargarColoresJson(data.colores); return;
+          }
           const list = Array.isArray(data) ? data : data.people;
           if (!list || !list.length) throw new Error("sin people");
           // Mes nuevo: el admin lo publica directo en Firebase (lo ven solo los registrados)

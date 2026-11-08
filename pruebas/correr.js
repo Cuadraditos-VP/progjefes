@@ -820,6 +820,27 @@ function chequear(nombre, cond, detalle) {
     chequear("el admin ve en Celulares cuántas veces la abrió cada uno", /^Abrió \d+ veces · última: hoy/.test(usoAd.fila) && /hoy \d+ .*Aperturas en total: \d+/.test(usoAd.resumen), usoAd);
     if ("oculto" in usoAd) chequear("el uso se ve solo cuando el admin toca 📊 (todos juntos) y se vuelve a ocultar", usoAd.oculto && usoAd.alPedir && usoAd.otraVez, usoAd);
     chequear("el admin no suma aperturas", !((be.st[YOC] || {})["uAd"] || {}).ab);
+    // Usos nuevos desde la última vez que el admin miró: arriba y en verde; después vuelven a su lugar
+    const abrirCel = () => AD.evaluate(() => {
+      const ov = document.getElementById("celularesOverlay");
+      document.getElementById("btnCelulares").click();
+      const oculto = !ov.classList.contains("ver-uso");
+      document.getElementById("btnVerUso").click();
+      const filas = [...document.querySelectorAll("#celularesList .acu-row")]
+        .filter(r => !/nuevo<|⚠/.test(r.innerHTML.replace(/uso-nuevo/g, "")));
+      const r = filas.map(f => ({ t: f.textContent, v: f.classList.contains("uso-nuevo") }));
+      if (!oculto) r.push({ t: "el uso no arrancó oculto", v: "mal" });
+      document.getElementById("closeCelulares").click();
+      return r;
+    });
+    await abrirCel();
+    await C.reload(); await wait(2500);
+    const conNuevo = await abrirCel(), despues = await abrirCel();
+    const filaC = conNuevo.find(f => f.t.includes(s.idc));
+    const primeroArriba = conNuevo.findIndex(f => !f.v) === -1 || conNuevo.findIndex(f => !f.v) > conNuevo.map(f => f.v).lastIndexOf(true);
+    chequear("los usos nuevos aparecen arriba y en verde (+1 uso)", !!filaC && filaC.v && /\+1 uso/.test(filaC.t) && primeroArriba, conNuevo);
+    chequear("una vez vistos vuelven a su lugar (orden alfabético)", despues.every(f => !f.v), despues);
+    chequear("al abrir Celulares el uso siempre arranca oculto", ![...conNuevo, ...despues].some(f => f.v === "mal"));
 
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);

@@ -130,7 +130,10 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   última vez) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
   no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. Arriba de la lista, un resumen: cuántos la abrieron
   hoy, en 7 y en 30 días, y el total de aperturas. Cuenta desde el 8/11/2026. Sirve para los números del concurso.
-  Está oculto hasta que el admin toca "📊 Ver uso de la app" (se muestra para todos a la vez; `celVerUso` en ese dispositivo).
+  Está oculto hasta que el admin toca "📊 Ver uso de la app" (se muestra para todos a la vez) y **siempre arranca oculto** al
+  abrir Celulares. Ese toque marca el momento: los que abrieron la app desde la vez anterior que miró van **arriba y en verde**
+  con "+N usos" (`usosNuevos`; lo ya visto se guarda en `localStorage` `<PROP_PREF>UsoVisto` al tocar 📊 y al cerrar);
+  la próxima vez vuelven a su lugar (orden alfabético).
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
   licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
 

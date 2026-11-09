@@ -123,9 +123,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   A → I → CJ → D. D es la vista A (se toca igual) con una esquinita en las celdas de los cambios cerrados del mes
   (`D_MARKS`, `marcasCerrados`): naranja = acordado entre los dos (falta avalarlo), verde = avalado (pasado a lo oficial,
   autorizado o de palabra, por la División o el admin). Internamente es `viewMode = "actual"` + `vistaD`.
-  **Lo avalado queda trabado** (`celdaAvalada`, a pedido de Guillermo): nadie salvo el admin cambia esa celda, pide cambio
-  ese día ni responde "Me sirve" con ese turno. La División lo puede cambiar con un cambio de palabra. La traba es solo de la
-  app (no hay regla de Firebase para eso).
+  **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
+  cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =
   última vez) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
   no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. Arriba de la lista, un resumen: cuántos la abrieron

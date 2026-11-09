@@ -630,15 +630,21 @@ function chequear(nombre, cond, detalle) {
           if ((codesFor(pi)[di] || "") !== (c || "")) distintas++;
           if ((p.codes[di] || "") !== (c || "")) propiasFuera++; }));
         return { distintas, propiasFuera }; });
-      chequear("en D no se ven los cambios hechos por cuenta propia (solo la inicial)", soloIni.distintas === 0 && soloIni.propiasFuera > 0, soloIni);
+      chequear("en D no se ven los cambios a mano de los usuarios (solo la inicial)", soloIni.distintas === 0 && soloIni.propiasFuera > 0, soloIni);
       const toqueD = await D.evaluate(([s]) => { const ov = document.getElementById("shiftOverlay");
         const td = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]'); td.click();
         const r = { picker: ov.classList.contains("open"), lista: document.getElementById("acuerdosOverlay").classList.contains("open"),
           filas: document.querySelectorAll("#acuerdosList .acu-row").length,
           botones: [...document.querySelectorAll("#acuerdosList button")].map(b => b.textContent) };
         document.getElementById("closeAcuerdos").click(); return r; }, [s]);
-      chequear("en D, tocar la celda acordada abre solo ese cambio para avalarlo (sin cambiar turnos)",
+      chequear("en D, tocar la celda acordada abre solo ese cambio para avalarlo",
         !toqueD.picker && toqueD.lista && toqueD.filas === 1 && toqueD.botones.includes("Pasar a lo oficial") && toqueD.botones.includes("Ver todos"), toqueD);
+      const mano = await D.evaluate(([s]) => { const ov = document.getElementById("shiftOverlay");
+        document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]').click();
+        const b = [...document.querySelectorAll("#acuerdosList button")].find(x => /Cambiar a mano/.test(x.textContent)); if (b) b.click();
+        const r = { boton: !!b, picker: ov.classList.contains("open"), lista: document.getElementById("acuerdosOverlay").classList.contains("open") };
+        ov.classList.remove("open"); document.body.classList.remove("shift-open"); return r; }, [s]);
+      chequear("y desde ahí se puede cambiar a mano", mano.boton && mano.picker && !mano.lista, mano);
       // A pide un cambio; la División lo autoriza sin contraparte
       const d6 = (s.d + 7) % 28;
       const quiere = await A.evaluate(([s, d6]) => { const t = actualDe(s.a, d6); const q = ["MD", "M", "N"].find(c => c !== t);
@@ -752,12 +758,13 @@ function chequear(nombre, cond, detalle) {
         chequear("A puede volver a pedir cambio ese día", await A.evaluate(([s, d]) => !pedidoDe(people[s.a].id, d) && marcasCerrados()[s.a + ":" + d] !== "daval" && acordadosDelDia(d).length === 0, [s, dR]));
       }
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());
-      // La División NO publica cambios por su cuenta: lo que cambia en filas ajenas (en la vista A) queda en su celular
+      // La División cambia turnos a mano en la D, pero NO los publica: lo que cambia en filas ajenas queda en su celular
       const d7 = (s.d + 15) % 28;
       const ofi7 = codDe(s.idc, d7);
       const nuevo7 = await D.evaluate(([s, d7]) => { const t = ORIGINAL_CODES[s.c][d7]; const n = ["MD", "M", "N"].find(c => c !== t);
-        ponerVista("actual"); openShiftPicker(s.c, d7); applyShift(n); document.getElementById("closeShift").click();
-        ponerVista("division"); refreshAfterEdit(); return n; }, [s, d7]);
+        const td = document.querySelector('td[data-pi="' + s.c + '"][data-di="' + d7 + '"]'); td.click();
+        if (!document.getElementById("shiftOverlay").classList.contains("open")) return "no abrió en D";
+        applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
       await wait(2500);
       chequear("la División no tiene botón para publicar", !(await D.evaluate(() => [...document.querySelectorAll("header button")].some(b => b.offsetParent && /Publicar|⬆/.test(b.textContent)))));
       chequear("lo que cambia en una fila ajena lo ve solo ella", (await D.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7 &&
@@ -782,9 +789,9 @@ function chequear(nombre, cond, detalle) {
       await wait(3000);
       chequear("y uno sin contraparte (pasa al turno elegido)", codDe(s.idc, d9) === quiere9, codDe(s.idc, d9));
       const enD = await D.evaluate(([s, d7, d9]) => { ponerVista("division"); refreshAfterEdit();
-        return { pal: codesFor(s.c)[d9], mk: cellMark(s.c, d9), ajena: codesFor(s.c)[d7], ini: INITIAL_CODES[s.c][d7] }; }, [s, d7, d9]);
+        return { pal: codesFor(s.c)[d9], mk: cellMark(s.c, d9), ajena: codesFor(s.c)[d7], mkA: cellMark(s.c, d7) }; }, [s, d7, d9]);
       chequear("en D se ve el cambio de palabra como avalado (verde)", enD.pal === quiere9 && enD.mk === "daval", enD);
-      chequear("en D no se ve lo que la División cambió en una fila ajena", enD.ajena === enD.ini && enD.ajena !== nuevo7, enD);
+      chequear("en D se ve lo que la División cambió a mano (en ámbar)", enD.ajena === nuevo7 && enD.mkA === "own", enD);
       const avPal = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a C le llegan los dos avisos de palabra", /cargó tu cambio de palabra/.test(avPal) && /tu cambio de palabra/.test(avPal.replace(/cargó tu cambio de palabra/, "")), avPal);
       await C.evaluate(() => cerrarAvisos());

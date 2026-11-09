@@ -119,10 +119,13 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   `estado: "rechazado"` con `rechazo = {motivo, por, t, adm?}`, se sacan los propios de esas celdas y cada celular de los dos
   vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo; al admin, si fue la División.
   Queda en Acordados en gris; ese día se puede volver a pedir.
-  **Vista D** (de la División): la División arranca en D y su botón de vistas solo pasa a I y vuelve; el admin ve
-  A → I → CJ → D. D es la vista A (se toca igual) con una esquinita en las celdas de los cambios cerrados del mes
-  (`D_MARKS`, `marcasCerrados`): naranja = acordado entre los dos (falta avalarlo), verde = avalado (pasado a lo oficial,
-  autorizado o de palabra, por la División o el admin). Internamente es `viewMode = "actual"` + `vistaD`.
+  **Vista D** (de la División): la División arranca en D y su botón de vistas pasa a A, a I y vuelve; el admin ve
+  A → I → CJ → D. D (`viewMode = "division"`, solo lectura) muestra **la programación inicial más los cambios cerrados
+  entre empleados** del mes, en el orden en que se cerraron (`marcasCerrados` → `D_CODES`, `D_MARKS`, `D_KEYS`); NO muestra
+  lo que cada uno cambió por su cuenta (en su fila o en otra) ni lo publicado suelto por el admin. Esquinita naranja =
+  acordado entre los dos (falta avalarlo), verde = avalado (pasado a lo oficial, autorizado o de palabra). Tocar una celda
+  marcada abre Acordados filtrado a ese cambio (`abrirCeldaD`, `acuFiltro`, con "Ver todos") para pasarlo a lo oficial,
+  imprimir el ticket o rechazarlo. Para cambiar turnos, la División pasa a la vista A.
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =

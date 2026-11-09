@@ -2045,7 +2045,7 @@
     // o "inicial" (la programación de arranque del mes, solo lectura)
     let viewMode = "actual";
     let vistaD = false;   // vista D (División): ver "VISTA D" más abajo
-    let D_MARKS = {};
+    let D_MARKS = {}, D_CODES = [], D_KEYS = {};
     // Estado de "Cambios" (pedidos de cambio de turno entre jefes)
     let pedidosMode = false;
     let PED_CODES = [];
@@ -2189,6 +2189,7 @@
     function codesFor(pi) {
       if (viewMode === "inicial") return INITIAL_CODES[pi] || [];
       if (viewMode === "cj") return CJ_CODES[pi] || ORIGINAL_CODES[pi] || [];
+      if (viewMode === "division") return D_CODES[pi] || INITIAL_CODES[pi] || [];
       return people[pi].codes;
     }
 
@@ -2196,7 +2197,7 @@
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
     function cellMark(pi, di) {
       if (viewMode === "inicial") return "";
-      if (vistaD && viewMode === "actual" && D_MARKS[pi + ":" + di]) return D_MARKS[pi + ":" + di];
+      if (viewMode === "division") return D_MARKS[pi + ":" + di] || "";
       if (viewMode === "cj" && CJ_MARKS[pi + ":" + di]) return CJ_MARKS[pi + ":" + di] === "propio" ? "cjp" : "cj";
       const shown = (codesFor(pi)[di] || "");
       // Distinto de lo oficial: azul si ya está publicado por su dueño, ámbar si es solo de este celular
@@ -2266,7 +2267,7 @@
             c.className = "blk" + (d === di ? " blk-first" : "") + (d === runEnd ? " blk-last" : "");
             if (d === di) c.textContent = upperCode;
             if (WEEK_START_DAYS.includes(d)) c.classList.add("week-sep");
-            c.style.cursor = viewMode !== "actual" ? "default" : "pointer";
+            c.style.cursor = viewMode === "actual" || (viewMode === "division" && D_KEYS[pi + ":" + d]) ? "pointer" : "default";
             const mk = markClass(pi, d);
             if (mk) c.classList.add(mk);
             markComment(c, pi, d);
@@ -2284,7 +2285,7 @@
           td.textContent = code;
         }
         if (WEEK_START_DAYS.includes(di)) td.classList.add("week-sep");
-        td.style.cursor = viewMode !== "actual" ? "default" : "pointer";
+        td.style.cursor = viewMode === "actual" || (viewMode === "division" && D_KEYS[pi + ":" + di]) ? "pointer" : "default";
         const mk = markClass(pi, di);
         if (mk) td.classList.add(mk);
         markComment(td, pi, di);
@@ -3767,16 +3768,17 @@
       actual: "Actual (editable)",
       inicial: "Programación inicial del mes",
       cj: "Cambios de los jefes (último cambio de cada celda)",
-      division: "División: cambios acordados (naranja) y avalados (verde)"
+      division: "División: la inicial + los cambios acordados (naranja, tocá para avalar) y avalados (verde)"
     };
     const VIEW_MODE_COLOR = { actual: "#7c3aed", inicial: "#0f766e", cj: "#9333ea", division: "#15803d" };
     const btnOriginalView = document.getElementById("btnOriginalView");
-    // "division" (D) es la vista A (se toca igual) con las marcas de acordados y avalados.
-    // El admin ve A → I → CJ → D; la División solo D → I.
-    function vistaActual() { return vistaD && viewMode === "actual" ? "division" : viewMode; }
+    // "division" (D): la programación inicial más los cambios cerrados entre empleados (ver "VISTA D").
+    // No muestra lo que cada uno cambió por su cuenta. Solo lectura: tocar una celda marcada abre su cambio para avalarlo.
+    // El admin ve A → I → CJ → D; la División D → A → I.
+    function vistaActual() { return viewMode; }
     function ponerVista(m) {
       vistaD = m === "division";
-      viewMode = vistaD ? "actual" : m;
+      viewMode = m;
       if (vistaD) rebuildDMarks();
       btnOriginalView.textContent = VIEW_MODE_LABEL[m];
       btnOriginalView.title = VIEW_MODE_TITLE[m];
@@ -3785,7 +3787,7 @@
     btnOriginalView.addEventListener("click", () => {
       let order;
       if (currentUser === "ADMIN") order = VIEW_MODE_ORDER.filter(m => m !== "cj" || fbReady).concat("division");
-      else if (soyDivision()) order = ["division", "inicial"];
+      else if (soyDivision()) order = ["division", "actual", "inicial"];
       else return;
       const i = order.indexOf(vistaActual());
       ponerVista(order[(i + 1) % order.length]);
@@ -5682,8 +5684,9 @@
       ];
     }
     // ===== VISTA D (División) =====
-    // Marca las celdas de los cambios cerrados del mes: "dacu" = acordado entre los dos (falta avalarlo),
-    // "daval" = avalado (pasado a lo oficial, autorizado o de palabra; por la División o el admin).
+    // La programación inicial del mes más los cambios cerrados entre empleados, en el orden en que se cerraron.
+    // Marca: "dacu" = acordado entre los dos (falta avalarlo), "daval" = avalado (pasado a lo oficial,
+    // autorizado o de palabra). Lo que cada uno cambió por su cuenta (en su fila o en otra) no se ve.
     function celdasDeCerrado(a) {
       if (a.estado === "acordado") return cambiosDeAcuerdo(a) || [];
       if (a.estado !== "autorizado") return [];
@@ -5695,24 +5698,47 @@
       return r;
     }
     function esAvalado(a) { return a.estado === "autorizado" || !!a.pasado; }
-    function rebuildDMarks() { D_MARKS = marcasCerrados(); }
+    function rebuildDMarks() { const r = marcasCerrados(); D_MARKS = r.marcas; D_CODES = r.codes; D_KEYS = r.keys; }
     function marcasCerrados() {
-      const D_MARKS = {};
+      const marcas = {}, keys = {};
+      const codes = people.map((p, pi) => (INITIAL_CODES[pi] || p.codes || []).slice());
       const pos = {};
       people.forEach((p, pi) => { if (p && p.id != null) pos[String(p.id)] = pi; });
-      Object.keys(pedidosDocs).forEach(k => {
-        const a = pedidosDocs[k];
-        if (!a || !cerrado(a) || a.mes !== currentMes) return;
-        const m = esAvalado(a) ? "daval" : "dacu";
-        celdasDeCerrado(a).forEach(c => {
-          const pi = pos[String(c.id)];
-          if (pi == null) return;
-          const key = pi + ":" + c.di;
-          if (m === "daval" || !D_MARKS[key]) D_MARKS[key] = m;
+      Object.keys(pedidosDocs).filter(k => { const a = pedidosDocs[k]; return a && cerrado(a) && a.mes === currentMes; })
+        .sort((x, y) => (pedidosDocs[x].t || 0) - (pedidosDocs[y].t || 0))
+        .forEach(k => {
+          const a = pedidosDocs[k];
+          const m = esAvalado(a) ? "daval" : "dacu";
+          celdasDeCerrado(a).forEach(c => {
+            const pi = pos[String(c.id)];
+            if (pi == null || !c.code) return;
+            const key = pi + ":" + c.di;
+            codes[pi][c.di] = c.code;
+            marcas[key] = m;
+            (keys[key] = keys[key] || []).push(k);
+          });
         });
-      });
-      return D_MARKS;
+      return { marcas, codes, keys };
     }
+    // En D, tocar una celda marcada abre su cambio (para avalarlo, imprimir el ticket o rechazarlo)
+    let acuFiltro = null;
+    function abrirCeldaD(pi, di) {
+      const ks = D_KEYS[pi + ":" + di];
+      if (!ks || !ks.length) {
+        showShareToast("En D se ve la inicial y los cambios acordados. Para cambiar un turno, pasá a la vista A.");
+        return;
+      }
+      acuFiltro = { keys: ks.slice(), txt: (people[pi] ? people[pi].name : "") + " · " + fechaTxt(di) };
+      acuerdosOverlay.classList.add("open");
+      renderAcuerdos();
+    }
+    document.addEventListener("click", (e) => {
+      if (viewMode !== "division" || pedidosMode) return;
+      if (e.target.closest("thead") || e.target.closest(".palette-overlay")) return;
+      const td = e.target.closest("td[data-pi][data-di]");
+      if (!td) return;
+      abrirCeldaD(Number(td.dataset.pi), Number(td.dataset.di));
+    });
     // División: pasa un acuerdo a lo oficial (las celdas de los dos) y lo marca como pasado
     async function oficializarAcuerdo(k, a) {
       const cambios = cambiosDeAcuerdo(a);
@@ -5726,6 +5752,7 @@
       const nom = nombreAutorizante();
       a.pasado = true; a.pasadoPor = nom;
       renderAcuerdos(); updatePedidosBar();
+      if (vistaD) refreshAfterEdit();
       try {
         await publicarCeldas(cambios.map(c => ({ id: String(c.id), di: c.di, code: c.code })), 2,
           tx => tx.update(fbDb.collection(PED_COLLECTION).doc(k), { pasado: true, pasadoPor: nom }));
@@ -5734,6 +5761,7 @@
       } catch (err) {
         a.pasado = false; delete a.pasadoPor;
         renderAcuerdos(); updatePedidosBar();
+        if (vistaD) refreshAfterEdit();
         errDivision(err, "pasarlo a lo oficial");
       }
     }
@@ -5821,11 +5849,24 @@
     // Lista de acordados para el admin
     const acuerdosOverlay = document.getElementById("acuerdosOverlay");
     function renderAcuerdos() {
+      if (acuFiltro && !acuerdosOverlay.classList.contains("open")) acuFiltro = null;
       const list = document.getElementById("acuerdosList");
       const items = Object.keys(pedidosDocs).map(k => ({ k, a: pedidosDocs[k] }))
         .filter(x => x.a && (cerrado(x.a) || (x.a.estado === "rechazado" && x.a.con)) && x.a.mes === currentMes)
+        .filter(x => !acuFiltro || acuFiltro.keys.indexOf(x.k) >= 0)
         .sort((x, y) => (x.a.estado === "rechazado" ? 2 : x.a.pasado || x.a.estado === "autorizado" ? 1 : 0) - (y.a.estado === "rechazado" ? 2 : y.a.pasado || y.a.estado === "autorizado" ? 1 : 0) || x.a.dia - y.a.dia);
       list.innerHTML = items.length ? "" : '<div class="ped-note info">No hay cambios acordados en ' + MES.nombre.toLowerCase() + '.</div>';
+      // Abierto desde una celda de la vista D: solo el cambio de esa celda (con "Ver todos")
+      if (acuFiltro) {
+        const f = document.createElement("div");
+        f.className = "ped-note info acu-filtro";
+        f.innerHTML = 'Cambio de <b>' + escH(acuFiltro.txt) + '</b> · ';
+        const todos = document.createElement("button");
+        todos.type = "button"; todos.className = "ped-act sec"; todos.textContent = "Ver todos";
+        todos.addEventListener("click", () => { acuFiltro = null; renderAcuerdos(); });
+        f.appendChild(todos);
+        list.prepend(f);
+      }
       items.forEach(({ k, a }) => {
         const row = document.createElement("div");
         const di = Number(a.dia) - 1;
@@ -5937,9 +5978,9 @@
         list.appendChild(row);
       });
     }
-    document.getElementById("btnAcuerdos").addEventListener("click", () => { renderAcuerdos(); acuerdosOverlay.classList.add("open"); });
-    document.getElementById("closeAcuerdos").addEventListener("click", () => acuerdosOverlay.classList.remove("open"));
-    acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) acuerdosOverlay.classList.remove("open"); });
+    document.getElementById("btnAcuerdos").addEventListener("click", () => { acuFiltro = null; renderAcuerdos(); acuerdosOverlay.classList.add("open"); });
+    document.getElementById("closeAcuerdos").addEventListener("click", () => { acuerdosOverlay.classList.remove("open"); acuFiltro = null; });
+    acuerdosOverlay.addEventListener("click", (e) => { if (e.target === acuerdosOverlay) { acuerdosOverlay.classList.remove("open"); acuFiltro = null; } });
 
     // ===== TICKET PARA FIRMAR (División y admin) =====
     // Imprime el cambio cerrado en formato de ticketera (80 mm): un ticket que firman los empleados y presentan a la División.

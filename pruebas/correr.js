@@ -597,8 +597,9 @@ function chequear(nombre, cond, detalle) {
       const codDe = (id, di) => { const f = ((be.st[TURNOS] || {})[s.mes] || { people: [] }).people.find(p => String(p.id) === String(id));
         return f ? (Array.isArray(f.codes) ? f.codes : String(f.codes).split(/\s+/))[di] : undefined; };
       const esDiv = pg => pg.evaluate(() => ({ div: document.body.classList.contains("is-division"),
+        pub: getComputedStyle(document.getElementById("btnPublicarDiv")).display !== "none",
         acu: getComputedStyle(document.getElementById("btnAcuerdos")).display !== "none" }));
-      chequear("un registrado común no es División (sin Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: false, acu: false }), await esDiv(D));
+      chequear("un registrado común no es División (sin ⬆ Publicar ni Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: false, pub: false, acu: false }), await esDiv(D));
       const dDen = (s.d + 9) % 28;
       const rechazo = await D.evaluate(([id, di]) => publicarCeldas([{ id, di, code: "MD" }], false).then(() => "ok", e => e.code), [s.idc, dDen]);
       chequear("Firebase no deja a un común publicar turnos", rechazo === "permission-denied", rechazo);
@@ -608,22 +609,43 @@ function chequear(nombre, cond, detalle) {
         row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2500);
       chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
-      chequear("ese celular pasa a ser División (ve Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, acu: true }), await esDiv(D));
+      chequear("ese celular pasa a ser División (⬆ Publicar y Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, pub: true, acu: true }), await esDiv(D));
       const nomD = await D.evaluate(() => miPersona().p.name);
-      // Vista D: la División arranca en D y su botón solo pasa a I y vuelve
+      // Vista D: la División arranca en D y su botón pasa a A, a I y vuelve
       const vD = pg => pg.evaluate(() => { const b = document.getElementById("btnOriginalView");
         return { txt: b.textContent, vis: getComputedStyle(b).display !== "none", d: vistaD, modo: viewMode }; });
       const vd0 = await vD(D);
-      chequear("la División arranca en la vista D", vd0.vis && vd0.txt === "D" && vd0.d && vd0.modo === "actual", vd0);
+      chequear("la División arranca en la vista D", vd0.vis && vd0.txt === "D" && vd0.d && vd0.modo === "division", vd0);
       const ciclo = await D.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [];
         for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(""); });
-      chequear("la División solo ve D e I", ciclo === "IDI", ciclo);
-      await D.evaluate(() => document.getElementById("btnOriginalView").click());
+      chequear("la División ve D → A → I", ciclo === "AID", ciclo);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",
         await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));
-      chequear("en D se puede tocar la grilla como siempre", await D.evaluate(() => viewMode === "actual"));
+      chequear("en D se ve el acuerdo de A y B cargado", JSON.stringify(await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s])) === JSON.stringify([s.y, s.x]),
+        await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s]));
+      // Fuera de los acuerdos, D es la inicial: no se ve lo que cada uno cambió por su cuenta
+      const soloIni = await D.evaluate(() => { let distintas = 0, propiasFuera = 0;
+        people.forEach((p, pi) => (INITIAL_CODES[pi] || []).forEach((c, di) => { if (D_KEYS[pi + ":" + di]) return;
+          if ((codesFor(pi)[di] || "") !== (c || "")) distintas++;
+          if ((p.codes[di] || "") !== (c || "")) propiasFuera++; }));
+        return { distintas, propiasFuera }; });
+      chequear("en D no se ven los cambios a mano de los usuarios (solo la inicial)", soloIni.distintas === 0 && soloIni.propiasFuera > 0, soloIni);
+      const toqueD = await D.evaluate(([s]) => { const ov = document.getElementById("shiftOverlay");
+        const td = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]'); td.click();
+        const r = { picker: ov.classList.contains("open"), lista: document.getElementById("acuerdosOverlay").classList.contains("open"),
+          filas: document.querySelectorAll("#acuerdosList .acu-row").length,
+          botones: [...document.querySelectorAll("#acuerdosList button")].map(b => b.textContent) };
+        document.getElementById("closeAcuerdos").click(); return r; }, [s]);
+      chequear("en D, tocar la celda acordada abre solo ese cambio para avalarlo",
+        !toqueD.picker && toqueD.lista && toqueD.filas === 1 && toqueD.botones.includes("Pasar a lo oficial") && toqueD.botones.includes("Ver todos"), toqueD);
+      const mano = await D.evaluate(([s]) => { const ov = document.getElementById("shiftOverlay");
+        document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]').click();
+        const b = [...document.querySelectorAll("#acuerdosList button")].find(x => /Cambiar a mano/.test(x.textContent)); if (b) b.click();
+        const r = { boton: !!b, picker: ov.classList.contains("open"), lista: document.getElementById("acuerdosOverlay").classList.contains("open") };
+        ov.classList.remove("open"); document.body.classList.remove("shift-open"); return r; }, [s]);
+      chequear("y desde ahí se puede cambiar a mano", mano.boton && mano.picker && !mano.lista, mano);
       // A pide un cambio; la División lo autoriza sin contraparte
       const d6 = (s.d + 7) % 28;
       const quiere = await A.evaluate(([s, d6]) => { const t = actualDe(s.a, d6); const q = ["MD", "M", "N"].find(c => c !== t);
@@ -670,8 +692,8 @@ function chequear(nombre, cond, detalle) {
       await A.evaluate(() => cerrarAvisos());
       const enBanco = await A.evaluate(d6 => { setPedidosMode(true); bancoDiaSel = d6; renderBancoDia(); const t = document.getElementById("bancoDia").innerText; setPedidosMode(false); return t; }, d6);
       chequear("en el banco, ese día A ve que se lo autorizaron", /Autorizado por la División/.test(enBanco), enBanco);
-      // La División pasa a lo oficial el acuerdo de A y B
-      await D.evaluate(() => { document.getElementById("btnAcuerdos").click(); });
+      // La División pasa a lo oficial el acuerdo de A y B, tocando la celda en la vista D
+      await D.evaluate(([s]) => document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]').click(), [s]);
       const bo = await D.evaluate(() => [...document.querySelectorAll("#acuerdosList button")].map(b => b.textContent));
       chequear("en Acordados la División tiene \"Pasar a lo oficial\"", bo.includes("Pasar a lo oficial"), bo);
       await D.evaluate(() => { [...document.querySelectorAll("#acuerdosList button")].find(b => b.textContent === "Pasar a lo oficial").click(); });
@@ -685,6 +707,8 @@ function chequear(nombre, cond, detalle) {
       const avP = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a B le llega que la División lo pasó a lo oficial", /La División/.test(avP) && /pasó a la programación oficial/.test(avP), avP);
       await B.evaluate(() => cerrarAvisos());
+      // Se cierra el cambio de esa celda y se abre la lista completa de Acordados
+      await D.evaluate(() => { document.getElementById("closeAcuerdos").click(); document.getElementById("btnAcuerdos").click(); });
       // La División imprime el ticket del acuerdo: uno solo, que firman los dos y se lo presentan
       const tk = await D.evaluate(([s]) => {
         let impreso = 0; const orig = window.print; window.print = () => { impreso++; };
@@ -735,15 +759,22 @@ function chequear(nombre, cond, detalle) {
         chequear("A puede volver a pedir cambio ese día", await A.evaluate(([s, d]) => !pedidoDe(people[s.a].id, d) && marcasCerrados()[s.a + ":" + d] !== "daval" && acordadosDelDia(d).length === 0, [s, dR]));
       }
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());
-      // La División NO publica cambios por su cuenta: lo que cambia en filas ajenas queda en su celular
+      // La División cambia a mano un turno de otro en la D y lo publica con su ⬆ Publicar
       const d7 = (s.d + 15) % 28;
       const ofi7 = codDe(s.idc, d7);
       const nuevo7 = await D.evaluate(([s, d7]) => { const t = ORIGINAL_CODES[s.c][d7]; const n = ["MD", "M", "N"].find(c => c !== t);
-        openShiftPicker(s.c, d7); applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
-      await wait(2500);
-      chequear("la División no tiene botón para publicar", !(await D.evaluate(() => [...document.querySelectorAll("header button")].some(b => b.offsetParent && /Publicar|⬆/.test(b.textContent)))));
-      chequear("lo que cambia en una fila ajena lo ve solo ella", (await D.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7 &&
-        codDe(s.idc, d7) === ofi7 && (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) !== nuevo7, codDe(s.idc, d7));
+        const td = document.querySelector('td[data-pi="' + s.c + '"][data-di="' + d7 + '"]'); td.click();
+        if (!document.getElementById("shiftOverlay").classList.contains("open")) return "no abrió en D";
+        applyShift(n); document.getElementById("closeShift").click(); return n; }, [s, d7]);
+      await wait(1500);
+      chequear("antes de publicar, lo ve solo ella (en ámbar en la D)", codDe(s.idc, d7) === ofi7 && (await D.evaluate(([s, d7]) => cellMark(s.c, d7), [s, d7])) === "own" &&
+        (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) !== nuevo7, codDe(s.idc, d7));
+      const btxt = await D.evaluate(() => document.getElementById("btnPublicarDiv").textContent);
+      chequear("⬆ Publicar de la División cuenta lo que cambió", /⬆ 1$/.test(btxt), btxt);
+      await D.evaluate(() => { window.confirm = () => true; document.getElementById("btnPublicarDiv").click(); });
+      await wait(3000);
+      chequear("lo que publica la División queda en lo oficial", codDe(s.idc, d7) === nuevo7, codDe(s.idc, d7));
+      chequear("B lo ve", (await B.evaluate(([s, d7]) => people[s.c].codes[d7], [s, d7])) === nuevo7);
       // Cambio de palabra: con contraparte (A y C intercambian) y sin contraparte (C pasa a otro turno)
       const d8 = (s.d + 17) % 28, d9 = (s.d + 19) % 28;
       const antes8 = [codDe(s.ida, d8), codDe(s.idc, d8)];
@@ -763,6 +794,10 @@ function chequear(nombre, cond, detalle) {
         document.getElementById("okPalabra").click(); setPedidosMode(false); }, [s, d9, quiere9]);
       await wait(3000);
       chequear("y uno sin contraparte (pasa al turno elegido)", codDe(s.idc, d9) === quiere9, codDe(s.idc, d9));
+      const enD = await D.evaluate(([s, d7, d9]) => { ponerVista("division"); refreshAfterEdit();
+        return { pal: codesFor(s.c)[d9], mk: cellMark(s.c, d9), ajena: codesFor(s.c)[d7], mkA: cellMark(s.c, d7) }; }, [s, d7, d9]);
+      chequear("en D se ve el cambio de palabra como avalado (verde)", enD.pal === quiere9 && enD.mk === "daval", enD);
+      chequear("en D se ve lo que la División publicó a mano (en verde)", enD.ajena === nuevo7 && enD.mkA === "daval", enD);
       const avPal = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a C le llegan los dos avisos de palabra", /cargó tu cambio de palabra/.test(avPal) && /tu cambio de palabra/.test(avPal.replace(/cargó tu cambio de palabra/, "")), avPal);
       await C.evaluate(() => cerrarAvisos());
@@ -771,7 +806,7 @@ function chequear(nombre, cond, detalle) {
       const docM = (be.st[TURNOS] || {})[s.mes];
       chequear("la División no toca nada más del mes (gente, inicial)", docM.people.length === M0.people.length && Array.isArray(docM.inicial) && docM.inicial.length === M0.people.length);
       const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
-      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && /\(División\) cargó un cambio de palabra/.test(avAdD) && !/\(División\) publicó/.test(avAdD), avAdD);
+      chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && /\(División\) cargó un cambio de palabra/.test(avAdD) && /\(División\) publicó/.test(avAdD), avAdD);
       await AD.evaluate(() => cerrarAvisos());
       // El admin le saca la División
       await AD.evaluate(id => { document.getElementById("btnCelulares").click();

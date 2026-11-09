@@ -804,6 +804,9 @@
     /* División: rol intermedio (autoriza pedidos, pasa acordados a lo oficial y publica turnos) */
     body:not(.is-division) .division-only { display: none !important; }
     body.is-division:not(.is-admin) #btnAcuerdos.admin-only { display: inline-block !important; }
+    .div-pub-btn { background: #7c3aed; white-space: nowrap; }
+    .div-pub-btn.pending { background: #dc2626; }
+    .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
     .ped-div { margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px solid #c4b5fd; background: #f5f3ff; }
     .ped-div .ped-lbl { margin-top: 0; color: #5b21b6; }
     .ped-div .ped-act { width: 100%; margin-top: 6px; background: #7c3aed; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -1601,6 +1604,7 @@
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
+        <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos que cambiaste">⬆ Publicar</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <button type="button" id="btnAdminMenu" class="json-btn admin-only adm-menu-btn" title="Herramientas de admin" aria-label="Herramientas de admin">☰</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
@@ -3295,6 +3299,7 @@
       return Object.keys(colorOverrides).length + turnos;
     }
     function updatePublishBtn() {
+      updateDivPublishBtn();
       const btn = document.getElementById("btnPublish");
       if (!btn || btn.disabled) return;
       const n = pendingCount();
@@ -3356,7 +3361,7 @@
     // El admin marca en Celulares quién es "la División" (division_jefes/{legajo o inv-código}).
     // La División puede: autorizar pedidos de cambio sin contraparte (pasan a lo oficial y al
     // que pidió le llega "Autorizado por la División") y avalar los acordados entre empleados
-    // (pasarlos a lo oficial). No publica cambios por su cuenta: en filas ajenas, como todos, solo en su celular.
+    // (pasarlos a lo oficial), y publicar los turnos que cambia a mano con su botón ⬆ Publicar.
     // Lo que publica solo cambia esas celdas (sobre lo último de Firebase) y queda anotado en
     // publicadoPor["legajo:día"] = { n: nombre, t: cuándo, a: 1 autorización / 2 acuerdo }.
     function soyDivision() { return !!divisionDoc && currentUser !== "ADMIN"; }
@@ -3384,6 +3389,7 @@
     }
     function setDivisionUI() {
       document.body.classList.toggle("is-division", soyDivision());
+      updateDivPublishBtn();
       try { ajustarVistaDivision(); } catch (e) {}
       updatePedidosBar();
       if (pedidosMode) renderBanco();
@@ -3428,6 +3434,46 @@
         ? "Firebase no dejó " + que + " (faltan las reglas de la División)."
         : "No se pudo " + que + ". Revisá la conexión y probá de nuevo.");
     }
+
+    // Botón ⬆ Publicar de la División: los turnos que cambió a mano en su celular (en cualquier fila) pasan a lo oficial
+    function updateDivPublishBtn() {
+      const b = document.getElementById("btnPublicarDiv");
+      if (!b || b.disabled) return;
+      const n = soyDivision() && FB_MESES[currentMes] ? turnosAPublicar().cambiados.length : 0;
+      // Con cambios queda corto ("⬆ 2"), como el ☰ del admin, para no apretar la barra
+      b.textContent = n ? "⬆ " + n : "⬆ Publicar";
+      b.title = n ? "División: publicar para todos " + (n === 1 ? "1 turno cambiado" : n + " turnos cambiados") : "División: publicar para todos los turnos que cambiaste";
+      b.classList.toggle("pending", n > 0);
+    }
+    document.getElementById("btnPublicarDiv").addEventListener("click", async () => {
+      if (!soyDivision() || !fbReady || !FB_MESES[currentMes]) return;
+      const tp = turnosAPublicar();
+      if (!tp.cambiados.length) {
+        showShareToast("No cambiaste turnos. Tocá las celdas, cambialas y después tocá ⬆ Publicar.");
+        return;
+      }
+      const cambios = tp.cambiados.map(k => {
+        const cut = k.lastIndexOf(":"), id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+        const pi = people.findIndex(p => String(p.id) === id);
+        return { id, di, pi, code: (tp.codes[pi] || [])[di] || "", antes: (ORIGINAL_CODES[pi] || [])[di] || "" };
+      }).filter(c => c.pi >= 0).sort((a, b) => a.pi - b.pi || a.di - b.di);
+      const lineas = cambios.map(c => "• " + people[c.pi].name + " el " + (c.di + 1) + ": " + (c.antes || "vacío") + " → " + (c.code || "vacío"));
+      const choques = choquesConPropios(tp);
+      if (!confirm("¿Publicar para todos?\n\n" + (lineas.length > 15 ? lineas.slice(0, 15).concat("… y " + (lineas.length - 15) + " más") : lineas).join("\n") +
+        "\n\nPasan a la programación oficial." + textoChoques(choques))) return;
+      const b = document.getElementById("btnPublicarDiv");
+      b.disabled = true; b.textContent = "Publicando…";
+      try {
+        await publicarCeldas(cambios, false);
+        choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
+        b.disabled = false; b.textContent = "✓ Publicado"; b.classList.remove("pending");
+        setTimeout(updateDivPublishBtn, 2000);
+        showShareToast("Listo: " + (cambios.length === 1 ? "1 turno pasó" : cambios.length + " turnos pasaron") + " a lo oficial.");
+      } catch (err) {
+        b.disabled = false; updateDivPublishBtn();
+        errDivision(err, "publicar");
+      }
+    });
 
     function currentJson() {
       return {
@@ -5624,6 +5670,7 @@
       if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
       if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar." };
       if (soyExterno()) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
+      if (soyDivision()) return { cls: "priv", txt: "División: lo ven todos cuando toques ⬆ Publicar." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }
@@ -5688,8 +5735,9 @@
       ];
     }
     // ===== VISTA D (División) =====
-    // La programación inicial del mes más los cambios cerrados entre empleados (en el orden en que se cerraron)
-    // y, encima, lo que se cambió a mano en ESTE celular. Lo que los demás cambiaron por su cuenta no se ve.
+    // La programación inicial del mes más los cambios cerrados entre empleados y lo que la División publicó a mano
+    // (en el orden en que pasaron) y, encima, lo que se cambió a mano en ESTE celular. Lo que los demás usuarios
+    // cambiaron por su cuenta no se ve.
     // Marca: "dacu" = acordado entre los dos (falta avalarlo), "daval" = avalado (pasado a lo oficial,
     // autorizado o de palabra), "own" = cambiado a mano en este celular (ámbar).
     function celdasDeCerrado(a) {
@@ -5709,20 +5757,33 @@
       const codes = people.map((p, pi) => (INITIAL_CODES[pi] || p.codes || []).slice());
       const pos = {};
       people.forEach((p, pi) => { if (p && p.id != null) pos[String(p.id)] = pi; });
+      const cambiosD = [];
       Object.keys(pedidosDocs).filter(k => { const a = pedidosDocs[k]; return a && cerrado(a) && a.mes === currentMes; })
         .sort((x, y) => (pedidosDocs[x].t || 0) - (pedidosDocs[y].t || 0))
         .forEach(k => {
           const a = pedidosDocs[k];
           const m = esAvalado(a) ? "daval" : "dacu";
-          celdasDeCerrado(a).forEach(c => {
-            const pi = pos[String(c.id)];
-            if (pi == null || !c.code) return;
-            const key = pi + ":" + c.di;
-            codes[pi][c.di] = c.code;
-            marcas[key] = m;
-            (keys[key] = keys[key] || []).push(k);
-          });
+          celdasDeCerrado(a).forEach(c => cambiosD.push({ t: a.t || 0, id: c.id, di: c.di, code: c.code, m, k }));
         });
+      // Lo que la División publicó a mano (en publicadoPor sin "a"): lo oficial de esa celda, en verde
+      const fb = loadFbCache(currentMes);
+      const pp = (fb && fb.publicadoPor) || {};
+      Object.keys(pp).forEach(key => {
+        const x = pp[key] || {};
+        if (x.a || x.adm) return;
+        const cut = key.lastIndexOf(":"), id = key.slice(0, cut), di = Number(key.slice(cut + 1));
+        const pi = pos[id];
+        if (pi == null) return;
+        cambiosD.push({ t: x.t || 0, id, di, code: (ORIGINAL_CODES[pi] || [])[di] || "", m: "daval" });
+      });
+      cambiosD.sort((x, y) => x.t - y.t).forEach(c => {
+        const pi = pos[String(c.id)];
+        if (pi == null || !c.code || !(c.di >= 0 && c.di < DAYS)) return;
+        const key = pi + ":" + c.di;
+        codes[pi][c.di] = c.code;
+        marcas[key] = c.m;
+        if (c.k) (keys[key] = keys[key] || []).push(c.k);
+      });
       Object.keys(editsMap).forEach(key => {
         const [pi, di] = key.split(":").map(Number);
         if (!codes[pi] || !(di >= 0 && di < DAYS)) return;
@@ -6428,7 +6489,7 @@
       }
       if (!confirm("¿Hacer a " + d.name + " parte de la División?\n\nVa a poder:\n" +
         "• autorizar pedidos de cambio aunque no haya contraparte\n• pasar los cambios acordados a lo oficial\n" +
-        "\nNo puede publicar cambios por su cuenta ni tocar Celulares, invitaciones, colores ni meses.")) return;
+        "• cambiar y publicar turnos de cualquiera\n\nNo puede tocar Celulares, invitaciones, colores ni subir meses.")) return;
       const per = people.find(p => String(p.id) === id);
       const data = { name: String((per && per.name) || (esInvitado(id) && (invitacionesDocs[id.slice(INV_PREF.length)] || {}).name) || d.name || id), t: Date.now() };
       divisionDocs[id] = data; renderCelulares();

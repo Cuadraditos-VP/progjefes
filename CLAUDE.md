@@ -104,8 +104,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   colección `division_jefes/{legajo o inv-código}`; `soyDivision()`, clase `is-division`). Puede: **autorizar pedidos sin
   contraparte** (en el cuadro del pedido, "Autorizar …": pasa a lo oficial y el pedido queda `estado: "autorizado"` con `por`;
   al que pidió le llega "Autorizado por la División — Nombre"), **pasar acordados a lo oficial** (Acordados → "Pasar a lo
-  oficial", queda `pasado` + `pasadoPor`). **No publica cambios por su cuenta** (a pedido de Guillermo: solo avala lo que
-  acuerdan los empleados o autoriza pedidos); lo que cambie en filas ajenas queda en su celular, como a todos.
+  oficial", queda `pasado` + `pasadoPor`) y **publicar los turnos que cambia a mano** de cualquiera con su ⬆ Publicar
+  (`btnPublicarDiv`, a pedido de Guillermo se volvió a poner; queda en `publicadoPor` sin `a`).
   **Cambio de palabra** (botón violeta "＋ Cambio de palabra el N" en el día del banco, `abrirPalabra`): elige empleado y
   con quién cambia (intercambian el turno de ese día; queda `estado: "acordado"`, `palabra: true`, `pasado`) o "Nadie"
   (sin contraparte: elige el turno; queda `estado: "autorizado"`, `palabra: true`). Va a lo oficial y les llega aviso.
@@ -124,8 +124,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   de cambios** (acordados, autorizados y de palabra), en el orden en que se cerraron, y encima **lo que se cambió a mano en
   ese mismo celular** (ámbar) (`marcasCerrados` → `D_CODES`, `D_MARKS`, `D_KEYS`). NO muestra lo que los demás usuarios
   cambiaron a mano (propios, CJ) ni lo publicado suelto por el admin. Esquinita naranja = acordado entre los dos (falta
-  avalarlo), verde = avalado (pasado a lo oficial, autorizado o de palabra). En D se cambian turnos a mano igual que en A
-  (quedan en el celular, la División no publica); tocar una celda de un cambio acordado abre Acordados filtrado a ese
+  avalarlo), verde = avalado (pasado a lo oficial, autorizado, de palabra o publicado a mano por la División). En D se
+  cambian turnos a mano igual que en A (ámbar hasta que la División toca ⬆ Publicar; ahí pasan a verde); tocar una celda de un cambio acordado abre Acordados filtrado a ese
   cambio (`abrirCeldaD`, `acuFiltro`, con "Ver todos" y "✎ Cambiar a mano") para pasarlo a lo oficial, imprimir el
   ticket o rechazarlo.
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir

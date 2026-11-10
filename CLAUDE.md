@@ -56,6 +56,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   No usar `alert`/`confirm` después de esperar a Firebase (en iPhone a veces no aparecen).
 - **Externos**: entran con un link de invitación del admin (Celulares → Invitar, colección
   `invitados_jefes`). No reservan legajo, no tienen fila propia (no publican ni piden cambios).
+  El código de la invitación es de 3 cifras (`codigoInvitacionLibre`, no repite uno existente; a pedido de Guillermo).
   `EXTERNOS` en `index.html` quedó vacío (Valeria pasó a invitación).
 - **Fila propia vs. ajena**: cualquiera puede cambiar cualquier fila en su celular, pero solo
   lo de **su propia fila** se publica para todos (colección `propios_jefes`, doc

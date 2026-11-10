@@ -55,6 +55,31 @@ module.exports = function crearBackend(app, turnosColl) {
       if (w.email === ADMIN) return true;
       return w.op === "update" && !!prev && !prev.uid && !!next && next.uid === w.uid;
     }
+    const legs = () => st["legajos_" + app] || {};
+    // pases_<app>: código de Safari para pasar el registro a la app instalada (iPhone)
+    if (w.coll === "pases_" + app) {
+      if (w.email === ADMIN) return true;
+      if (w.op === "delete") { const l = prev && legs()[prev.id]; return !!prev && (prev.uid === w.uid || (!!l && l.uid === w.uid)); }
+      if (prev || !next) return false; // un código existente no se pisa
+      const l = legs()[next.id];
+      return /^\d{6}$/.test(w.id) && next.uid === w.uid && !!l && l.uid === w.uid &&
+        Object.keys(next).every(k => ["id", "uid", "hasta"].includes(k)) && next.hasta < Date.now() + 20 * 60 * 1000;
+    }
+    // legajos_<app>: cada uno reserva el suyo; para tomar uno ajeno hace falta un pase vigente de su dueño
+    if (w.coll === "legajos_" + app) {
+      if (w.email === ADMIN) return true;
+      if (w.op === "delete") return !!prev && prev.uid === w.uid;
+      if (!next || next.uid !== w.uid || next.id !== w.id) return false;
+      if (!prev || prev.uid === w.uid) return true;
+      const pase = (st["pases_" + app] || {})[next.pase];
+      return !!pase && pase.id === w.id && pase.uid === prev.uid && Date.now() < pase.hasta;
+    }
+    // yo_<app>: borrar, el admin o quien tiene ahora el legajo de ese registro viejo
+    if (w.coll === "yo_" + app && w.op === "delete") {
+      if (w.email === ADMIN) return true;
+      const l = prev && legs()[prev.id];
+      return !!l && l.uid === w.uid && w.id !== w.uid;
+    }
     // division_<app>: la arma solo el admin
     if (w.coll === "division_" + app) return w.email === ADMIN;
     // Turnos oficiales: el admin todo; la División solo cambia turnos (misma gente), sin tocar lo demás

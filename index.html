@@ -1616,6 +1616,7 @@
         <h3>Cambios<small id="pedidosLabel"></small></h3>
         <div id="bancoAcc">
           <button type="button" id="btnYo" class="bc-acc">¿Quién sos?</button>
+          <button type="button" id="btnPasarApp" class="bc-acc" style="display:none">📲 Pasar a la app</button>
           <button type="button" id="btnAcuerdos" class="bc-acc admin-only">Acordados</button>
           <button type="button" id="btnCelulares" class="bc-acc admin-only">Celulares</button>
           <button class="close-btn" id="closeBanco" title="Cerrar">×</button>
@@ -4312,6 +4313,7 @@
       btnYo.textContent = elegido ? "Cambiar" : "¿Quién sos?";
       // Una vez elegido, solo el admin (logueado en ese celular) lo puede cambiar
       btnYo.style.display = elegido && currentUser !== "ADMIN" ? "none" : "";
+      document.getElementById("btnPasarApp").style.display = me && currentUser !== "ADMIN" && enIphoneWeb() ? "" : "none";
     }
 
     function startPedidos() {
@@ -4568,7 +4570,7 @@
       if (!ok) {
         pedirPaso(id, name);
         const txt = name + " ya está registrado en otro celular. Ya le avisamos al administrador: cuando te lo pase a este celular, entrás solo (dejá la app abierta o volvé a abrirla en un rato)." +
-          (ES_IOS && esAppInstalada() ? " Si antes te registraste desde Safari en este iPhone, es ese registro (en Celulares figura sin \"(app)\")." : "");
+          (ES_IOS && esAppInstalada() ? " Si antes te registraste desde Safari en este iPhone, no hace falta esperar: abrí la app en Safari, en Cambios tocá \"📲 Pasar a la app\" y escribí acá el código con \"Tengo un código de invitación\"." : "");
         if (yoOverlay.classList.contains("open") && yoOverlay.classList.contains("por-legajo")) document.getElementById("yoLegajoMsg").textContent = txt;
         else alert(txt);
         return false;
@@ -4610,6 +4612,13 @@
       if (modoCodigo) {
         const code = String(inp.value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
         if (!code) { msg.textContent = "Escribí el código de invitación."; return; }
+        if (/^\d{6}$/.test(code)) {
+          btn.disabled = true;
+          msg.textContent = "";
+          await usarPase(code, t => { msg.textContent = t; });
+          btn.disabled = false;
+          return;
+        }
         try { localStorage.setItem(INV_PEND_KEY, code); } catch (e) {}
         btn.disabled = true;
         msg.textContent = "";
@@ -6240,6 +6249,8 @@
       let nom = "";
       try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
       const ok = await reservarLegajo(miLegajo, me ? me.p.name : (nom || miLegajo));
+      if (ok === false && paseGuardado()) { paseHecho(); return; }
+      if (ok) limpiarPaseVencido();
       if (ok === false) {
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         const leg = miLegajo;
@@ -6287,6 +6298,121 @@
         });
       }, err => { console.warn("Esperar paso:", err); pasoUnsub = null; });
     }
+    // ========== PASAR EL REGISTRO DE SAFARI A LA APP INSTALADA (iPhone) ==========
+    // En iPhone, Safari y la app instalada son dos celulares para Firebase. Desde Safari (registrado) se
+    // saca un código de 6 cifras que vale 10 minutos (pases_jefes/{código} = {id, uid, hasta}). En la app se
+    // escribe con "Tengo un código de invitación": la app toma la reserva del legajo (con "pase": código),
+    // borra el registro de Safari y queda registrada. Safari se da cuenta solo y se libera.
+    const PASE_COLLECTION = "pases_jefes";
+    const PASE_KEY = "jefPase";
+    const PASE_MIN = 10;
+    let paseUnsub = null;
+    function enIphoneWeb() {
+      const ua = navigator.userAgent || "";
+      const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      return ios && !esAppInstalada();
+    }
+    function paseGuardado() { try { return JSON.parse(localStorage.getItem(PASE_KEY) || "null"); } catch (e) { return null; } }
+    function limpiarPaseVencido() {
+      const p = paseGuardado();
+      if (!p || p.hasta > Date.now()) return;
+      try { localStorage.removeItem(PASE_KEY); } catch (e) {}
+      if (paseUnsub) { paseUnsub(); paseUnsub = null; }
+      if (p.code && fbReady) fbDb.collection(PASE_COLLECTION).doc(p.code).delete().catch(() => {});
+    }
+    function paseOverlay() {
+      let ov = document.getElementById("paseOverlay");
+      if (ov) return ov;
+      ov = document.createElement("div");
+      ov.className = "palette-overlay"; ov.id = "paseOverlay"; ov.style.zIndex = "3000";
+      ov.innerHTML = '<div class="palette-modal" style="max-width:380px"><div class="palette-header"><h3>Pasar a la app</h3>' +
+        '<button class="close-btn" id="closePase" title="Cerrar">×</button></div>' +
+        '<div id="paseCuerpo" style="font-size:0.85rem;line-height:1.45;color:#334155"></div></div>';
+      document.body.appendChild(ov);
+      ov.querySelector("#closePase").addEventListener("click", () => ov.classList.remove("open"));
+      ov.addEventListener("click", e => { if (e.target === ov) ov.classList.remove("open"); });
+      return ov;
+    }
+    async function abrirPase() {
+      if (!fbReady || !yoUid || !miLegajo || soyExterno() || currentUser === "ADMIN") return;
+      const ov = paseOverlay(), cuerpo = ov.querySelector("#paseCuerpo");
+      cuerpo.textContent = "Preparando el código…";
+      ov.classList.add("open");
+      let p = paseGuardado();
+      if (!p || p.id !== String(miLegajo) || p.hasta < Date.now() + 2 * 60 * 1000) {
+        if (p && p.code) fbDb.collection(PASE_COLLECTION).doc(p.code).delete().catch(() => {});
+        p = null;
+        for (let i = 0; i < 8 && !p; i++) {
+          const code = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
+          const hasta = Date.now() + PASE_MIN * 60 * 1000;
+          try {
+            await fbDb.collection(PASE_COLLECTION).doc(code).set({ id: String(miLegajo), uid: yoUid, hasta });
+            p = { code, id: String(miLegajo), hasta };
+          } catch (e) { if (!e || e.code !== "permission-denied") break; } // ocupado: se prueba otro
+        }
+        if (!p) { cuerpo.textContent = "No se pudo sacar el código. Revisá la conexión y probá de nuevo."; return; }
+        try { localStorage.setItem(PASE_KEY, JSON.stringify(p)); } catch (e) {}
+      }
+      const h = new Date(p.hasta);
+      cuerpo.innerHTML = "Así seguís usando la programación desde la app instalada, con tu mismo registro." +
+        '<ol style="margin:8px 0;padding-left:20px"><li>Abrí la app desde el ícono de la pantalla de inicio.</li>' +
+        '<li>En "¿Quién sos?" tocá "Tengo un código de invitación" (si no aparece, entrá a Cambios → ¿Quién sos?).</li>' +
+        "<li>Escribí este código:</li></ol>" +
+        '<div id="paseCodigo" style="margin:4px 0 8px;padding:10px;border-radius:8px;background:#f0fdfa;border:1px solid #99f6e4;' +
+        'font:700 1.6rem ui-monospace,Menlo,monospace;text-align:center;letter-spacing:4px;user-select:all;-webkit-user-select:all">' + p.code + "</div>" +
+        '<small style="color:#64748b">Vale hasta las ' + String(h.getHours()).padStart(2, "0") + ":" + String(h.getMinutes()).padStart(2, "0") +
+        ". Cuando la app lo use, acá en Safari dejás de estar registrado.</small>";
+      vigilarPase();
+    }
+    // Safari: mira su reserva; cuando la toma la app instalada, se libera solo
+    function vigilarPase() {
+      const p = paseGuardado();
+      if (paseUnsub || !p || !p.id || !fbReady || !yoUid) return;
+      paseUnsub = fbDb.collection(LEG_COLLECTION).doc(String(p.id)).onSnapshot(d => {
+        const x = d.exists ? d.data() : null;
+        if (x && x.uid && x.uid !== yoUid) paseHecho();
+      }, () => { paseUnsub = null; });
+    }
+    function paseHecho() {
+      if (paseUnsub) { paseUnsub(); paseUnsub = null; }
+      try { ["jefYo", yoRegKey(yoUid), PASE_KEY, "jefSoloSafari"].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      borrarCopiaLocal("ctFb:");
+      miLegajo = "";
+      registroOk = false;
+      stopDivision();
+      actualizarSinDatos();
+      updatePedidosBar();
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      const ov = paseOverlay();
+      ov.querySelector("#paseCuerpo").innerHTML = "<b>Listo: tu registro pasó a la app instalada.</b><br>" +
+        "Desde ahora usá la app desde el ícono de la pantalla de inicio. Acá en Safari ya no figurás registrado.";
+      ov.classList.add("open");
+    }
+    // App instalada: usa el código que sacó Safari
+    async function usarPase(code, avisar) {
+      if (!fbReady || !yoUid) { avisar("Esperá unos segundos a que cargue y probá de nuevo."); return; }
+      let d = null;
+      try { const sn = await fbDb.collection(PASE_COLLECTION).doc(code).get(); d = sn.exists ? sn.data() : null; }
+      catch (e) { avisar("No se pudo revisar el código. Revisá la conexión y probá de nuevo."); return; }
+      if (!d || !d.id || !(d.hasta > Date.now())) { avisar("Ese código no existe o ya venció. Sacá uno nuevo en Safari (Cambios → 📲 Pasar a la app)."); return; }
+      if (d.uid === yoUid) { avisar("Este código se escribe en la app instalada, no acá."); return; }
+      const id = String(d.id);
+      const name = (await nombreDeLegajo(id)) || id;
+      let paso = null;
+      try { paso = localStorage.getItem(PASO_KEY); } catch (e) {}
+      cancelarPaso(true); // ya no hace falta que el admin lo pase
+      try { await fbDb.collection(LEG_COLLECTION).doc(id).set({ uid: yoUid, id, name, t: Date.now(), pase: code }); }
+      catch (e) {
+        if (paso) { try { localStorage.setItem(PASO_KEY, paso); } catch (e2) {} esperarPaso(); }
+        avisar("No se pudo pasar el registro. Sacá un código nuevo en Safari y probá de nuevo.");
+        return;
+      }
+      fbDb.collection(YO_COLLECTION).doc(d.uid).delete().catch(() => {});
+      fbDb.collection(PASE_COLLECTION).doc(code).delete().catch(() => {});
+      if (await elegirYo(id, name, false)) showShareToast("Listo, " + name + ": tu registro pasó de Safari a la app.");
+    }
+    document.getElementById("btnPasarApp").addEventListener("click", abrirPase);
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
     // Borra del celular las copias guardadas que empiezan con ese prefijo
     function borrarCopiaLocal(pref) {
@@ -6333,8 +6459,10 @@
       yoUid = u.uid;
       asegurarReserva();
       esperarPaso();
+      vigilarPase();
       yoUnsub = fbDb.collection(YO_COLLECTION).doc(yoUid).onSnapshot(d => {
         if (d.exists) { contarApertura(); return; }
+        if (miLegajo && paseGuardado()) { paseHecho(); return; } // la app instalada se llevó el registro
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
         if (!reg || !miLegajo) return; // nunca se registró: no es una liberación

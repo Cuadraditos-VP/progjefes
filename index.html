@@ -4612,6 +4612,7 @@
       miLegajo = String(id);
       try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefYoNombre", name || ""); } catch (e) {}
       cancelarPaso(true); // registrarYo saca el pedido de Firebase
+      try { localStorage.removeItem(LIBERADO_KEY); } catch (e) {}
       if (anterior && anterior !== miLegajo) soltarLegajo(anterior);
       yoOverlay.classList.remove("open");
       aplicarAcuerdos();
@@ -6288,7 +6289,7 @@
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         const leg = miLegajo;
         miLegajo = "";
-        pedirPaso(leg, me ? me.p.name : (nom || leg));
+        pedirPaso(leg, me ? me.p.name : (nom || leg), true);
         updatePedidosBar();
         refreshAfterEdit();
         showShareToast("Tu legajo figura en otro celular. Ya le avisamos al administrador para que te lo pase a este.");
@@ -6302,11 +6303,17 @@
     // registrado). Este celular espera a que se libere la reserva y ahí se reserva solo.
     const PASO_KEY = "jefPidePaso";
     let pasoUnsub = null;
-    function pedirPaso(id, name) {
+    // "antes": este celular ya tenía ese legajo y se lo sacaron (lo pasaron a otro o lo liberaron):
+    // casi seguro la persona usa la app en dos lugares y se van a pelear el legajo. Se le avisa al admin.
+    const LIBERADO_KEY = "jefLiberado";
+    function pedirPaso(id, name, antes) {
       if (!fbReady || !yoUid || !id || currentUser === "ADMIN") return;
       try { localStorage.setItem(PASO_KEY, JSON.stringify({ id: String(id), name: name || "" })); } catch (e) {}
+      try { if (localStorage.getItem(LIBERADO_KEY) === String(id)) antes = true; } catch (e) {}
+      const data = { uid: yoUid, pide: String(id), name: name || String(id), disp: dispositivo(), t: Date.now() };
+      if (antes) data.antes = true;
       fbDb.collection(YO_COLLECTION).doc(yoUid)
-        .set({ uid: yoUid, pide: String(id), name: name || String(id), disp: dispositivo(), t: Date.now() }, { merge: true })
+        .set(data, { merge: true })
         .catch(err => console.warn("Pedir paso:", err));
       esperarPaso();
     }
@@ -6466,7 +6473,7 @@
       let nom = "";
       try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
       const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : (nom || String(miLegajo)), disp: dispositivo(), t: Date.now(),
-        pide: firebase.firestore.FieldValue.delete() };
+        pide: firebase.firestore.FieldValue.delete(), antes: firebase.firestore.FieldValue.delete() };
       return fbDb.collection(YO_COLLECTION).doc(yoUid).set(data, { merge: true })
         .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} return true; })
         .catch(err => { console.warn("yo_jefes:", err); return false; });
@@ -6499,6 +6506,7 @@
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
         if (!reg || !miLegajo) return; // nunca se registró: no es una liberación
+        try { localStorage.setItem(LIBERADO_KEY, String(miLegajo)); } catch (e) {}
         // El admin liberó este celular: también se borra la copia de los turnos
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
         borrarCopiaLocal("ctFb:");
@@ -6731,10 +6739,13 @@
         row.innerHTML = '<div class="acu-top"><span>' + escH(d.name || id) + ' · ' + escH(id) + '</span></div>' +
           '<div style="font-size:0.78rem;color:#92400e;font-weight:600">Pide entrar desde ' + escH(d.disp || "otro celular") +
           (d.t ? ' (' + fechaCorta(d.t) + ')' : '') + '</div>' +
-          '<div style="font-size:0.72rem;color:#64748b">Ahora su legajo está en: ' + escH(ahora) + '</div>';
+          '<div style="font-size:0.72rem;color:#64748b">Ahora su legajo está en: ' + escH(ahora) + '</div>' +
+          (d.antes ? '<div class="paso-dos" style="font-size:0.75rem;color:#b91c1c;font-weight:700;margin-top:4px">⚠ Este celular ya tenía el legajo ' +
+            'y se lo sacaron: parece que usa la app en dos lugares y se van a pelear el legajo. Preguntale cuál usa de verdad ' +
+            'y tocá "No" en el pedido del otro.</div>' : '');
         const bp = document.createElement("button");
         bp.type = "button"; bp.className = "ped-act"; bp.textContent = "Pasar a este celular";
-        bp.addEventListener("click", () => pasarLegajo(k, d, viejos));
+        bp.addEventListener("click", () => pasarLegajo(k, d, viejos, row));
         const bn = document.createElement("button");
         bn.type = "button"; bn.className = "ped-act sec"; bn.textContent = "No";
         bn.title = "Rechazar el pedido";
@@ -6750,7 +6761,7 @@
         box.appendChild(row);
       });
     }
-    async function pasarLegajo(k, d, viejos) {
+    async function pasarLegajo(k, d, viejos, row) {
       const id = String(d.pide);
       if (!confirm("¿Pasar a " + (d.name || id) + " a este celular nuevo?\n\nEl celular de antes deja de estar registrado.")) return;
       try {
@@ -6766,7 +6777,12 @@
         renderCelulares(); updateCelularesBtn();
         showShareToast("Listo: " + (d.name || id) + " queda registrado la próxima vez que abra la app.");
       } catch (err) {
-        alert(err && err.code === "permission-denied" ? "Firebase no dejó pasar el legajo." : "No se pudo pasar. Revisá la conexión.");
+        // Sin alert (después de esperar a Firebase en iPhone a veces no aparece): el error queda escrito en el pedido
+        const txt = "No se pudo pasar: " + (err && err.code === "permission-denied" ? "Firebase no lo dejó (" + ((err && err.message) || "permiso") + ")."
+          : "revisá la conexión y probá de nuevo.") ;
+        console.warn("Pasar legajo:", err);
+        showShareToast(txt);
+        if (row) { const e = document.createElement("div"); e.style.cssText = "font-size:0.75rem;color:#b91c1c;font-weight:700;margin-top:4px"; e.textContent = txt; row.appendChild(e); }
       }
     }
     function toggleDivision(d, esDiv) {

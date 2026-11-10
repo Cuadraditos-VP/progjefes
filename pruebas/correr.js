@@ -946,6 +946,21 @@ function chequear(nombre, cond, detalle) {
     chequear("y desaparece el aviso gris (ya figura en Celulares)", await AD.evaluate(id => { renderCelulares();
       return !document.getElementById("pasosList").children.length &&
         [...document.querySelectorAll("#celularesList .acu-row")].some(r => r.textContent.includes(id)); }, s.idc));
+    // Usa la app en dos lugares: el celular viejo (C) vuelve a pedir el legajo
+    await C.reload(); await wait(3000);
+    await C.evaluate(() => openYo());
+    await C.fill("#yoLegajo", s.idc); await C.click("#yoLegajoBtn"); await wait(800);
+    await C.click("#yoLegajoSi"); await wait(2500);
+    chequear("el celular viejo que vuelve a pedir lo marca como \"ya lo tenía\"", ((be.st[YOC] || {}).uC || {}).antes === true, (be.st[YOC] || {}).uC);
+    const dos = await AD.evaluate(() => { renderCelulares(); const r = document.querySelector("#pasosList .paso-dos"); return r ? r.textContent : ""; });
+    chequear("y el admin ve el aviso de que usa la app en dos lugares", /dos lugares/.test(dos), dos);
+    const nuevoSinAviso = (be.st[YOC] || {}).uNuevo || {};
+    chequear("el celular que entró bien no queda marcado", !nuevoSinAviso.antes && !nuevoSinAviso.pide, nuevoSinAviso);
+    await AD.evaluate(() => { window.confirm = () => true;
+      [...document.querySelectorAll("#pasosList button")].find(b => b.textContent === "No").click(); });
+    await wait(1500);
+    chequear("con \"No\" el pedido se va y el legajo sigue en el celular bueno", !((be.st[YOC] || {}).uC) &&
+      ((be.st[LEGC] || {})[s.idc] || {}).uid === "uNuevo");
     await NV.close();
 
     if (html.includes("function usarPase")) {

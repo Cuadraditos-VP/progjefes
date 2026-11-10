@@ -227,6 +227,7 @@ function chequear(nombre, cond, detalle) {
     if (html.includes("function aceptarInvitacion")) {
       console.log("\nInvitación del admin para un externo");
       const code = await AD.evaluate(() => crearInvitacion("Invitada"));
+      chequear("el código de invitación es de 3 cifras", /^[1-9]\d\d$/.test(code), code);
       const I1 = await be.celular(browser, URL + "?inv=" + code, "uI1", null, errores);
       await wait(2500);
       const inv = await I1.evaluate(() => ({ leg: miLegajo, ext: soyExterno(), ve: veCambiosAjenos(),
@@ -267,6 +268,7 @@ function chequear(nombre, cond, detalle) {
       await SI.close();
       // Caso real: ese iPhone ya había entrado antes por Safari (y eligió "solo Safari") y abre un link nuevo
       const code3 = await AD.evaluate(() => crearInvitacion("Invitada repetida"));
+      chequear("no repite un código que ya existe", new Set([code, code2, code3]).size === 3, [code, code2, code3]);
       const SR = await be.celular(browser, URL, "uSR", null, errores, { iphone: "safari" });
       await SR.evaluate(([k, s]) => { localStorage.setItem(k, "inv-viejo"); localStorage.setItem(s, "1"); }, [YOKEY, YOKEY.replace("Yo", "SoloSafari")]);
       await SR.goto(URL + "?inv=" + code3); await wait(6000);

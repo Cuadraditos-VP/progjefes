@@ -909,6 +909,42 @@ function chequear(nombre, cond, detalle) {
     chequear("y el pedido desaparece de Celulares", await AD.evaluate(() => { renderCelulares(); return !document.getElementById("pasosList").children.length; }));
     await NV.close();
 
+    if (html.includes("function usarPase")) {
+      console.log("\niPhone: pasar el registro de Safari a la app instalada");
+      const idSF = M0.people[9].id;
+      const SF = await be.celular(browser, URL, "uPaseSF", null, errores, { iphone: "safari" });
+      await SF.evaluate(([k, v, s2]) => { localStorage.setItem(k, v); localStorage.setItem(s2, "1"); }, [YOKEY, idSF, YOKEY.replace("Yo", "SoloSafari")]);
+      await SF.reload(); await wait(3000);
+      chequear("en Safari registrado aparece \"📲 Pasar a la app\"", await SF.evaluate(() => { updatePedidosBar(); return document.getElementById("btnPasarApp").style.display !== "none"; }));
+      await SF.evaluate(() => document.getElementById("btnPasarApp").click()); await wait(1500);
+      const codPase = await SF.evaluate(() => (document.getElementById("paseCodigo") || {}).textContent || "");
+      chequear("le muestra un código de 6 cifras", /^\d{6}$/.test(codPase) && !!(be.st["pases_" + APP] || {})[codPase], codPase);
+      const APP2 = await be.celular(browser, URL, "uPaseAP", null, errores, { iphone: "app" });
+      await wait(1000);
+      chequear("en la app instalada no aparece el botón", await APP2.evaluate(() => document.getElementById("btnPasarApp").style.display === "none"));
+      // Primero intenta con su legajo: le dice que está en uso y le explica lo del código
+      await APP2.fill("#yoLegajo", idSF); await APP2.click("#yoLegajoBtn"); await wait(800);
+      await APP2.click("#yoLegajoSi"); await wait(2000);
+      chequear("si escribe el legajo, le explica que use el código de Safari", /Pasar a la app/.test(await APP2.evaluate(() => document.getElementById("yoLegajoMsg").textContent)));
+      await APP2.click("#yoCodigoLink"); await APP2.fill("#yoLegajo", "000000"); await APP2.click("#yoLegajoBtn"); await wait(1500);
+      chequear("un código equivocado no sirve", !(await APP2.evaluate(() => miLegajo)) && /no existe o ya venció/.test(await APP2.evaluate(() => document.getElementById("yoLegajoMsg").textContent)));
+      await APP2.fill("#yoLegajo", codPase); await APP2.click("#yoLegajoBtn"); await wait(3000);
+      const yoS = be.st["yo_" + APP] || {};
+      chequear("con el código la app queda registrada con ese legajo", (await APP2.evaluate(() => miLegajo)) === idSF && (await veDatos(APP2)));
+      chequear("la reserva pasa a la app, sin pedido al admin, y se borra el registro de Safari",
+        ((be.st[LEGC] || {})[idSF] || {}).uid === "uPaseAP" && !!yoS.uPaseAP && yoS.uPaseAP.id === idSF && !yoS.uPaseAP.pide && !yoS.uPaseSF, { ap: yoS.uPaseAP, sf: yoS.uPaseSF });
+      chequear("el código se borra (no sirve dos veces)", !(be.st["pases_" + APP] || {})[codPase]);
+      const sf2 = await SF.evaluate(k => ({ leg: miLegajo, ls: localStorage.getItem(k), msg: document.getElementById("paseCuerpo").textContent }), YOKEY);
+      chequear("Safari se libera solo y avisa que pasó a la app", !sf2.leg && !sf2.ls && /pasó a la app/.test(sf2.msg), sf2);
+      await SF.reload(); await wait(3000);
+      chequear("al volver a abrir Safari no le pide nada al admin", !((be.st["yo_" + APP] || {}).uPaseSF || {}).pide && !(await SF.evaluate(() => miLegajo)));
+      // Otro celular no puede quedarse con un legajo ajeno sin código
+      const AJ = await be.celular(browser, URL, "uAjeno", null, errores);
+      const robo = await AJ.evaluate(id => fbDb.collection(LEG_COLLECTION).doc(id).set({ uid: "uAjeno", id, pase: "123456" }).then(() => "ok", e => e.code), idSF);
+      chequear("sin un código vigente nadie se queda con un legajo ajeno", robo === "permission-denied", robo);
+      await SF.close(); await APP2.close(); await AJ.close();
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

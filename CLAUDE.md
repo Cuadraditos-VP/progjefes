@@ -48,7 +48,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   trabado manda un pedido (su doc de `yo_*` con `pide: legajo`, sin `id`: no queda registrado; `pedirPaso`) y
   espera mirando la reserva (`esperarPaso`). El admin lo ve arriba en Celulares (`pasosDocs`, `renderPasos`):
   "Pasar a este celular" borra la reserva y el registro viejo, y el celular nuevo se reserva solo (`pasarLegajo`);
-  "No" borra el pedido. Además la app le pide al navegador que no borre sus datos (`navigator.storage.persist`).
+  "No" borra el pedido. Al pasarlo se borra también el pedido (si no, reaparecía) y el admin lo ve en gris
+  "Ya se lo pasaste" (`localStorage` `<PROP_PREF>Pasados`) hasta que ese celular abre la app y se registra. Además la app le pide al navegador que no borre sus datos (`navigator.storage.persist`).
 - **iPhone**: Safari y la app instalada en el inicio no comparten nada (para Firebase son dos
   celulares). En Safari de iPhone "¿Quién sos?" explica que primero instalen la app (o "Prefiero
   usarla solo en Safari"); un link de invitación abierto en Safari no se gasta y muestra el código,

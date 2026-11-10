@@ -43,6 +43,12 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - **¿Quién sos?**: cada celular escribe su **legajo** una vez (`localStorage` `jefYo`); la app busca
   el nombre en `padron_jefes/{legajo}` (Firebase deja leer de a un legajo, no la lista) y lo
   reserva en `legajos_jefes` (un celular por legajo). Solo el admin lo puede cambiar (él ve la lista).
+- **Pedir que le pasen el legajo**: si un celular pierde su registro (Android o iPhone borraron los datos de
+  la página: es otra llave anónima de Firebase) y su legajo sigue reservado al celular viejo, en vez de quedar
+  trabado manda un pedido (su doc de `yo_*` con `pide: legajo`, sin `id`: no queda registrado; `pedirPaso`) y
+  espera mirando la reserva (`esperarPaso`). El admin lo ve arriba en Celulares (`pasosDocs`, `renderPasos`):
+  "Pasar a este celular" borra la reserva y el registro viejo, y el celular nuevo se reserva solo (`pasarLegajo`);
+  "No" borra el pedido. Además la app le pide al navegador que no borre sus datos (`navigator.storage.persist`).
 - **iPhone**: Safari y la app instalada en el inicio no comparten nada (para Firebase son dos
   celulares). En Safari de iPhone "¿Quién sos?" explica que primero instalen la app (o "Prefiero
   usarla solo en Safari"); un link de invitación abierto en Safari no se gasta y muestra el código,

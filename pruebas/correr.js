@@ -877,6 +877,36 @@ function chequear(nombre, cond, detalle) {
     chequear("una vez vistos vuelven a su lugar (orden alfabético)", despues.every(f => !f.v), despues);
     chequear("al abrir Celulares el uso siempre arranca oculto", ![...conNuevo, ...despues].some(f => f.v === "mal"));
 
+    console.log("\nCelular que perdió su registro: pide entrar y el admin se lo pasa");
+    const LEGC = "legajos_" + APP;
+    const NV = await be.celular(browser, URL, "uNuevo", null, errores);
+    await wait(1000);
+    await NV.fill("#yoLegajo", s.idc); await NV.click("#yoLegajoBtn"); await wait(800);
+    await NV.click("#yoLegajoSi"); await wait(2500);
+    const nv = await NV.evaluate(() => ({ leg: miLegajo, msg: document.getElementById("yoLegajoMsg").textContent }));
+    const yoNV = (be.st[YOC] || {}).uNuevo || {};
+    chequear("si su legajo está en otro celular, no lo registra y le dice que ya avisó", !nv.leg && /avisamos al administrador/.test(nv.msg), nv);
+    chequear("le queda el pedido al admin (sin quedar registrado)", yoNV.pide === s.idc && !yoNV.id && !(await veDatos(NV)), yoNV);
+    const vePaso = await AD.evaluate(id => {
+      renderCelulares(); updateCelularesBtn();
+      const box = document.getElementById("pasosList");
+      return { pide: box.textContent.includes(id) && /Pide entrar/.test(box.textContent),
+        boton: /pide entrar/.test(document.getElementById("btnCelulares").textContent),
+        sinFilaRara: !/undefined/.test(document.getElementById("celularesList").textContent) };
+    }, s.idc);
+    chequear("el admin ve el pedido en Celulares (y en el botón)", vePaso.pide && vePaso.boton && vePaso.sinFilaRara, vePaso);
+    await AD.evaluate(() => {
+      window.confirm = () => true;
+      [...document.querySelectorAll("#pasosList button")].find(b => /Pasar a este celular/.test(b.textContent)).click();
+    });
+    await wait(3500);
+    const yoNV2 = (be.st[YOC] || {}).uNuevo || {};
+    chequear("con \"Pasar a este celular\" el celular nuevo entra solo", (await NV.evaluate(() => miLegajo)) === s.idc && (await veDatos(NV)));
+    chequear("el legajo queda reservado al celular nuevo y el viejo se libera",
+      ((be.st[LEGC] || {})[s.idc] || {}).uid === "uNuevo" && yoNV2.id === s.idc && !yoNV2.pide && !((be.st[YOC] || {}).uC), { yoNV2 });
+    chequear("y el pedido desaparece de Celulares", await AD.evaluate(() => { renderCelulares(); return !document.getElementById("pasosList").children.length; }));
+    await NV.close();
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

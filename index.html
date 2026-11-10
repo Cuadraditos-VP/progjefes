@@ -1927,6 +1927,12 @@
     const WEEKDAY_ABBR = ["LU","MA","MI","JU","VI","SA","DO"];
     const FIRST_MES = "2026-09";
     const DEFAULT_SHIFT_CODES = ["M","T1","T","MD","N","NC","F","LAO","INT/P","T/P","N/P","IN","10A","10J","C/A","LIC"];
+    // Orden de los turnos en los selectores (a pedido de Guillermo). Los que no están acá van al final.
+    const ORDEN_TURNOS = ["MD","M","T1","T","IN","N","NC","F","T/P","INT/P","N/P","POK","LAO","10A","10J","C/A","LIC"];
+    function ordenarTurnos(list) {
+      const pos = c => { const i = ORDEN_TURNOS.indexOf(c); return i < 0 ? ORDEN_TURNOS.length : i; };
+      return list.map((c, i) => [c, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map(x => x[0]);
+    }
 
     function mesInfo(key) {
       const [y, m] = key.split("-").map(Number);
@@ -2082,7 +2088,7 @@
     const DAY_VIEW_ORDER = ["MD","M","T1","T","T/P","INT/P","IN","N/P","N","NC","F"];
 
     // Todos los códigos de turno asignables desde el abanico (además de "vacío")
-    let ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
+    let ALL_SHIFT_CODES = ordenarTurnos(DEFAULT_SHIFT_CODES);
 
     const CODES = ["M","T1","T","MD","F","N","NC","LAO","POK"];
 
@@ -2467,7 +2473,7 @@
     function applyCatalog(data) {
       if (!data || typeof data !== "object") return;
       if (Array.isArray(data.codigos) && data.codigos.length) {
-        ALL_SHIFT_CODES = data.codigos.map(normCode).filter(Boolean);
+        ALL_SHIFT_CODES = ordenarTurnos(data.codigos.map(normCode).filter(Boolean));
       }
       if (data.colores && typeof data.colores === "object") {
         Object.keys(data.colores).forEach(k => {
@@ -2564,7 +2570,7 @@
     function switchMonth(key) {
       setMonthGlobals(key);
       const data = loadFbCache(key) || MES_DATA[key];
-      ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
+      ALL_SHIFT_CODES = ordenarTurnos(DEFAULT_SHIFT_CODES);
       if (data) {
         applyCatalog(data);
         people = normalizePeople(data.people);
@@ -2879,7 +2885,7 @@
       }
       if (key === currentMes) {
         editsMap = em;
-        ALL_SHIFT_CODES = DEFAULT_SHIFT_CODES.slice();
+        ALL_SHIFT_CODES = ordenarTurnos(DEFAULT_SHIFT_CODES);
         applyCatalog(data);
         people = next;
         ORIGINAL_CODES = people.map(p => p.codes.slice());

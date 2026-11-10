@@ -592,10 +592,11 @@ function chequear(nombre, cond, detalle) {
     }
 
     if (html.includes('data-lineas="oscuro"')) {
-      console.log("\nColores: líneas verticales de la grilla");
+      console.log("\nColores: líneas de la grilla");
       const lineas = pg => pg.evaluate(() => {
         const td = [...document.querySelectorAll(".grp-card tbody td[data-code]")].find(t => !t.classList.contains("week-sep") && !t.classList.contains("blk"));
-        return { v: getComputedStyle(document.documentElement).getPropertyValue("--grid-v").trim().toUpperCase(), borde: td ? getComputedStyle(td).borderLeftColor : "" };
+        return { v: getComputedStyle(document.documentElement).getPropertyValue("--grid-v").trim().toUpperCase(), borde: td ? getComputedStyle(td).borderLeftColor : "",
+          abajo: td ? getComputedStyle(td).borderBottomColor : "" };
       });
       const antes = await lineas(C);
       await AD.evaluate(() => { document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open"));
@@ -610,7 +611,7 @@ function chequear(nombre, cond, detalle) {
         document.getElementById("btnPublish").click(); });
       await wait(3500);
       const desp = await lineas(C);
-      chequear("al publicar, los demás ven las líneas en gris oscuro", desp.v === "#6B7280" && desp.borde === "rgb(107, 114, 128)", desp);
+      chequear("al publicar, los demás ven las líneas en gris oscuro", desp.v === "#6B7280" && desp.borde === "rgb(107, 114, 128)" && desp.abajo === "rgb(107, 114, 128)", desp);
       await AD.evaluate(() => { document.getElementById("btnColores") ? document.getElementById("btnColores").click() : document.getElementById("btnColors").click();
         document.querySelector('[data-lineas="claro"]').click();
         document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open"));

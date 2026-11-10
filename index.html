@@ -1239,7 +1239,7 @@
     }
 
     /* ===================== DISEÑO "TARJETAS" ===================== */
-    :root { --ink: #111827; --grid: #e5e7eb; --grid-v: #e5e7eb; }  /* --grid-v: líneas verticales entre días (Colores → Líneas) */
+    :root { --ink: #111827; --grid: #e5e7eb; --grid-v: #e5e7eb; }  /* --grid y --grid-v: líneas de la grilla (Colores → Líneas de la grilla) */
     body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; background: #fff; color: var(--ink); }
     header h1 { color: var(--ink); font-weight: 500; letter-spacing: -0.01em; font-size: 1.25rem; }
     header h1 b { font-weight: 800; }
@@ -1352,7 +1352,7 @@
        pintarLineasSemana) que va por encima de la grilla, así las líneas grises horizontales
        no la cortan. En el medio de un bloque LIC no se pone: el bloque pasa por encima. */
     .grp-card .week-sep { border-left: 1px solid var(--grid) !important; }
-    /* Botones de Colores → Líneas entre días */
+    /* Botones de Colores → Líneas de la grilla */
     .lineas-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
     .lineas-row > span { font-size: 0.75rem; font-weight: 700; color: #334155; margin-right: 2px; }
     .lineas-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 7px 10px; font-size: 0.72rem; font-weight: 700; color: #334155; cursor: pointer; }
@@ -1724,7 +1724,7 @@
         <input type="color" id="customColor">
       </label>
       <div class="lineas-row">
-        <span>Líneas entre días</span>
+        <span>Líneas de la grilla</span>
         <button type="button" class="lineas-btn" data-lineas="claro"><i style="background:#E5E7EB"></i>Gris claro</button>
         <button type="button" class="lineas-btn" data-lineas="oscuro"><i style="background:#6B7280"></i>Gris oscuro</button>
       </div>
@@ -2147,7 +2147,7 @@
       return lum > 0.55 ? "#1a1a1a" : "#ffffff";
     }
 
-    // Líneas verticales de la grilla (entre día y día; las de DO/LU quedan siempre negras).
+    // Líneas de la grilla, verticales y horizontales (las de DO/LU quedan siempre negras).
     // Se guardan con los colores, con la clave "LINEAS", así viajan con ⬆ Publicar.
     const LINEAS_CLARO = "#E5E7EB", LINEAS_OSCURO = "#6B7280";
     function colorLineas() {
@@ -2155,6 +2155,7 @@
       return /^#[0-9A-F]{6}$/.test(v) ? v : LINEAS_CLARO;
     }
     function aplicarLineas() {
+      document.documentElement.style.setProperty("--grid", colorLineas());
       document.documentElement.style.setProperty("--grid-v", colorLineas());
       document.querySelectorAll("[data-lineas]").forEach(b => {
         b.classList.toggle("selected", (b.dataset.lineas === "oscuro") === (colorLineas() === LINEAS_OSCURO));
@@ -6924,7 +6925,7 @@
       const CW = 34, RH = 24, HH = 40;     // ancho de día, alto de fila, alto de encabezado
       const LW = 52, NW = 112;             // columnas legajo y apellido
       const PAD = 24, TITLE = 54, GAP = 22, R = 10;
-      const INK = "#111827", GRID = "#e5e7eb", GRID_V = colorLineas();
+      const INK = "#111827", GRID = colorLineas();
       const FONT = "'Inter', 'Segoe UI', system-ui, sans-serif";
       const split = groupSplit();
       const groups = [
@@ -7012,13 +7013,6 @@
             // líneas internas solo entre días que no son bloque
             ctx.strokeStyle = GRID; ctx.lineWidth = 1;
             ctx.strokeRect(cx + 0.5, ry + 0.5, cw - 1, RH - 1);
-            if (GRID_V !== GRID.toUpperCase()) {
-              ctx.strokeStyle = GRID_V;
-              ctx.beginPath();
-              ctx.moveTo(cx + 0.5, ry); ctx.lineTo(cx + 0.5, ry + RH);
-              ctx.moveTo(cx + cw - 0.5, ry); ctx.lineTo(cx + cw - 0.5, ry + RH);
-              ctx.stroke();
-            }
             if (code) {
               ctx.fillStyle = getTextColor(bg);
               const blk = end > d || BLOCK_CODES.includes(code);

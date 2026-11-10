@@ -926,16 +926,26 @@ function chequear(nombre, cond, detalle) {
         sinFilaRara: !/undefined/.test(document.getElementById("celularesList").textContent) };
     }, s.idc);
     chequear("el admin ve el pedido en Celulares (y en el botón)", vePaso.pide && vePaso.boton && vePaso.sinFilaRara, vePaso);
+    // Como Faisal: tiene la app cerrada cuando el admin le pasa el legajo
+    await NV.goto("about:blank");
     await AD.evaluate(() => {
       window.confirm = () => true;
       [...document.querySelectorAll("#pasosList button")].find(b => /Pasar a este celular/.test(b.textContent)).click();
     });
-    await wait(3500);
+    await wait(2500);
+    const pend = await AD.evaluate(() => { renderCelulares(); updateCelularesBtn(); const box = document.getElementById("pasosList");
+      return { gris: !!box.querySelector(".paso-pend") && /Ya se lo pasaste/.test(box.textContent), pide: /Pide entrar/.test(box.textContent),
+        boton: /pide entrar/.test(document.getElementById("btnCelulares").textContent) }; });
+    chequear("al pasarlo, el pedido no vuelve y queda en gris \"Ya se lo pasaste\" hasta que abra la app",
+      pend.gris && !pend.pide && !pend.boton && !((be.st[YOC] || {}).uNuevo) && !((be.st[YOC] || {}).uC), pend);
+    await NV.goto(URL); await wait(3500);
     const yoNV2 = (be.st[YOC] || {}).uNuevo || {};
-    chequear("con \"Pasar a este celular\" el celular nuevo entra solo", (await NV.evaluate(() => miLegajo)) === s.idc && (await veDatos(NV)));
+    chequear("al abrir la app, el celular nuevo entra solo", (await NV.evaluate(() => miLegajo)) === s.idc && (await veDatos(NV)));
     chequear("el legajo queda reservado al celular nuevo y el viejo se libera",
-      ((be.st[LEGC] || {})[s.idc] || {}).uid === "uNuevo" && yoNV2.id === s.idc && !yoNV2.pide && !((be.st[YOC] || {}).uC), { yoNV2 });
-    chequear("y el pedido desaparece de Celulares", await AD.evaluate(() => { renderCelulares(); return !document.getElementById("pasosList").children.length; }));
+      ((be.st[LEGC] || {})[s.idc] || {}).uid === "uNuevo" && yoNV2.id === s.idc && !yoNV2.pide, { yoNV2 });
+    chequear("y desaparece el aviso gris (ya figura en Celulares)", await AD.evaluate(id => { renderCelulares();
+      return !document.getElementById("pasosList").children.length &&
+        [...document.querySelectorAll("#celularesList .acu-row")].some(r => r.textContent.includes(id)); }, s.idc));
     await NV.close();
 
     if (html.includes("function usarPase")) {

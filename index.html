@@ -6691,10 +6691,34 @@
     // Pedidos de "pasar a este celular": el celular perdió su registro (Android/iPhone borró los
     // datos de la página) y el legajo sigue reservado al celular viejo. El admin lo pasa con un toque:
     // se borra la reserva y el registro viejo, y el celular nuevo se reserva solo (esperarPaso).
+    // Legajos ya pasados que todavía no se registraron en el celular nuevo (lo hace al abrir la app).
+    // Se guardan en este dispositivo del admin para mostrarlos en gris hasta que el celular aparezca.
+    const PASADOS_KEY = PROP_PREF + "Pasados";
+    function leerPasados() { try { return JSON.parse(localStorage.getItem(PASADOS_KEY) || "{}") || {}; } catch (e) { return {}; } }
+    function guardarPasados(o) { try { localStorage.setItem(PASADOS_KEY, JSON.stringify(o)); } catch (e) {} }
     function renderPasos() {
       const box = document.getElementById("pasosList");
       if (!box) return;
       box.innerHTML = "";
+      const pasados = leerPasados();
+      let cambio = false;
+      Object.keys(pasados).forEach(id => {
+        const pa = pasados[id];
+        const llego = Object.keys(celularesDocs).some(u => celularesDocs[u] && String(celularesDocs[u].id) === id);
+        if (llego || Date.now() - (pa.t || 0) > 14 * 86400000) { delete pasados[id]; cambio = true; return; }
+        const row = document.createElement("div");
+        row.className = "acu-row paso-pend";
+        row.style.cssText = "background:#f1f5f9;border-color:#cbd5e1";
+        row.innerHTML = '<div class="acu-top"><span>' + escH(pa.name || id) + ' · ' + escH(id) + '</span></div>' +
+          '<div style="font-size:0.78rem;color:#475569;font-weight:600">Ya se lo pasaste' + (pa.t ? ' (' + fechaCorta(pa.t) + ')' : '') +
+          ': queda registrado solo la próxima vez que abra la app en el celular nuevo.</div>';
+        const bx = document.createElement("button");
+        bx.type = "button"; bx.className = "ped-act sec"; bx.textContent = "✕"; bx.title = "Quitar este aviso";
+        bx.addEventListener("click", () => { const o = leerPasados(); delete o[id]; guardarPasados(o); renderPasos(); });
+        row.querySelector(".acu-top").appendChild(bx);
+        box.appendChild(row);
+      });
+      if (cambio) guardarPasados(pasados);
       Object.keys(pasosDocs).sort((a, b) => (pasosDocs[b].t || 0) - (pasosDocs[a].t || 0)).forEach(k => {
         const d = pasosDocs[k], id = String(d.pide);
         const viejos = Object.keys(celularesDocs).filter(u => celularesDocs[u] && String(celularesDocs[u].id) === id);
@@ -6730,13 +6754,17 @@
       const id = String(d.pide);
       if (!confirm("¿Pasar a " + (d.name || id) + " a este celular nuevo?\n\nEl celular de antes deja de estar registrado.")) return;
       try {
+        // Primero se borra el pedido (si no, vuelve a aparecer); el celular nuevo espera igual
+        // (lo tiene guardado en el celular) y se registra solo al ver libre su legajo.
+        await fbDb.collection(YO_COLLECTION).doc(k).delete();
+        delete pasosDocs[k];
         const legRef = fbDb.collection(LEG_COLLECTION).doc(id);
         const x = await legRef.get();
         if (x.exists && (!x.data() || x.data().uid !== k)) await legRef.delete();
         for (const u of viejos) { if (u !== k) await fbDb.collection(YO_COLLECTION).doc(u).delete(); }
-        delete pasosDocs[k];
+        const o = leerPasados(); o[id] = { name: d.name || id, t: Date.now() }; guardarPasados(o);
         renderCelulares(); updateCelularesBtn();
-        showShareToast("Listo: " + (d.name || id) + " entra solo en el celular nuevo.");
+        showShareToast("Listo: " + (d.name || id) + " queda registrado la próxima vez que abra la app.");
       } catch (err) {
         alert(err && err.code === "permission-denied" ? "Firebase no dejó pasar el legajo." : "No se pudo pasar. Revisá la conexión.");
       }

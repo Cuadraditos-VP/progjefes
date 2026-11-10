@@ -591,6 +591,34 @@ function chequear(nombre, cond, detalle) {
       }
     }
 
+    if (html.includes('data-lineas="oscuro"')) {
+      console.log("\nColores: líneas verticales de la grilla");
+      const lineas = pg => pg.evaluate(() => {
+        const td = [...document.querySelectorAll(".grp-card tbody td[data-code]")].find(t => !t.classList.contains("week-sep") && !t.classList.contains("blk"));
+        return { v: getComputedStyle(document.documentElement).getPropertyValue("--grid-v").trim().toUpperCase(), borde: td ? getComputedStyle(td).borderLeftColor : "" };
+      });
+      const antes = await lineas(C);
+      await AD.evaluate(() => { document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open"));
+        (document.getElementById("btnColores") || document.getElementById("btnColors")).click();
+        document.querySelector('[data-lineas="oscuro"]').click(); });
+      const enAd = await AD.evaluate(() => ({ v: getComputedStyle(document.documentElement).getPropertyValue("--grid-v").trim().toUpperCase(),
+        sel: document.querySelector('[data-lineas="oscuro"]').classList.contains("selected") }));
+      chequear("el admin elige gris oscuro y lo ve en su celular", enAd.v === "#6B7280" && enAd.sel, enAd);
+      chequear("los demás siguen en gris claro hasta que publique", antes.v === "#E5E7EB" && (await lineas(C)).v === "#E5E7EB", antes);
+      await AD.evaluate(() => { window.confirm = () => true; window.alert = () => {};
+        document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open"));
+        document.getElementById("btnPublish").click(); });
+      await wait(3500);
+      const desp = await lineas(C);
+      chequear("al publicar, los demás ven las líneas en gris oscuro", desp.v === "#6B7280" && desp.borde === "rgb(107, 114, 128)", desp);
+      await AD.evaluate(() => { document.getElementById("btnColores") ? document.getElementById("btnColores").click() : document.getElementById("btnColors").click();
+        document.querySelector('[data-lineas="claro"]').click();
+        document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open"));
+        document.getElementById("btnPublish").click(); });
+      await wait(3500);
+      chequear("y vuelven a gris claro si el admin lo cambia", (await lineas(C)).v === "#E5E7EB", await lineas(C));
+    }
+
     if (html.includes("function autorizarPedido")) {
       console.log("\nDivisión: autoriza pedidos, pasa acordados a lo oficial y carga cambios de palabra");
       const DIVC = "division_" + APP;

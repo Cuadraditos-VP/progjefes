@@ -62,7 +62,7 @@ module.exports = function crearBackend(app, turnosColl) {
       if (w.op === "delete") { const l = prev && legs()[prev.id]; return !!prev && (prev.uid === w.uid || (!!l && l.uid === w.uid)); }
       if (prev || !next) return false; // un código existente no se pisa
       const l = legs()[next.id];
-      return /^\d{6}$/.test(w.id) && next.uid === w.uid && !!l && l.uid === w.uid &&
+      return /^\d{4}$/.test(w.id) && next.uid === w.uid && !!l && l.uid === w.uid &&
         Object.keys(next).every(k => ["id", "uid", "hasta"].includes(k)) && next.hasta < Date.now() + 20 * 60 * 1000;
     }
     // legajos_<app>: cada uno reserva el suyo; para tomar uno ajeno hace falta un pase vigente de su dueño

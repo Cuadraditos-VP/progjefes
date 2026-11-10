@@ -918,7 +918,7 @@ function chequear(nombre, cond, detalle) {
       chequear("en Safari registrado aparece \"📲 Pasar a la app\"", await SF.evaluate(() => { updatePedidosBar(); return document.getElementById("btnPasarApp").style.display !== "none"; }));
       await SF.evaluate(() => document.getElementById("btnPasarApp").click()); await wait(1500);
       const codPase = await SF.evaluate(() => (document.getElementById("paseCodigo") || {}).textContent || "");
-      chequear("le muestra un código de 6 cifras", /^\d{6}$/.test(codPase) && !!(be.st["pases_" + APP] || {})[codPase], codPase);
+      chequear("le muestra un código de 4 cifras", /^\d{4}$/.test(codPase) && !!(be.st["pases_" + APP] || {})[codPase], codPase);
       const APP2 = await be.celular(browser, URL, "uPaseAP", null, errores, { iphone: "app" });
       await wait(1000);
       chequear("en la app instalada no aparece el botón", await APP2.evaluate(() => document.getElementById("btnPasarApp").style.display === "none"));
@@ -926,7 +926,7 @@ function chequear(nombre, cond, detalle) {
       await APP2.fill("#yoLegajo", idSF); await APP2.click("#yoLegajoBtn"); await wait(800);
       await APP2.click("#yoLegajoSi"); await wait(2000);
       chequear("si escribe el legajo, le explica que use el código de Safari", /Pasar a la app/.test(await APP2.evaluate(() => document.getElementById("yoLegajoMsg").textContent)));
-      await APP2.click("#yoCodigoLink"); await APP2.fill("#yoLegajo", "000000"); await APP2.click("#yoLegajoBtn"); await wait(1500);
+      await APP2.click("#yoCodigoLink"); await APP2.fill("#yoLegajo", "0000"); await APP2.click("#yoLegajoBtn"); await wait(1500);
       chequear("un código equivocado no sirve", !(await APP2.evaluate(() => miLegajo)) && /no existe o ya venció/.test(await APP2.evaluate(() => document.getElementById("yoLegajoMsg").textContent)));
       await APP2.fill("#yoLegajo", codPase); await APP2.click("#yoLegajoBtn"); await wait(3000);
       const yoS = be.st["yo_" + APP] || {};

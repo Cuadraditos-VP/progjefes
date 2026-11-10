@@ -4612,7 +4612,7 @@
       if (modoCodigo) {
         const code = String(inp.value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
         if (!code) { msg.textContent = "Escribí el código de invitación."; return; }
-        if (/^\d{6}$/.test(code)) {
+        if (/^\d{4}$/.test(code)) {
           btn.disabled = true;
           msg.textContent = "";
           await usarPase(code, t => { msg.textContent = t; });
@@ -6300,7 +6300,7 @@
     }
     // ========== PASAR EL REGISTRO DE SAFARI A LA APP INSTALADA (iPhone) ==========
     // En iPhone, Safari y la app instalada son dos celulares para Firebase. Desde Safari (registrado) se
-    // saca un código de 6 cifras que vale 10 minutos (pases_jefes/{código} = {id, uid, hasta}). En la app se
+    // saca un código de 4 cifras que vale 10 minutos (pases_jefes/{código} = {id, uid, hasta}). En la app se
     // escribe con "Tengo un código de invitación": la app toma la reserva del legajo (con "pase": código),
     // borra el registro de Safari y queda registrada. Safari se da cuenta solo y se libera.
     const PASE_COLLECTION = "pases_jefes";
@@ -6343,7 +6343,7 @@
         if (p && p.code) fbDb.collection(PASE_COLLECTION).doc(p.code).delete().catch(() => {});
         p = null;
         for (let i = 0; i < 8 && !p; i++) {
-          const code = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
+          const code = String(1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 9000);
           const hasta = Date.now() + PASE_MIN * 60 * 1000;
           try {
             await fbDb.collection(PASE_COLLECTION).doc(code).set({ id: String(miLegajo), uid: yoUid, hasta });

@@ -1,6 +1,6 @@
 # Reglas: pasar el registro de Safari a la app instalada (iPhone)
 
-En Safari (registrado) se toca Cambios → "📲 Pasar a la app": saca un código de 6 cifras que vale
+En Safari (registrado) se toca Cambios → "📲 Pasar a la app": saca un código de 4 cifras que vale
 10 minutos (`pases_jefes/{código}` = `{id, uid, hasta}`). En la app instalada se escribe con
 "Tengo un código de invitación": la app toma la reserva del legajo (`legajos_jefes`, con `pase`),
 borra el registro de Safari (`yo_jefes`) y el código.
@@ -32,7 +32,7 @@ Bloques que se agregan a las reglas:
       allow get: if request.auth != null;
       allow list: if esAdmin();
       allow create: if request.auth != null
-        && code.matches('[0-9]{6}')
+        && code.matches('[0-9]{4,6}')
         && request.resource.data.keys().hasOnly(['id', 'uid', 'hasta'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.id is string

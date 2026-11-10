@@ -55,7 +55,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   que se escribe en la app con "Tengo un código de invitación". En Celulares, "(app)" = instalada.
   No usar `alert`/`confirm` después de esperar a Firebase (en iPhone a veces no aparecen).
   **Pasar de Safari a la app** (sin el admin): en Safari registrado, Cambios → "📲 Pasar a la app" (`abrirPase`) saca un
-  código de 6 cifras que vale 10 min (`pases_jefes`); en la app se escribe con "Tengo un código de invitación" (`usarPase`):
+  código de 4 cifras que vale 10 min (`pases_jefes`); en la app se escribe con "Tengo un código de invitación" (`usarPase`):
   toma la reserva del legajo con `pase`, borra el `yo_*` de Safari y Safari se libera solo (`vigilarPase`/`paseHecho`).
   Reglas: `REGLAS-FIREBASE-PASES.md`.
 - **Externos**: entran con un link de invitación del admin (Celulares → Invitar, colección

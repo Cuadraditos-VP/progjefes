@@ -1824,6 +1824,7 @@
         <button class="close-btn" id="closeCelulares" title="Cerrar">×</button>
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Qué nombre eligió cada celular. "Liberar" hace que ese celular vuelva a preguntar "¿Quién sos?" la próxima vez que abra la app.</p>
+      <div id="pasosList"></div>
       <button type="button" class="ped-act" id="btnInvitar" style="width:100%;margin:2px 0 6px">＋ Invitar a alguien externo</button>
       <div id="invitacionesList"></div>
       <button type="button" class="ped-act sec" id="btnVerUso" style="width:100%;margin:0 0 6px">📊 Ver uso de la app</button>
@@ -4565,7 +4566,8 @@
       const ok = ext ? true : await reservarLegajo(id, name);
       if (ok === null) return false;
       if (!ok) {
-        const txt = name + " ya está en uso en otro celular. Si sos vos, pedile al administrador que lo libere." +
+        pedirPaso(id, name);
+        const txt = name + " ya está registrado en otro celular. Ya le avisamos al administrador: cuando te lo pase a este celular, entrás solo (dejá la app abierta o volvé a abrirla en un rato)." +
           (ES_IOS && esAppInstalada() ? " Si antes te registraste desde Safari en este iPhone, es ese registro (en Celulares figura sin \"(app)\")." : "");
         if (yoOverlay.classList.contains("open") && yoOverlay.classList.contains("por-legajo")) document.getElementById("yoLegajoMsg").textContent = txt;
         else alert(txt);
@@ -4574,6 +4576,7 @@
       const anterior = miLegajo;
       miLegajo = String(id);
       try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefYoNombre", name || ""); } catch (e) {}
+      cancelarPaso(true); // registrarYo saca el pedido de Firebase
       if (anterior && anterior !== miLegajo) soltarLegajo(anterior);
       yoOverlay.classList.remove("open");
       aplicarAcuerdos();
@@ -4687,7 +4690,8 @@
       const ok = await elegirYo(legajoElegido.id, legajoElegido.name, false);
       si.disabled = false;
       si.textContent = "Sí, soy yo";
-      if (ok) { legajoElegido = null; document.getElementById("yoLegajoConf").classList.remove("show"); }
+      // También se oculta si su legajo estaba en otro celular y ya se le pidió al admin que lo pase
+      if (ok || pasoUnsub) { legajoElegido = null; document.getElementById("yoLegajoConf").classList.remove("show"); }
     }
     function openYo() {
       const pendIOS = codigoPendienteIOS();
@@ -6238,16 +6242,51 @@
       const ok = await reservarLegajo(miLegajo, me ? me.p.name : (nom || miLegajo));
       if (ok === false) {
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
+        const leg = miLegajo;
         miLegajo = "";
+        pedirPaso(leg, me ? me.p.name : (nom || leg));
         updatePedidosBar();
         refreshAfterEdit();
-        showShareToast("Tu nombre ya está en uso en otro celular. Avisale al administrador.");
+        showShareToast("Tu legajo figura en otro celular. Ya le avisamos al administrador para que te lo pase a este.");
         if (currentUser !== "ADMIN") openYo();
         return;
       }
       if (ok) registrarYo(false).then(habilitar);
     }
     let yoUid = "", yoUnsub = null;
+    // Pedir que el admin pase el legajo a este celular (yo_jefes/{uid} con "pide"; sin "id" no queda
+    // registrado). Este celular espera a que se libere la reserva y ahí se reserva solo.
+    const PASO_KEY = "jefPidePaso";
+    let pasoUnsub = null;
+    function pedirPaso(id, name) {
+      if (!fbReady || !yoUid || !id || currentUser === "ADMIN") return;
+      try { localStorage.setItem(PASO_KEY, JSON.stringify({ id: String(id), name: name || "" })); } catch (e) {}
+      fbDb.collection(YO_COLLECTION).doc(yoUid)
+        .set({ uid: yoUid, pide: String(id), name: name || String(id), disp: dispositivo(), t: Date.now() }, { merge: true })
+        .catch(err => console.warn("Pedir paso:", err));
+      esperarPaso();
+    }
+    function cancelarPaso(soloLocal) {
+      if (pasoUnsub) { pasoUnsub(); pasoUnsub = null; }
+      let p = null;
+      try { p = localStorage.getItem(PASO_KEY); localStorage.removeItem(PASO_KEY); } catch (e) {}
+      if (p && !soloLocal && fbReady && yoUid) fbDb.collection(YO_COLLECTION).doc(yoUid)
+        .update({ pide: firebase.firestore.FieldValue.delete() }).catch(() => {});
+    }
+    function esperarPaso() {
+      if (pasoUnsub || !fbReady || !yoUid) return;
+      let p = null;
+      try { p = JSON.parse(localStorage.getItem(PASO_KEY) || "null"); } catch (e) {}
+      if (!p || !p.id) return;
+      if (miLegajo) { cancelarPaso(); return; }
+      pasoUnsub = fbDb.collection(LEG_COLLECTION).doc(String(p.id)).onSnapshot(d => {
+        if (d.exists && d.data() && d.data().uid !== yoUid) return;
+        if (pasoUnsub) { pasoUnsub(); pasoUnsub = null; }
+        elegirYo(p.id, p.name, false).then(listo => {
+          if (listo) showShareToast("Listo" + (p.name ? ", " + p.name : "") + ": ya estás registrado en este celular.");
+        });
+      }, err => { console.warn("Esperar paso:", err); pasoUnsub = null; });
+    }
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
     // Borra del celular las copias guardadas que empiezan con ese prefijo
     function borrarCopiaLocal(pref) {
@@ -6267,7 +6306,8 @@
       const ex = externoDe(miLegajo);
       let nom = "";
       try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
-      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : (nom || String(miLegajo)), disp: dispositivo(), t: Date.now() };
+      const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : (nom || String(miLegajo)), disp: dispositivo(), t: Date.now(),
+        pide: firebase.firestore.FieldValue.delete() };
       return fbDb.collection(YO_COLLECTION).doc(yoUid).set(data, { merge: true })
         .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} return true; })
         .catch(err => { console.warn("yo_jefes:", err); return false; });
@@ -6292,6 +6332,7 @@
       if (yoUnsub) { yoUnsub(); yoUnsub = null; }
       yoUid = u.uid;
       asegurarReserva();
+      esperarPaso();
       yoUnsub = fbDb.collection(YO_COLLECTION).doc(yoUid).onSnapshot(d => {
         if (d.exists) { contarApertura(); return; }
         let reg = null;
@@ -6313,6 +6354,7 @@
     }
 
     const celularesDocs = {};
+    const pasosDocs = {}; // yo_jefes/{uid} con "pide": celulares que piden que les pasen su legajo
     let celUnsub = null;
     function startCelularesListener() {
       if (celUnsub || !fbReady) return;
@@ -6326,8 +6368,11 @@
       }, err => { console.warn("División:", err); divListUnsub = null; });
       celUnsub = fbDb.collection(YO_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
-          if (ch.type === "removed") delete celularesDocs[ch.doc.id];
-          else celularesDocs[ch.doc.id] = ch.doc.data();
+          delete celularesDocs[ch.doc.id]; delete pasosDocs[ch.doc.id];
+          if (ch.type === "removed") return;
+          const d = ch.doc.data();
+          // Celular que perdió su registro y pide que le pasen su legajo (todavía no está registrado)
+          if (d && d.pide && !d.id) pasosDocs[ch.doc.id] = d; else celularesDocs[ch.doc.id] = d;
         });
         if (celularesOverlay.classList.contains("open")) renderCelulares();
         updateCelularesBtn();
@@ -6341,6 +6386,7 @@
       Object.keys(invitacionesDocs).forEach(k => delete invitacionesDocs[k]);
       if (celUnsub) { celUnsub(); celUnsub = null; }
       Object.keys(celularesDocs).forEach(k => delete celularesDocs[k]);
+      Object.keys(pasosDocs).forEach(k => delete pasosDocs[k]);
     }
     function repetidos() {
       const cnt = {};
@@ -6357,6 +6403,8 @@
       const dup = Object.keys(cnt).filter(k => cnt[k] > 1).length;
       const nuevos = Object.values(celularesDocs).filter(d => esNuevoCel(d, celVistos)).length;
       const extra = [];
+      const nPasos = Object.keys(pasosDocs).length;
+      if (nPasos) extra.push(nPasos + (nPasos === 1 ? " pide entrar" : " piden entrar"));
       if (nuevos) extra.push(nuevos + (nuevos === 1 ? " nuevo" : " nuevos"));
       if (dup) extra.push(dup + " ⚠");
       const b = document.getElementById("btnCelulares");
@@ -6421,6 +6469,7 @@
       renderCelulares();
     });
     function renderCelulares() {
+      renderPasos();
       const list = document.getElementById("celularesList");
       const ru = document.getElementById("celularesUso");
       if (ru) ru.textContent = resumenUso();
@@ -6477,6 +6526,59 @@
         row.querySelector(".acu-top").appendChild(btns);
         list.appendChild(row);
       });
+    }
+    // Pedidos de "pasar a este celular": el celular perdió su registro (Android/iPhone borró los
+    // datos de la página) y el legajo sigue reservado al celular viejo. El admin lo pasa con un toque:
+    // se borra la reserva y el registro viejo, y el celular nuevo se reserva solo (esperarPaso).
+    function renderPasos() {
+      const box = document.getElementById("pasosList");
+      if (!box) return;
+      box.innerHTML = "";
+      Object.keys(pasosDocs).sort((a, b) => (pasosDocs[b].t || 0) - (pasosDocs[a].t || 0)).forEach(k => {
+        const d = pasosDocs[k], id = String(d.pide);
+        const viejos = Object.keys(celularesDocs).filter(u => celularesDocs[u] && String(celularesDocs[u].id) === id);
+        const row = document.createElement("div");
+        row.className = "acu-row";
+        row.style.cssText = "background:#fef3c7;border-color:#f59e0b";
+        const ahora = viejos.length
+          ? viejos.map(u => { const v = celularesDocs[u]; return (v.disp || "otro celular") + (v.ult ? " · usado por última vez " + fechaCorta(v.ult) : ""); }).join("; ")
+          : "ningún celular registrado";
+        row.innerHTML = '<div class="acu-top"><span>' + escH(d.name || id) + ' · ' + escH(id) + '</span></div>' +
+          '<div style="font-size:0.78rem;color:#92400e;font-weight:600">Pide entrar desde ' + escH(d.disp || "otro celular") +
+          (d.t ? ' (' + fechaCorta(d.t) + ')' : '') + '</div>' +
+          '<div style="font-size:0.72rem;color:#64748b">Ahora su legajo está en: ' + escH(ahora) + '</div>';
+        const bp = document.createElement("button");
+        bp.type = "button"; bp.className = "ped-act"; bp.textContent = "Pasar a este celular";
+        bp.addEventListener("click", () => pasarLegajo(k, d, viejos));
+        const bn = document.createElement("button");
+        bn.type = "button"; bn.className = "ped-act sec"; bn.textContent = "No";
+        bn.title = "Rechazar el pedido";
+        bn.addEventListener("click", () => {
+          if (!confirm("¿Rechazar el pedido de " + (d.name || id) + "? Su legajo sigue en el celular de antes.")) return;
+          delete pasosDocs[k]; renderCelulares(); updateCelularesBtn();
+          fbDb.collection(YO_COLLECTION).doc(k).delete().catch(() => {});
+        });
+        const btns = document.createElement("span");
+        btns.style.cssText = "display:flex;gap:6px;flex-shrink:0";
+        btns.appendChild(bn); btns.appendChild(bp);
+        row.querySelector(".acu-top").appendChild(btns);
+        box.appendChild(row);
+      });
+    }
+    async function pasarLegajo(k, d, viejos) {
+      const id = String(d.pide);
+      if (!confirm("¿Pasar a " + (d.name || id) + " a este celular nuevo?\n\nEl celular de antes deja de estar registrado.")) return;
+      try {
+        const legRef = fbDb.collection(LEG_COLLECTION).doc(id);
+        const x = await legRef.get();
+        if (x.exists && (!x.data() || x.data().uid !== k)) await legRef.delete();
+        for (const u of viejos) { if (u !== k) await fbDb.collection(YO_COLLECTION).doc(u).delete(); }
+        delete pasosDocs[k];
+        renderCelulares(); updateCelularesBtn();
+        showShareToast("Listo: " + (d.name || id) + " entra solo en el celular nuevo.");
+      } catch (err) {
+        alert(err && err.code === "permission-denied" ? "Firebase no dejó pasar el legajo." : "No se pudo pasar. Revisá la conexión.");
+      }
     }
     function toggleDivision(d, esDiv) {
       const id = String(d.id);
@@ -6556,6 +6658,7 @@
       if (anterior && !externoDe(anterior)) soltarLegajo(anterior);
       miLegajo = INV_PREF + code;
       try { localStorage.setItem("jefYo", miLegajo); localStorage.setItem("jefInvNombre", d.name || ""); } catch (e) {}
+      cancelarPaso(true);
       registrarYo(true).then(listo => { if (listo) { registroOk = true; startProtegidos(); } });
       yoOverlay.classList.remove("open");
       updatePedidosBar();
@@ -6955,6 +7058,7 @@
     // Copia de la app en el celular para poder abrirla sin internet (ver sw.js)
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
       window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
     }
   </script>
 </body>

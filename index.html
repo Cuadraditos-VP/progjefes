@@ -6509,32 +6509,40 @@
     }
     // Cuántas veces se abre la app en cada celular (lo ve el admin en Celulares): suma 1 al abrirla
     // y al volver a ella después de 30 minutos sin usarla. La recarga automática no cuenta.
-    // Desde cuándo está guardada (en segundo plano) se anota en el celular (OCULTA_KEY) y no en la página:
-    // si la app se recargó sola mientras estaba guardada (cada 20 min), al volver a ella igual se cuenta.
-    // Antes se perdía: quien la dejaba abierta en el celular nunca sumaba al volver.
-    const OCULTA_KEY = PROP_PREF + "OcultaDesde";
-    let aperturaContada = false;
-    try { if (sessionStorage.getItem("recargaAuto")) { aperturaContada = true; sessionStorage.removeItem("recargaAuto"); } } catch (e) {}
-    function guardadaHaceMucho() {
-      let desde = 0;
-      try { desde = Number(localStorage.getItem(OCULTA_KEY)) || 0; localStorage.removeItem(OCULTA_KEY); } catch (e) {}
-      return desde > 0 && Date.now() - desde >= 30 * 60 * 1000;
-    }
-    try {
-      if (document.hidden) { if (!localStorage.getItem(OCULTA_KEY)) localStorage.setItem(OCULTA_KEY, String(Date.now())); }
-      else if (guardadaHaceMucho()) aperturaContada = false;
+    // "Sin usarla" se mide con la última vez que se la vio en pantalla (EN_USO_KEY, guardada en el celular
+    // y renovada cada 30 s mientras se ve), no con el aviso de que se guardó: el iPhone a veces congela
+    // la app sin avisar, y la recarga automática puede pasar mientras está guardada (caso Tevez).
+    // Al volver (pantalla, foco, o el reloj que se despierta tarde) se compara y, si pasaron 30 min, cuenta.
+    const EN_USO_KEY = PROP_PREF + "EnUsoHasta";
+    const PAUSA_USO_MS = 30 * 60 * 1000;
+    function enUsoHasta() { try { return Number(localStorage.getItem(EN_USO_KEY)) || 0; } catch (e) { return 0; } }
+    function marcarEnUso() { try { localStorage.setItem(EN_USO_KEY, String(Date.now())); } catch (e) {} }
+    function volvioTrasPausa() { const t = enUsoHasta(); return t > 0 && Date.now() - t >= PAUSA_USO_MS; }
+    try { // lo que guardaba la versión anterior (desde cuándo estaba oculta)
+      const viejo = Number(localStorage.getItem(PROP_PREF + "OcultaDesde")) || 0;
+      if (viejo && !enUsoHasta()) localStorage.setItem(EN_USO_KEY, String(viejo));
+      localStorage.removeItem(PROP_PREF + "OcultaDesde");
     } catch (e) {}
+    let aperturaContada = false;
+    try { if (sessionStorage.getItem("recargaAuto")) { sessionStorage.removeItem("recargaAuto"); aperturaContada = !volvioTrasPausa(); } } catch (e) {}
+    if (!document.hidden) marcarEnUso();
+    function revisarUso() {
+      if (document.hidden) return;
+      if (volvioTrasPausa()) aperturaContada = false;
+      marcarEnUso();
+      contarApertura();
+    }
     function contarApertura() {
       if (aperturaContada || document.hidden || !fbReady || !yoUid || !miLegajo || currentUser === "ADMIN") return;
       aperturaContada = true;
       fbDb.collection(YO_COLLECTION).doc(yoUid)
         .update({ ab: firebase.firestore.FieldValue.increment(1), ult: Date.now() }).catch(() => {});
     }
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) { try { if (!localStorage.getItem(OCULTA_KEY)) localStorage.setItem(OCULTA_KEY, String(Date.now())); } catch (e) {} return; }
-      if (guardadaHaceMucho()) aperturaContada = false;
-      contarApertura();
-    });
+    // Al guardarla se anota la hora, salvo que ya estuviera congelada desde hace rato sin avisar (así igual cuenta al volver)
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) revisarUso(); else if (!volvioTrasPausa()) marcarEnUso(); });
+    window.addEventListener("pageshow", revisarUso);
+    window.addEventListener("focus", revisarUso);
+    setInterval(revisarUso, 30 * 1000);
     function startYoSync(u) {
       if (!fbReady || !u || u.uid === yoUid) return;
       if (yoUnsub) { yoUnsub(); yoUnsub = null; }

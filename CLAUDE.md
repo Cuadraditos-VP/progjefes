@@ -150,7 +150,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =
   última vez) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
-  no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. Arriba de la lista, un resumen: cuántos la abrieron
+  no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. Desde cuándo está en segundo plano se guarda en
+  `localStorage` (`<PROP_PREF>OcultaDesde`) y no en la página: así, si la recarga automática pasó mientras estaba guardada,
+  al volver igual cuenta (antes se perdían esos usos, caso Tevez). Arriba de la lista, un resumen: cuántos la abrieron
   hoy, en 7 y en 30 días, y el total de aperturas. Cuenta desde el 8/11/2026. Sirve para los números del concurso.
   Está oculto hasta que el admin toca "📊 Ver uso de la app" (se muestra para todos a la vez) y **siempre arranca oculto** al
   abrir Celulares. Ese toque marca el momento: los que abrieron la app desde la vez anterior que miró van **arriba y en verde**

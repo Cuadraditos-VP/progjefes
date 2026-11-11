@@ -99,6 +99,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al
   instante y sin internet; solo en registrados/admin y se borra si el admin libera el celular.
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
+- **Nube del iPhone**: el iPhone nuevo pone un difuminado debajo de la hora que tapaba los botones de arriba. En
+  iPhone/iPad el encabezado baja 44px (`ios-nube`, con `ES_IOS`). Ya se probó cambiar `viewport-fit`/`status-bar-style`
+  en jefes y quedó peor (se volvió atrás): no tocar eso, que obliga a reinstalar la app.
 - **El admin publica cambios de turnos** (ej. acordados de palabra) con ⬆ Publicar: pasan a lo oficial
   (`turnosAPublicar`), con `changedAt["legajo:día"]` = cuándo. Si en esa celda el dueño había publicado otra
   cosa en su fila, avisa y la descarta (`choquesConPropios` → `descartarPropio`, al dueño le llega aviso): manda

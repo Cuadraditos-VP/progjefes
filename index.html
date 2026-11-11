@@ -1152,6 +1152,15 @@
       pointer-events: none; z-index: 3;
     }
     td.davalado::before, .cal-day.davalado::before, .cal-day-h.davalado::before { border-right-color: #16a34a; }
+    /* Vista D: celeste = alguien pidió cambiar ese día en el banco y todavía nadie lo acordó */
+    td.dpedido, .cal-day.dpedido, .cal-day-h.dpedido { position: relative; }
+    td.dpedido::before, .cal-day.dpedido::before, .cal-day-h.dpedido::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+      border-style: solid; border-width: 0 14px 14px 0;
+      border-color: transparent #0ea5e9 transparent transparent;
+      filter: drop-shadow(-1px 1px 0 #fff);
+      pointer-events: none; z-index: 3;
+    }
     body.is-division:not(.is-admin) #btnOriginalView.admin-only { display: inline-block !important; }
     td.cjchanged, .cal-day.cjchanged, .cal-day-h.cjchanged { position: relative; box-shadow: inset 0 0 0 3px #9333ea; }
     td.cjchanged::before, .cal-day.cjchanged::before, .cal-day-h.cjchanged::before {
@@ -2248,7 +2257,7 @@
     }
     function markClass(pi, di) {
       const m = cellMark(pi, di);
-      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : (m === "cjp" ? "cjpropio" : (m === "dacu" ? "dacordado" : (m === "daval" ? "davalado" : "")))));
+      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : (m === "cjp" ? "cjpropio" : (m === "dacu" ? "dacordado" : (m === "daval" ? "davalado" : (m === "dped" ? "dpedido" : ""))))));
     }
     function cellWasEdited(pi, fromDi, toDi) {
       if (viewMode !== "actual") return false;
@@ -3852,14 +3861,14 @@
       actual: "Actual (editable)",
       inicial: "Programación inicial del mes",
       cj: "Cambios de los jefes (último cambio de cada celda)",
-      division: "División: la inicial + los cambios acordados (naranja, tocá para avalar), avalados (verde) y lo que cambiaste a mano (ámbar)"
+      division: "División: la inicial + los pedidos del banco sin acordar (celeste), los cambios acordados (naranja, tocá para avalar), avalados (verde) y lo que cambiaste a mano (ámbar)"
     };
     const VIEW_MODE_COLOR = { actual: "#7c3aed", inicial: "#0f766e", cj: "#9333ea", division: "#15803d" };
     const btnOriginalView = document.getElementById("btnOriginalView");
     // "division" (D): la programación inicial más los cambios cerrados entre empleados y lo que se cambió a mano
     // en ESTE celular (ver "VISTA D"). No muestra lo que los demás cambiaron por su cuenta. Se toca como la A;
     // una celda de un cambio acordado abre ese cambio para avalarlo.
-    // El admin ve A → I → CJ → D; la División D → A → I.
+    // El admin ve A → I → CJ → D; la División solo D → I (a pedido de Guillermo, sin la A).
     function vistaActual() { return viewMode; }
     function ponerVista(m) {
       vistaD = m === "division";
@@ -3872,7 +3881,7 @@
     btnOriginalView.addEventListener("click", () => {
       let order;
       if (currentUser === "ADMIN") order = VIEW_MODE_ORDER.filter(m => m !== "cj" || fbReady).concat("division");
-      else if (soyDivision()) order = ["division", "actual", "inicial"];
+      else if (soyDivision()) order = ["division", "inicial"];
       else return;
       const i = order.indexOf(vistaActual());
       ponerVista(order[(i + 1) % order.length]);
@@ -4987,6 +4996,14 @@
       }
       // División (o admin): puede autorizarlo sin que haya otro que cambie
       if (puedeAutorizar()) agregarAutorizar(body, pi, di, ped);
+      // En la vista D, desde el pedido también se puede cambiar el turno a mano
+      if (vistaD && ped && (soyDivision() || currentUser === "ADMIN")) {
+        const mano = document.createElement("button");
+        mano.type = "button"; mano.className = "ped-act sec ped-mano"; mano.textContent = "✎ Cambiar a mano";
+        mano.style.marginTop = "8px";
+        mano.addEventListener("click", () => { closePedido(); openShiftPicker(pi, di); });
+        body.appendChild(mano);
+      }
       acts.style.display = "flex";
       document.getElementById("quitarPedido").style.display = "none";
       pedidoOverlay.classList.add("open");
@@ -5786,7 +5803,8 @@
     // (en el orden en que pasaron) y, encima, lo que se cambió a mano en ESTE celular. Lo que los demás usuarios
     // cambiaron por su cuenta no se ve.
     // Marca: "dacu" = acordado entre los dos (falta avalarlo), "daval" = avalado (pasado a lo oficial,
-    // autorizado o de palabra), "own" = cambiado a mano en este celular (ámbar).
+    // autorizado o de palabra), "dped" = pedido del banco que nadie acordó todavía (celeste, la celda sigue con
+    // su turno), "own" = cambiado a mano en este celular (ámbar).
     function celdasDeCerrado(a) {
       if (a.estado === "acordado") return cambiosDeAcuerdo(a) || [];
       if (a.estado !== "autorizado") return [];
@@ -5831,6 +5849,10 @@
         marcas[key] = c.m;
         if (c.k) (keys[key] = keys[key] || []).push(c.k);
       });
+      // Pedidos del banco sin acordar: solo la marca (el turno no cambia)
+      people.forEach((p, pi) => {
+        for (let di = 0; di < DAYS; di++) if (!marcas[pi + ":" + di] && pedidoDe(p.id, di)) marcas[pi + ":" + di] = "dped";
+      });
       Object.keys(editsMap).forEach(key => {
         const [pi, di] = key.split(":").map(Number);
         if (!codes[pi] || !(di >= 0 && di < DAYS)) return;
@@ -5845,7 +5867,11 @@
     let acuFiltro = null;
     function abrirCeldaD(pi, di) {
       const ks = D_KEYS[pi + ":" + di];
-      if (!ks || !ks.length) { openShiftPicker(pi, di); return; }
+      if (!ks || !ks.length) {
+        // Un pedido sin acordar abre el pedido (para verlo o autorizarlo); si no, se cambia a mano
+        if (people[pi] && pedidoDe(people[pi].id, di)) openPedido(pi, di); else openShiftPicker(pi, di);
+        return;
+      }
       acuFiltro = { keys: ks.slice(), txt: (people[pi] ? people[pi].name : "") + " · " + fechaTxt(di), pi, di };
       acuerdosOverlay.classList.add("open");
       renderAcuerdos();

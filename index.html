@@ -7177,25 +7177,6 @@
       const lista = document.getElementById("adminMenuList");
       const cerrar = () => overlay.classList.remove("open");
       IDS.forEach(id => { const b = document.getElementById(id); if (b) lista.appendChild(b); });
-      // Prueba (solo en este celular): baja los botones de arriba para que no los tape la "nube"
-      // que el iPhone nuevo pone debajo de la hora. Si sirve, se activa para todos.
-      const st = document.createElement("style");
-      st.textContent = "body.prueba-nube header { padding-top: calc(max(12px, env(safe-area-inset-top, 0px)) + 44px) !important; }";
-      document.head.appendChild(st);
-      const NUBE_KEY = "pruebaNube";
-      const nubeOn = () => { try { return localStorage.getItem(NUBE_KEY) === "1"; } catch (e) { return false; } };
-      const bNube = document.createElement("button");
-      bNube.type = "button"; bNube.id = "btnPruebaNube"; bNube.className = "json-btn";
-      const pintarNube = () => {
-        document.body.classList.toggle("prueba-nube", nubeOn());
-        bNube.textContent = nubeOn() ? "📱 Sacar arreglo de la nube (este celular)" : "📱 Probar arreglo de la nube (solo este celular)";
-      };
-      bNube.addEventListener("click", () => {
-        try { if (nubeOn()) localStorage.removeItem(NUBE_KEY); else localStorage.setItem(NUBE_KEY, "1"); } catch (e) {}
-        pintarNube(); cerrar();
-      });
-      pintarNube();
-      lista.appendChild(bNube);
       document.getElementById("btnAdminMenu").addEventListener("click", () => overlay.classList.add("open"));
       document.getElementById("closeAdminMenu").addEventListener("click", cerrar);
       overlay.addEventListener("click", (e) => {

@@ -895,6 +895,22 @@ function chequear(nombre, cond, detalle) {
     const ab2 = abC();
     chequear("al abrir la app suma 1 (y guarda cuándo)", ab0 >= 1 && ab1 === ab0 + 1 && ((be.st[YOC] || {})["uC"] || {}).ult > 0, { ab0, ab1 });
     chequear("la recarga automática no cuenta", ab2 === ab1, { ab1, ab2 });
+    // Caso Tevez: la deja abierta, se recarga sola mientras está guardada y vuelve horas después: tiene que contar
+    const ocKey = await C.evaluate(() => PROP_PREF + "OcultaDesde");
+    await C.evaluate(k => { localStorage.setItem(k, String(Date.now() - 2 * 3600000)); sessionStorage.setItem("recargaAuto", "1"); }, ocKey);
+    await C.reload(); await wait(2500);
+    const ab3 = abC();
+    chequear("si se recargó sola estando guardada, al volver horas después cuenta", ab3 === ab2 + 1, { ab2, ab3 });
+    const ab4 = await C.evaluate(async k => {
+      const ocultar = h => { Object.defineProperty(document, "hidden", { configurable: true, get: () => h }); document.dispatchEvent(new Event("visibilitychange")); };
+      ocultar(true); ocultar(false); // la guarda y vuelve enseguida: no cuenta
+      await new Promise(r => setTimeout(r, 800));
+      ocultar(true); localStorage.setItem(k, String(Date.now() - 31 * 60000)); ocultar(false); // volvió a los 31 min: cuenta
+      await new Promise(r => setTimeout(r, 800));
+      delete document.hidden;
+      return 0;
+    }, ocKey).then(() => wait(1000)).then(() => abC());
+    chequear("volver enseguida no cuenta; volver a los 30 min sí", ab4 === ab3 + 1, { ab3, ab4 });
     const usoAd = await AD.evaluate(id => {
       renderCelulares();
       const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));

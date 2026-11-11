@@ -896,7 +896,7 @@ function chequear(nombre, cond, detalle) {
     chequear("al abrir la app suma 1 (y guarda cuándo)", ab0 >= 1 && ab1 === ab0 + 1 && ((be.st[YOC] || {})["uC"] || {}).ult > 0, { ab0, ab1 });
     chequear("la recarga automática no cuenta", ab2 === ab1, { ab1, ab2 });
     // Caso Tevez: la deja abierta, se recarga sola mientras está guardada y vuelve horas después: tiene que contar
-    const ocKey = await C.evaluate(() => PROP_PREF + "OcultaDesde");
+    const ocKey = await C.evaluate(() => PROP_PREF + "EnUsoHasta");
     await C.evaluate(k => { localStorage.setItem(k, String(Date.now() - 2 * 3600000)); sessionStorage.setItem("recargaAuto", "1"); }, ocKey);
     await C.reload(); await wait(2500);
     const ab3 = abC();
@@ -911,6 +911,16 @@ function chequear(nombre, cond, detalle) {
       return 0;
     }, ocKey).then(() => wait(1000)).then(() => abC());
     chequear("volver enseguida no cuenta; volver a los 30 min sí", ab4 === ab3 + 1, { ab3, ab4 });
+    // iPhone: la congela sin avisar que se guardó; al despertar, el reloj (o el foco) ve que pasaron 30 min
+    const ab5 = await C.evaluate(async k => {
+      localStorage.setItem(k, String(Date.now() - 45 * 60000)); window.dispatchEvent(new Event("focus"));
+      await new Promise(r => setTimeout(r, 800));
+      window.dispatchEvent(new Event("focus")); // otra vez enseguida: no cuenta de nuevo
+      return 0;
+    }, ocKey).then(() => wait(1000)).then(() => abC());
+    chequear("si el celular la congeló sin avisar, al volver a los 30 min cuenta (una sola vez)", ab5 === ab4 + 1, { ab4, ab5 });
+    await C.evaluate(() => sessionStorage.setItem("recargaAuto", "1")); await C.reload(); await wait(2500);
+    chequear("la recarga automática con la app en uso sigue sin contar", abC() === ab5, { ab5, ab6: abC() });
     const usoAd = await AD.evaluate(id => {
       renderCelulares();
       const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));

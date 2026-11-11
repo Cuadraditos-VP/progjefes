@@ -84,6 +84,22 @@ function chequear(nombre, cond, detalle) {
     }, DE_PRUEBA);
     const libre = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP].includes(id));
     const libre2 = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre].includes(id));
+    // Buscador de nombres (solo cajeros, en pantallas anchas)
+    if (await P.evaluate(() => !!document.getElementById("buscaNombre"))) {
+      console.log("Buscador de nombres");
+      chequear("en el celular no aparece el buscador", !(await P.isVisible("#buscaNombre")));
+      await P.setViewportSize({ width: 1280, height: 800 }); await wait(300);
+      chequear("en la PC aparece el buscador", await P.isVisible("#buscaNombre"));
+      const ult = await P.evaluate(() => people.length - 1);
+      const quien = await P.evaluate(i => people[i].name, ult);
+      await P.fill("#buscaNombre", quien.split(/[ ,]+/).pop().toLowerCase()); await wait(200);
+      chequear("lista a quien coincide con lo escrito", await P.evaluate(n => Array.from(document.querySelectorAll("#buscaLista button span")).some(s => s.textContent === n), quien));
+      await P.press("#buscaNombre", "Enter"); await wait(900);
+      const fue = await P.evaluate(i => { const tr = document.querySelector('td.person-name[data-pi="' + i + '"]').closest("tr");
+        const r = tr.getBoundingClientRect(); return { marcada: tr.classList.contains("busca-hit"), visible: r.top >= 0 && r.bottom <= innerHeight }; }, ult);
+      chequear("con Enter lleva a esa fila y la resalta", fue.marcada && fue.visible, fue);
+      await P.setViewportSize({ width: 420, height: 900 }); await wait(200);
+    }
     await P.close();
     console.log("Mes " + s.mes + ", día " + (s.d + 1) + ": A=" + s.ida + " (" + s.x + "), B=" + s.idb + " (" + s.y + "), C=" + s.idc + " (" + s.z + ")\n");
 

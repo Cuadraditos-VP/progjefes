@@ -642,14 +642,14 @@ function chequear(nombre, cond, detalle) {
       chequear("queda guardado en " + DIVC, !!(be.st[DIVC] || {})[idD], be.st[DIVC]);
       chequear("ese celular pasa a ser División (⬆ Publicar y Acordados)", JSON.stringify(await esDiv(D)) === JSON.stringify({ div: true, pub: true, acu: true }), await esDiv(D));
       const nomD = await D.evaluate(() => miPersona().p.name);
-      // Vista D: la División arranca en D y su botón pasa a A, a I y vuelve
+      // Vista D: la División arranca en D y su botón pasa a I y vuelve (no ve la A)
       const vD = pg => pg.evaluate(() => { const b = document.getElementById("btnOriginalView");
         return { txt: b.textContent, vis: getComputedStyle(b).display !== "none", d: vistaD, modo: viewMode }; });
       const vd0 = await vD(D);
       chequear("la División arranca en la vista D", vd0.vis && vd0.txt === "D" && vd0.d && vd0.modo === "division", vd0);
       const ciclo = await D.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [];
-        for (let i = 0; i < 3; i++) { b.click(); r.push(b.textContent); } return r.join(""); });
-      chequear("la División ve D → A → I", ciclo === "AID", ciclo);
+        for (let i = 0; i < 2; i++) { b.click(); r.push(b.textContent); } return r.join(""); });
+      chequear("la División ve solo D → I (sin la A)", ciclo === "ID", ciclo);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",
@@ -683,6 +683,15 @@ function chequear(nombre, cond, detalle) {
         pedTengoSel = t; guardarPedido(s.a, d6, [q]); closePedido(); return q; }, [s, d6]);
       await wait(1500);
       const pedId = s.mes + "_" + s.ida + "_" + (d6 + 1);
+      // En D, el pedido sin acordar se marca en celeste (sin cambiar el turno) y al tocarlo se abre el pedido
+      const enDPed = await D.evaluate(([s, d6]) => { const r = { m: cellMark(s.a, d6), igual: codesFor(s.a)[d6] === (INITIAL_CODES[s.a] || [])[d6],
+          td: !!document.querySelector('td.dpedido[data-pi="' + s.a + '"][data-di="' + d6 + '"]') };
+        document.querySelector('td[data-pi="' + s.a + '"][data-di="' + d6 + '"]').click();
+        r.cuadro = document.getElementById("pedidoOverlay").classList.contains("open");
+        r.picker = document.getElementById("shiftOverlay").classList.contains("open");
+        r.mano = !!document.querySelector("#pedidoBody .ped-mano"); closePedido(); return r; }, [s, d6]);
+      chequear("en D, el pedido sin acordar se ve en celeste y abre el pedido (con \"Cambiar a mano\")",
+        enDPed.m === "dped" && enDPed.td && enDPed.igual && enDPed.cuadro && !enDPed.picker && enDPed.mano, enDPed);
       const caja = await D.evaluate(([s, d6]) => { openPedido(s.a, d6); const b = document.querySelector("#pedidoBody .ped-div button");
         return b ? b.textContent : ""; }, [s, d6]);
       chequear("en el pedido de A la División ve \"Autorizar\"", /Autorizar/.test(caja) && caja.indexOf(quiere) >= 0, caja);

@@ -131,9 +131,12 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   `estado: "rechazado"` con `rechazo = {motivo, por, t, adm?}`, se sacan los propios de esas celdas y cada celular de los dos
   vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo; al admin, si fue la División.
   Queda en Acordados en gris; ese día se puede volver a pedir.
-  **Vista D** (de la División): la División arranca en D y su botón de vistas pasa a A, a I y vuelve; el admin ve
+  **Vista D** (de la División): la División arranca en D y su botón de vistas pasa a I y vuelve (no ve la A, a pedido
+  de Guillermo); el admin ve
   A → I → CJ → D. D (`viewMode = "division"`) muestra **la programación inicial más los cambios cerrados en el banco
-  de cambios** (acordados, autorizados y de palabra), en el orden en que se cerraron, y encima **lo que se cambió a mano en
+  de cambios** (acordados, autorizados y de palabra), en el orden en que se cerraron, los **pedidos del banco que nadie
+  acordó todavía** (esquinita celeste, `dped`: el turno no cambia; tocarla abre el pedido para verlo o autorizarlo, con
+  "✎ Cambiar a mano"), y encima **lo que se cambió a mano en
   ese mismo celular** (ámbar) (`marcasCerrados` → `D_CODES`, `D_MARKS`, `D_KEYS`). NO muestra lo que los demás usuarios
   cambiaron a mano (propios, CJ) ni lo publicado suelto por el admin. Esquinita naranja = acordado entre los dos (falta
   avalarlo), verde = avalado (pasado a lo oficial, autorizado, de palabra o publicado a mano por la División). En D se

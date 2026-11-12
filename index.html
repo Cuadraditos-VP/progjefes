@@ -6536,7 +6536,7 @@
       if (aperturaContada || document.hidden || !fbReady || !yoUid || !miLegajo || currentUser === "ADMIN") return;
       aperturaContada = true;
       fbDb.collection(YO_COLLECTION).doc(yoUid)
-        .update({ ab: firebase.firestore.FieldValue.increment(1), ult: Date.now() }).catch(() => {});
+        .update({ ab: firebase.firestore.FieldValue.increment(1), ult: Date.now(), disp: dispositivo() }).catch(() => {}); // disp: al día (ej. si después la instaló)
     }
     // Al guardarla se anota la hora, salvo que ya estuviera congelada desde hace rato sin avisar (así igual cuenta al volver)
     document.addEventListener("visibilitychange", () => { if (!document.hidden) revisarUso(); else if (!volvioTrasPausa()) marcarEnUso(); });

@@ -149,7 +149,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =
-  última vez) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
+  última vez, y `disp` = aparato al día, para ver "(app)" aunque se haya registrado antes) al abrir la app o al volver a ella tras 30 min sin usarla (`contarApertura`); la recarga automática
   no cuenta (`sessionStorage` `recargaAuto`) y el admin no suma. "Sin usarla" se mide con la última vez que se la vio
   en pantalla (`localStorage` `<PROP_PREF>EnUsoHasta`, se renueva cada 30 s mientras se ve; `revisarUso` al volver, al
   tomar foco y en ese reloj): así cuenta aunque la recarga automática haya pasado con la app guardada o el iPhone la haya

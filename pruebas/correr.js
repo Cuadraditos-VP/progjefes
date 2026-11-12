@@ -893,6 +893,7 @@ function chequear(nombre, cond, detalle) {
     const ab1 = abC();
     await C.evaluate(() => sessionStorage.setItem("recargaAuto", "1")); await C.reload(); await wait(2500);
     const ab2 = abC();
+    chequear("al abrir la app anota el aparato al día (para ver si está instalada)", typeof ((be.st[YOC] || {})["uC"] || {}).disp === "string" && / · /.test(be.st[YOC]["uC"].disp), ((be.st[YOC] || {})["uC"] || {}).disp);
     chequear("al abrir la app suma 1 (y guarda cuándo)", ab0 >= 1 && ab1 === ab0 + 1 && ((be.st[YOC] || {})["uC"] || {}).ult > 0, { ab0, ab1 });
     chequear("la recarga automática no cuenta", ab2 === ab1, { ab1, ab2 });
     // Caso Tevez: la deja abierta, se recarga sola mientras está guardada y vuelve horas después: tiene que contar

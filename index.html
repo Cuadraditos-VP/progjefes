@@ -6657,7 +6657,10 @@
     function empezarVerUso() { usoAntes = usoVisto; marcarUsoVisto(); }
     function cerrarCelulares() {
       if (celularesOverlay.classList.contains("open") && verUsoOn()) marcarUsoVisto();
+      const estaba = celularesOverlay.classList.contains("open");
       celularesOverlay.classList.remove("open");
+      // Celulares se abre desde el banco de cambios: al cerrarlo se cierra también el banco (a pedido de Guillermo)
+      if (estaba && pedidosMode) setPedidosMode(false);
     }
     function usoTxt(d) {
       const n = Number(d.ab) || 0;

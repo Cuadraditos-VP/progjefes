@@ -594,6 +594,18 @@ function chequear(nombre, cond, detalle) {
         await wait(2500);
         chequear("en " + nom + " Publicar no está en la barra de arriba", !(await enBarra(ADM)));
         await ADM.evaluate(() => document.querySelectorAll(".palette-overlay.open").forEach(o => o.classList.remove("open")));
+        const vp0 = ADM.viewportSize();
+        if (nom === "PC") await ADM.setViewportSize({ width: 1280, height: 800 });
+        const cel = await ADM.evaluate(() => {
+          const vis = id => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== "none"; };
+          const r = { arriba: vis("btnCelTop"), simbolo: vis("btnPedidos") && getComputedStyle(document.querySelector("#btnPedidos .ped-txt")).display === "none" };
+          if (r.arriba) { document.getElementById("btnCelTop").click(); r.abre = document.getElementById("celularesOverlay").classList.contains("open"); document.getElementById("closeCelulares").click(); }
+          document.getElementById("bancoOverlay").classList.add("open"); r.adentro = vis("btnCelulares"); document.getElementById("bancoOverlay").classList.remove("open");
+          return r;
+        });
+        if (nom === "PC") await ADM.setViewportSize(vp0);
+        if (nom === "celular") chequear("en el celular del admin Celulares está arriba (afuera de Cambios) y Cambios es un simbolito", cel.arriba && cel.abre && cel.simbolo && !cel.adentro, cel);
+        else chequear("en la PC del admin Celulares sigue adentro de Cambios", !cel.arriba && !cel.simbolo && cel.adentro, cel);
         await ADM.click("#btnAdminMenu");
         const m = await ADM.evaluate(() => ({ abierto: document.getElementById("adminMenuOverlay").classList.contains("open"),
           botones: [...document.querySelectorAll("#adminMenuList button")].filter(b => b.offsetParent).map(b => b.id) }));

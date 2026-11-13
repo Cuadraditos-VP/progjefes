@@ -43,6 +43,7 @@ module.exports = function crearBackend(app, turnosColl) {
   function puedeLeer(coll, id, uid, email) {
     if (email === ADMIN) return true;
     if (coll === "padron_" + app) return id != null;  // de a un legajo, nunca la lista
+    if (coll === "historial_" + app) return false; // el historial de la División: solo el admin
     if (coll === turnosColl || coll === "pedidos_" + app || coll === "propios_" + app || coll === "division_" + app) return registrado(uid);
     return true;
   }
@@ -80,8 +81,13 @@ module.exports = function crearBackend(app, turnosColl) {
       const l = prev && legs()[prev.id];
       return !!l && l.uid === w.uid && w.id !== w.uid;
     }
-    // division_<app>: la arma solo el admin
+    // division_<app>: la arma solo el admin (también los usuarios de la PC de la División y sus claves)
     if (w.coll === "division_" + app) return w.email === ADMIN;
+    // historial_<app>: la División solo agrega (con su uid); lo lee y lo borra el admin
+    if (w.coll === "historial_" + app) {
+      if (w.email === ADMIN) return true;
+      return w.op === "set" && !prev && !!next && next.uid === w.uid && esDivision(w.uid);
+    }
     // Turnos oficiales: el admin todo; la División solo cambia turnos (misma gente), sin tocar lo demás
     if (w.coll === turnosColl) {
       if (w.email === ADMIN) return true;

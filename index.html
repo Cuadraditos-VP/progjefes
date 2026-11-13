@@ -809,6 +809,21 @@
     .div-pub-btn { background: #7c3aed; white-space: nowrap; }
     .div-pub-btn.pending { background: #dc2626; }
     .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
+    /* PC de la División con varios usuarios (cada uno con su clave) */
+    #opOverlay { z-index: 1200; background: rgba(15, 23, 42, 0.88); }
+    .op-intro { font-size: 0.8rem; color: #475569; margin: -4px 0 10px; }
+    .op-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .op-nombre { padding: 12px 10px; border-radius: 10px; border: 1px solid #c4b5fd; background: #f5f3ff; color: #5b21b6;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer; text-align: left; }
+    .op-nombre:hover { background: #ede9fe; }
+    #opClave, .ops-in { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; margin: 4px 0; }
+    #opClaveMsg, #opsMsg { color: #b91c1c; font-size: 0.8rem; font-weight: 600; min-height: 1em; }
+    .op-admin { display: block; margin: 14px auto 0; background: none; border: none; color: #64748b; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
+    .op-btn { background: #f5f3ff !important; color: #5b21b6 !important; border: 1px solid #7c3aed !important; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+    .hist-dia { font-weight: 700; font-size: 0.8rem; color: #334155; margin: 12px 0 4px; }
+    .hist-row { font-size: 0.8rem; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; line-height: 1.35; }
+    .hist-row b { color: #5b21b6; }
+    .hist-row small { color: #64748b; }
     .ped-div { margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px solid #c4b5fd; background: #f5f3ff; }
     .ped-div .ped-lbl { margin-top: 0; color: #5b21b6; }
     .ped-div .ped-act { width: 100%; margin-top: 6px; background: #7c3aed; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -1622,6 +1637,7 @@
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
+        <button type="button" id="btnOperador" class="json-btn fb-only division-only op-btn" style="display:none"></button>
         <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos que cambiaste">⬆ Publicar</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <button type="button" id="btnAdminMenu" class="json-btn admin-only adm-menu-btn" title="Herramientas de admin" aria-label="Herramientas de admin">☰</button>
@@ -1852,8 +1868,55 @@
       <button type="button" class="ped-act" id="btnInvitar" style="width:100%;margin:2px 0 6px">＋ Invitar a alguien externo</button>
       <div id="invitacionesList"></div>
       <button type="button" class="ped-act sec" id="btnVerUso" style="width:100%;margin:0 0 6px">📊 Ver uso de la app</button>
+      <button type="button" class="ped-act sec" id="btnHistorial" style="width:100%;margin:0 0 6px">📜 Historial de la División</button>
       <div id="celularesUso" class="ped-note info" style="margin-bottom:8px"></div>
       <div id="celularesList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="opsOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="opsTitle">Usuarios de la División</h3>
+        <button class="close-btn" id="closeOps" title="Cerrar">×</button>
+      </div>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Los empleados que usan esta PC. Al abrir la app cada uno elige su nombre y pone su clave: lo que hace queda a su nombre y en el historial. Se cierra sola a los 15 minutos sin usar la PC.</p>
+      <div id="opsList"></div>
+      <div class="ped-lbl">Agregar un usuario</div>
+      <input id="opsLegajo" class="ops-in" type="text" inputmode="numeric" placeholder="Legajo (si tiene)" autocomplete="off">
+      <input id="opsNombre" class="ops-in" type="text" placeholder="Nombre (ej. PÉREZ, JUAN)" autocomplete="off">
+      <input id="opsClave" class="ops-in" type="text" inputmode="numeric" placeholder="Clave: de 4 a 6 números" autocomplete="off" maxlength="6">
+      <div id="opsMsg"></div>
+      <button type="button" class="ped-act" id="opsAgregar" style="width:100%;margin-top:6px">＋ Agregar usuario</button>
+    </div>
+  </div>
+  <div class="palette-overlay" id="histOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>Historial de la División</h3>
+        <button class="close-btn" id="closeHist" title="Cerrar">×</button>
+      </div>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Quién hizo cada cosa en la PC de la División y cuándo. Solo lo ve el administrador.</p>
+      <select id="histPersona" class="pal-sel"></select>
+      <div id="histList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay op-lock" id="opOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3>¿Quién está usando la PC?</h3>
+      </div>
+      <p class="op-intro">PC de la División. Elegí tu nombre y poné tu clave: lo que hagas queda a tu nombre.</p>
+      <div id="opLista" class="op-lista"></div>
+      <div id="opClaveBox" style="display:none">
+        <div class="ped-lbl" id="opClaveLbl"></div>
+        <input id="opClave" type="password" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Clave">
+        <div id="opClaveMsg"></div>
+        <div class="palette-actions">
+          <button class="btn btn-clear" id="opVolver">Volver</button>
+          <button class="btn btn-done" id="opEntrar">Entrar</button>
+        </div>
+      </div>
+      <button type="button" class="op-admin" id="opAdmin">Soy el administrador</button>
     </div>
   </div>
   <div class="palette-overlay" id="yoOverlay">
@@ -2704,7 +2767,7 @@
     // así los dispositivos que ya tienen la página abierta reciben los cambios solos.
     const AUTO_REFRESH_MS = 3 * 60 * 1000; // cada 3 minutos
     setInterval(() => {
-      const openOverlay = document.querySelector(".palette-overlay.open, #loginOverlay.open");
+      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay), #loginOverlay.open");
       if (openOverlay) return; // no interrumpir si hay un modal abierto (editando un turno, login, etc.)
       if (fbReady) return; // con Firebase los cambios llegan solos en tiempo real
       loadSharedSchedule();
@@ -2716,7 +2779,7 @@
     const FULL_RELOAD_MS = 20 * 60 * 1000; // cada 20 minutos
     // Antes de recargar se guarda dónde estaba la grilla, para volver ahí (no a tu grupo)
     function recargaAutomatica() {
-      const openOverlay = document.querySelector(".palette-overlay.open, #loginOverlay.open");
+      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay), #loginOverlay.open");
       if (openOverlay) return;
       try {
         const w = document.getElementById("scheduleWrap");
@@ -2741,6 +2804,7 @@
       }
       try { applyNamesHidden(); } catch (e) {}
       try { updatePedidosBar(); } catch (e) {}
+      try { revisarOperador(); } catch (e) {}
     }
     setAdminUI();
     const loginOverlay = document.getElementById("loginOverlay");
@@ -3414,6 +3478,7 @@
     function puedeAutorizar() { return soyDivision() || currentUser === "ADMIN"; }
     function nombreAutorizante() {
       if (currentUser === "ADMIN") return "el administrador";
+      if (soyDivision() && opActual) return opActual.name;
       const me = miPersona();
       if (me) return me.p.name;
       return (divisionDoc && divisionDoc.name) || (soyExterno() ? externoDe(miLegajo).name : "la División");
@@ -3435,11 +3500,266 @@
     }
     function setDivisionUI() {
       document.body.classList.toggle("is-division", soyDivision());
+      revisarOperador();
       updateDivPublishBtn();
       try { ajustarVistaDivision(); } catch (e) {}
       updatePedidosBar();
       if (pedidosMode) renderBanco();
     }
+    // ===== Varios usuarios en la PC de la División =====
+    // En la PC de la División entran varios empleados del área, cada uno con su clave. El admin los carga
+    // en Celulares (👥 en la fila de la División): division_*/{id}.ops = { k: { name, leg, h } } (h = huella
+    // de la clave, no la clave). Mientras haya usuarios cargados, la PC pide "¿Quién está usando?" y lo que
+    // hace cada uno queda a su nombre y en el historial (historial_*, solo lo lee el admin).
+    // La sesión se cierra sola tras 15 minutos sin tocar la PC.
+    const HIST_COLLECTION = DIV_COLLECTION.replace("division_", "historial_");
+    const OP_KEY = DIV_COLLECTION.replace("division_", "") + "DivOp";
+    const OP_INACTIVO_MS = 15 * 60 * 1000;
+    let opActual = null;   // { k, name, leg, h, desde, ult }
+    let opElegido = null, opFallos = 0, opEsperaHasta = 0, opUltGuardado = 0;
+    function opsDivision() { const o = soyDivision() && divisionDoc && divisionDoc.ops; return o && typeof o === "object" ? o : {}; }
+    async function huellaClave(divId, k, clave) {
+      const txt = "vpdiv|" + divId + "|" + k + "|" + clave;
+      try {
+        const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+        return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+      } catch (e) {
+        let h = 5381; for (let i = 0; i < txt.length; i++) h = (h * 33 + txt.charCodeAt(i)) >>> 0;
+        return "s" + h.toString(16);
+      }
+    }
+    function guardarOp() {
+      try { if (opActual) localStorage.setItem(OP_KEY, JSON.stringify(Object.assign({ div: divLeg }, opActual))); else localStorage.removeItem(OP_KEY); } catch (e) {}
+    }
+    function leerOp() { try { return JSON.parse(localStorage.getItem(OP_KEY) || "null"); } catch (e) { return null; } }
+    function revisarOperador() {
+      const ops = opsDivision();
+      if (!Object.keys(ops).length) { opActual = null; cerrarLockOp(); actualizarBtnOp(); return; }
+      if (!opActual) { const g = leerOp(); if (g && g.div === divLeg && g.k) opActual = g; }
+      if (opActual) {
+        const o = ops[opActual.k];
+        if (!o || o.h !== opActual.h) { cerrarSesionOp("quitado"); return; }   // lo sacaron o le cambiaron la clave
+        if (Date.now() - (opActual.ult || 0) > OP_INACTIVO_MS) { cerrarSesionOp("auto"); return; }
+        opActual.name = o.name;
+      }
+      if (opActual) cerrarLockOp(); else abrirLockOp();
+      actualizarBtnOp();
+    }
+    function cerrarSesionOp(motivo) {
+      const o = opActual;
+      opActual = null; guardarOp();
+      if (o && motivo === "auto") regDiv("auto", "Se cerró sola (15 minutos sin usar la PC)", o);
+      else if (o && motivo === "sale") regDiv("sale", "Cerró la sesión", o);
+      revisarOperador();
+    }
+    function actualizarBtnOp() {
+      const b = document.getElementById("btnOperador");
+      if (!b) return;
+      if (!opActual || !soyDivision()) { b.style.display = "none"; return; }
+      b.style.display = "";
+      b.textContent = "👤 " + String(opActual.name).split(",")[0].trim();
+      b.title = "Está usando la PC: " + opActual.name + ". Tocá para cerrar la sesión.";
+    }
+    document.getElementById("btnOperador").addEventListener("click", () => {
+      if (!opActual) return;
+      if (!confirm("¿Cerrar la sesión de " + opActual.name + "?\n\nLa PC vuelve a preguntar quién la está usando.")) return;
+      cerrarSesionOp("sale");
+    });
+    // Anota en el historial lo que hizo la División (no frena nada si falla)
+    function regDiv(tipo, txt, op) {
+      if (!fbReady || !soyDivision() || !fbAuth || !fbAuth.currentUser) return;
+      const o = op || opActual, t = Date.now();
+      const d = { t, tipo, txt: String(txt || "").slice(0, 800), op: o ? String(o.name) : nombreAutorizante(),
+        pc: String((divisionDoc && divisionDoc.name) || divLeg), uid: fbAuth.currentUser.uid, mes: String(currentMes || "") };
+      if (o && o.leg) d.leg = String(o.leg);
+      fbDb.collection(HIST_COLLECTION).doc(t + "_" + Math.random().toString(36).slice(2, 8)).set(d)
+        .catch(err => console.warn("Historial:", err));
+    }
+    function diaMesTxt(dia) { return dia + "/" + Number(String(currentMes || "").slice(5, 7)); }
+    // Pantalla "¿Quién está usando la PC?"
+    function abrirLockOp() {
+      const ov = document.getElementById("opOverlay");
+      if (!ov.classList.contains("open")) { opElegido = null; ov.classList.add("open"); }
+      renderLockOp();
+    }
+    function cerrarLockOp() { const ov = document.getElementById("opOverlay"); if (ov) ov.classList.remove("open"); }
+    function renderLockOp() {
+      const ops = opsDivision();
+      if (opElegido && !ops[opElegido]) opElegido = null;
+      const lista = document.getElementById("opLista");
+      lista.innerHTML = "";
+      Object.keys(ops).sort((a, b) => String(ops[a].name).localeCompare(String(ops[b].name))).forEach(k => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "op-nombre"; b.textContent = ops[k].name; b.dataset.k = k;
+        b.addEventListener("click", () => {
+          opElegido = k; renderLockOp();
+          const i = document.getElementById("opClave"); i.value = ""; document.getElementById("opClaveMsg").textContent = "";
+          setTimeout(() => i.focus(), 30);
+        });
+        lista.appendChild(b);
+      });
+      lista.style.display = opElegido ? "none" : "";
+      document.getElementById("opClaveBox").style.display = opElegido ? "" : "none";
+      if (opElegido) document.getElementById("opClaveLbl").textContent = "Clave de " + ops[opElegido].name;
+    }
+    async function entrarOp() {
+      const k = opElegido, o = opsDivision()[k];
+      const inp = document.getElementById("opClave"), msg = document.getElementById("opClaveMsg");
+      if (!o) return;
+      if (Date.now() < opEsperaHasta) { msg.textContent = "Demasiados intentos. Esperá un momento y probá de nuevo."; return; }
+      const clave = inp.value.trim();
+      if (!clave) { msg.textContent = "Escribí tu clave."; inp.focus(); return; }
+      const h = await huellaClave(divLeg, k, clave);
+      if (h !== o.h) {
+        opFallos++;
+        if (opFallos >= 5) { opFallos = 0; opEsperaHasta = Date.now() + 30000; }
+        msg.textContent = "Clave incorrecta."; inp.value = ""; inp.focus();
+        return;
+      }
+      opFallos = 0;
+      const ahora = Date.now();
+      opActual = { k, name: o.name, leg: o.leg || "", h: o.h, desde: ahora, ult: ahora };
+      guardarOp();
+      inp.value = ""; msg.textContent = ""; opElegido = null;
+      regDiv("entra", "Entró");
+      revisarOperador();
+      showShareToast("Hola, " + o.name + ". Lo que hagas queda a tu nombre.");
+    }
+    document.getElementById("opEntrar").addEventListener("click", entrarOp);
+    document.getElementById("opClave").addEventListener("keydown", e => { if (e.key === "Enter") entrarOp(); });
+    document.getElementById("opVolver").addEventListener("click", () => { opElegido = null; renderLockOp(); });
+    document.getElementById("opAdmin").addEventListener("click", () => document.getElementById("btnUser").click());
+    // Se cuenta como uso cualquier toque o tecla; a los 15 minutos sin nada se cierra sola
+    function marcarActividadOp() {
+      if (!opActual) return;
+      const ahora = Date.now();
+      if (ahora - (opActual.ult || 0) > OP_INACTIVO_MS) { revisarOperador(); return; }
+      opActual.ult = ahora;
+      if (ahora - opUltGuardado > 10000) { opUltGuardado = ahora; guardarOp(); }
+    }
+    ["pointerdown", "keydown", "wheel", "touchstart"].forEach(ev => document.addEventListener(ev, marcarActividadOp, { capture: true, passive: true }));
+    setInterval(() => { if (opActual) revisarOperador(); }, 20000);
+    document.addEventListener("visibilitychange", () => { if (opActual && !document.hidden) revisarOperador(); });
+    window.addEventListener("pagehide", () => { if (opActual) guardarOp(); });
+
+    // (Admin) Usuarios de la PC de la División
+    let opsDivId = "";
+    function abrirOps(id) {
+      opsDivId = String(id);
+      ["opsNombre", "opsLegajo", "opsClave"].forEach(x => { document.getElementById(x).value = ""; });
+      document.getElementById("opsMsg").textContent = "";
+      renderOps();
+      document.getElementById("opsOverlay").classList.add("open");
+    }
+    function renderOps() {
+      const d = divisionDocs[opsDivId], ops = (d && d.ops) || {};
+      document.getElementById("opsTitle").textContent = "Usuarios de la PC — " + ((d && d.name) || opsDivId);
+      const list = document.getElementById("opsList");
+      list.innerHTML = "";
+      const ks = Object.keys(ops).sort((a, b) => String(ops[a].name).localeCompare(String(ops[b].name)));
+      if (!ks.length) list.innerHTML = '<div class="ped-note info">Todavía no hay usuarios: la PC funciona como hasta ahora, todo a nombre de ' + escH((d && d.name) || "la División") + '.</div>';
+      ks.forEach(k => {
+        const o = ops[k];
+        const row = document.createElement("div");
+        row.className = "acu-row";
+        row.innerHTML = '<div class="acu-top"><span>' + escH(o.name) + (o.leg ? ' · ' + escH(o.leg) : '') + '</span></div>';
+        const bc = document.createElement("button");
+        bc.type = "button"; bc.className = "ped-act sec"; bc.textContent = "Cambiar clave";
+        bc.addEventListener("click", async () => {
+          const c = prompt("Nueva clave para " + o.name + " (de 4 a 6 números):");
+          if (c == null) return;
+          if (!/^\d{4,6}$/.test(c.trim())) { alert("La clave tiene que ser de 4 a 6 números."); return; }
+          const h = await huellaClave(opsDivId, k, c.trim());
+          fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k + ".h"]: h })
+            .then(() => showShareToast("Listo: clave nueva para " + o.name + "."))
+            .catch(err => errDivision(err, "guardar"));
+        });
+        const bq = document.createElement("button");
+        bq.type = "button"; bq.className = "ped-act"; bq.textContent = "Quitar";
+        bq.addEventListener("click", () => {
+          if (!confirm("¿Quitar a " + o.name + " de los usuarios de la PC de la División?")) return;
+          fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k]: firebase.firestore.FieldValue.delete() })
+            .catch(err => errDivision(err, "guardar"));
+        });
+        const btns = document.createElement("span");
+        btns.style.cssText = "display:flex;gap:6px;flex-shrink:0";
+        btns.appendChild(bc); btns.appendChild(bq);
+        row.querySelector(".acu-top").appendChild(btns);
+        list.appendChild(row);
+      });
+    }
+    document.getElementById("opsLegajo").addEventListener("change", () => {
+      const leg = document.getElementById("opsLegajo").value.trim(), nom = document.getElementById("opsNombre");
+      const per = leg && people.find(p => String(p.id) === leg);
+      if (per && !nom.value.trim()) nom.value = per.name;
+    });
+    document.getElementById("opsAgregar").addEventListener("click", async () => {
+      const msg = document.getElementById("opsMsg");
+      const leg = document.getElementById("opsLegajo").value.trim();
+      let name = document.getElementById("opsNombre").value.trim().replace(/\s+/g, " ");
+      const clave = document.getElementById("opsClave").value.trim();
+      if (!name && leg) { const per = people.find(p => String(p.id) === leg); if (per) name = per.name; }
+      if (!name) { msg.textContent = "Escribí el nombre."; return; }
+      if (!/^\d{4,6}$/.test(clave)) { msg.textContent = "La clave tiene que ser de 4 a 6 números."; return; }
+      const d = divisionDocs[opsDivId], ops = (d && d.ops) || {};
+      if (Object.keys(ops).some(k => String(ops[k].name).toLowerCase() === name.toLowerCase())) { msg.textContent = "Ya hay un usuario con ese nombre."; return; }
+      const k = "u" + Date.now().toString(36);
+      const data = { name: name.slice(0, 60), h: await huellaClave(opsDivId, k, clave), t: Date.now() };
+      if (leg) data.leg = leg.slice(0, 20);
+      msg.textContent = "";
+      fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k]: data })
+        .then(() => {
+          ["opsNombre", "opsLegajo", "opsClave"].forEach(x => { document.getElementById(x).value = ""; });
+          showShareToast("Listo: " + data.name + " ya puede entrar en la PC de la División con su clave.");
+        })
+        .catch(err => errDivision(err, "guardar"));
+    });
+    document.getElementById("closeOps").addEventListener("click", () => document.getElementById("opsOverlay").classList.remove("open"));
+
+    // (Admin) Historial de la División
+    let histDocs = [];
+    const HIST_ICONO = { entra: "🔓", sale: "🔒", auto: "⏱", autoriza: "✅", pasa: "⬆", palabra: "🗣", rechaza: "✖", publica: "✎", ticket: "🖨" };
+    async function abrirHistorial() {
+      const list = document.getElementById("histList"), sel = document.getElementById("histPersona");
+      list.innerHTML = '<div class="ped-note info">Cargando…</div>';
+      sel.style.display = "none";
+      document.getElementById("histOverlay").classList.add("open");
+      try {
+        const qs = await fbDb.collection(HIST_COLLECTION).get();
+        histDocs = qs.docs.map(x => x.data()).filter(Boolean).sort((a, b) => (b.t || 0) - (a.t || 0));
+      } catch (err) {
+        list.innerHTML = '<div class="ped-note">' + (err && err.code === "permission-denied"
+          ? "Firebase no deja leer el historial (faltan las reglas del historial)." : "No se pudo cargar. Revisá la conexión.") + '</div>';
+        return;
+      }
+      const prev = sel.value;
+      const noms = [...new Set(histDocs.map(h => String(h.op || "")).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      sel.innerHTML = '<option value="">Todos</option>' + noms.map(n => '<option value="' + escH(n) + '">' + escH(n) + '</option>').join("");
+      if (noms.includes(prev)) sel.value = prev;
+      sel.style.display = noms.length ? "" : "none";
+      renderHistorial();
+    }
+    function renderHistorial() {
+      const list = document.getElementById("histList"), quien = document.getElementById("histPersona").value;
+      const items = histDocs.filter(h => !quien || String(h.op) === quien);
+      if (!items.length) { list.innerHTML = '<div class="ped-note info">Todavía no hay nada en el historial.</div>'; return; }
+      const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+      let html = "", dia = "";
+      items.slice(0, 600).forEach(h => {
+        const f = new Date(h.t || 0);
+        const dd = DIAS[f.getDay()] + " " + f.getDate() + "/" + (f.getMonth() + 1) + "/" + f.getFullYear();
+        if (dd !== dia) { dia = dd; html += '<div class="hist-dia">' + dd + '</div>'; }
+        html += '<div class="hist-row">' + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") +
+          " · <b>" + escH(h.op || "?") + "</b> · " + (HIST_ICONO[h.tipo] || "•") + " " + escH(h.txt || "") +
+          (h.pc ? "<br><small>PC: " + escH(h.pc) + "</small>" : "") + "</div>";
+      });
+      if (items.length > 600) html += '<div class="ped-note info">Se muestran los últimos 600.</div>';
+      list.innerHTML = html;
+    }
+    document.getElementById("histPersona").addEventListener("change", renderHistorial);
+    document.getElementById("btnHistorial").addEventListener("click", abrirHistorial);
+    document.getElementById("closeHist").addEventListener("click", () => document.getElementById("histOverlay").classList.remove("open"));
+
     // Lo que el admin ya tenía anotado de quién publicó cada celda, sin las que publica ahora
     function publicadoPorSin(prev, keys) {
       const pp = Object.assign({}, (prev && prev.publicadoPor) || {});
@@ -3511,6 +3831,7 @@
       b.disabled = true; b.textContent = "Publicando…";
       try {
         await publicarCeldas(cambios, false);
+        regDiv("publica", "Publicó a mano: " + lineas.map(x => x.replace(/^• /, "")).join("; "));
         choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
         b.disabled = false; b.textContent = "✓ Publicado"; b.classList.remove("pending");
         setTimeout(updateDivPublishBtn, 2000);
@@ -5139,6 +5460,7 @@
           viejos.forEach(k => tx.delete(fbDb.collection(PED_COLLECTION).doc(k)));
         });
         choques.forEach(c => descartarPropio(currentMes, c.id, c.di, true));
+        regDiv("palabra", "Cargó un cambio de palabra del " + diaMesTxt(di + 1) + ": " + r.txt.join("; "));
         showShareToast("Listo: el cambio de palabra pasó a lo oficial.");
       } catch (err) {
         delete pedidosDocs[docId];
@@ -5183,6 +5505,7 @@
           tx.delete(fbDb.collection(PED_COLLECTION).doc(id));
         });
         choques.forEach(c => descartarPropio(currentMes, c.id, c.di, true));
+        regDiv("autoriza", "Autorizó el pedido de " + p.name + " (" + lineas.map(x => x.replace(/^Día (\d+)/, (m, n) => diaMesTxt(n))).join("; ") + ")");
         showShareToast("Autorizado: " + p.name + " el " + (di + 1) + ". Ya está en lo oficial.");
       } catch (err) {
         pedidosDocs[id] = d; delete pedidosDocs[autId];
@@ -5897,6 +6220,7 @@
         await publicarCeldas(cambios.map(c => ({ id: String(c.id), di: c.di, code: c.code })), 2,
           tx => tx.update(fbDb.collection(PED_COLLECTION).doc(k), { pasado: true, pasadoPor: nom }));
         choques.forEach(c => descartarPropio(currentMes, String(c.id), c.di, true));
+        regDiv("pasa", "Pasó a lo oficial el cambio acordado del " + diaMesTxt(a.dia) + " (" + lineas.map(x => x.replace(/^• /, "")).join("; ") + ")");
         showShareToast("Listo: el cambio pasó a lo oficial.");
       } catch (err) {
         a.pasado = false; delete a.pasadoPor;
@@ -5929,7 +6253,10 @@
       renderAcuerdos(); updatePedidosBar();
       if (vistaD || pedidosMode) refreshAfterEdit();
       fbDb.collection(PED_COLLECTION).doc(k).update({ estado: "rechazado", rechazo })
-        .then(() => showShareToast("Cambio rechazado. A los dos les llega el aviso."))
+        .then(() => {
+          regDiv("rechaza", "Rechazó el cambio del " + diaMesTxt(a.dia) + " entre " + a.name + " y " + a.con.name + ". Motivo: " + m);
+          showShareToast("Cambio rechazado. A los dos les llega el aviso.");
+        })
         .catch(err => { a.estado = prev.estado; if (prev.rechazo) a.rechazo = prev.rechazo; else delete a.rechazo; renderAcuerdos(); updatePedidosBar(); errPed(err); });
     }
     // En MI celular: si rechazaron un acuerdo mío, mi fila vuelve a lo oficial en esas celdas (una sola vez)
@@ -6175,6 +6502,7 @@
       let box = document.getElementById("ticketPrint");
       if (!box) { box = document.createElement("div"); box.id = "ticketPrint"; document.body.appendChild(box); }
       box.innerHTML = ticketHtml(k, a);
+      regDiv("ticket", "Imprimió el ticket del cambio del " + diaMesTxt(a.dia) + (a.con ? " entre " + a.name + " y " + a.con.name : " de " + a.name));
       document.body.classList.add("imprimiendo-ticket");
       setTimeout(() => { try { window.print(); } catch (e) { showShareToast("Este dispositivo no deja imprimir."); } }, 50);
     }
@@ -6584,6 +6912,7 @@
           else divisionDocs[ch.doc.id] = ch.doc.data();
         });
         if (celularesOverlay.classList.contains("open")) renderCelulares();
+        if (document.getElementById("opsOverlay").classList.contains("open")) renderOps();
       }, err => { console.warn("División:", err); divListUnsub = null; });
       celUnsub = fbDb.collection(YO_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
@@ -6744,6 +7073,16 @@
         bd.addEventListener("click", () => toggleDivision(d, esDiv));
         const btns = document.createElement("span");
         btns.style.cssText = "display:flex;gap:6px;flex-shrink:0";
+        if (esDiv) {
+          const nOps = Object.keys((divisionDocs[String(d.id)] || {}).ops || {}).length;
+          const bu = document.createElement("button");
+          bu.type = "button"; bu.className = "ped-act sec btn-ops";
+          bu.textContent = "👥" + (nOps ? " " + nOps : "");
+          bu.title = "Usuarios de esta PC de la División (cada uno con su clave)";
+          bu.setAttribute("aria-label", bu.title);
+          bu.addEventListener("click", () => abrirOps(String(d.id)));
+          btns.appendChild(bu);
+        }
         btns.appendChild(bd); btns.appendChild(b);
         row.querySelector(".acu-top").appendChild(btns);
         list.appendChild(row);

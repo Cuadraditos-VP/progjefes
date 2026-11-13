@@ -147,10 +147,13 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cambio (`abrirCeldaD`, `acuFiltro`, con "Ver todos" y "✎ Cambiar a mano") para pasarlo a lo oficial, imprimir el
   ticket o rechazarlo.
   **Varios usuarios en la PC de la División** (a pedido de Guillermo): el admin carga en Celulares (👥 al lado de la coronita)
-  los empleados del área con nombre, legajo opcional y clave de 4 a 6 números (`ops` dentro del doc de `division_*`, con una
-  huella SHA-256 de la clave, nunca la clave; `abrirOps`). Si hay usuarios cargados, la PC muestra "¿Quién está usando la PC?"
+  los empleados del área con nombre, legajo opcional y una clave **provisoria** de 4 a 6 números (`ops` dentro del doc de
+  `division_*`, con una huella SHA-256 de la clave, nunca la clave; `abrirOps`). La primera vez que entra con la provisoria
+  elige su **clave secreta** (`abrirNuevaClave("primera")`, `guardarNuevaClave`), que la PC guarda en `claves_*/{id PC}_{k}`
+  (vale si su `v` es igual a `ops[k].v`). Desde 👤 → "🔑 Cambiar mi clave" la cambia (pide la de ahora). Si se la olvida,
+  el admin toca "Clave nueva" (provisoria nueva: cambia `ops[k].v`, borra la elegida y le cierra la sesión). Si hay usuarios cargados, la PC muestra "¿Quién está usando la PC?"
   (`opOverlay`, `revisarOperador`, `entrarOp`; 5 claves mal = 30 s de espera) y todo sale a nombre de quien entró
-  (`nombreAutorizante` → `opActual`); arriba un botón 👤 Apellido cierra la sesión. Se cierra sola a los 15 min sin tocar la PC
+  (`nombreAutorizante` → `opActual`); arriba un botón 👤 Apellido abre "Cambiar mi clave" y "Cerrar sesión". Se cierra sola a los 15 min sin tocar la PC
   (`OP_INACTIVO_MS`; se guarda en `localStorage` para sobrevivir la recarga automática). Sin usuarios cargados funciona como antes.
   **Historial** (`historial_*`, `regDiv`): entra, sale, se cerró sola, autorizó, pasó a lo oficial, de palabra, rechazó,
   publicó a mano, imprimió ticket. Solo lo lee el admin (Celulares → "📜 Historial de la División", filtro por persona).

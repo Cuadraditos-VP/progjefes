@@ -889,10 +889,22 @@ function chequear(nombre, cond, detalle) {
           document.getElementById("opClave").value = "9999"; await entrarOp();
           return { msg: document.getElementById("opClaveMsg").textContent, open: document.getElementById("opOverlay").classList.contains("open") }; });
         chequear("con la clave equivocada no entra", /incorrecta/.test(mal.msg) && mal.open, mal);
-        await D.evaluate(async () => { document.getElementById("opClave").value = "1234"; await entrarOp(); });
+        const CLV = "claves_" + APP;
+        // Elegir la clave secreta (la primera vez, con la provisoria)
+        const elegir = (n1, n2) => D.evaluate(async ([n1, n2]) => { document.getElementById("opNueva1").value = n1; document.getElementById("opNueva2").value = n2;
+          await guardarNuevaClave(); return { msg: document.getElementById("opNuevaMsg").textContent, open: document.getElementById("opNuevaOverlay").classList.contains("open") }; }, [n1, n2]);
+        const prov = await D.evaluate(async () => { document.getElementById("opClave").value = "1234"; await entrarOp();
+          return { nueva: document.getElementById("opNuevaOverlay").classList.contains("open"), dentro: !!opActual }; });
+        chequear("con la clave provisoria le pide elegir su clave secreta (todavía no entró)", prov.nueva && !prov.dentro, prov);
+        const e1 = await elegir("4321", "4322");
+        chequear("si las dos claves nuevas no coinciden, avisa", e1.open && /no son iguales/.test(e1.msg), e1);
+        const e2 = await elegir("1234", "1234");
+        chequear("no deja quedarse con la provisoria", e2.open && /distinta/.test(e2.msg), e2);
+        await elegir("4321", "4321");
         await wait(1000);
         const l1 = await lock();
-        chequear("con su clave entra y arriba dice quién es", !l1.open && /OPERADOR/.test(l1.btn), l1);
+        chequear("con su clave elegida entra y arriba dice quién es", !l1.open && /OPERADOR/.test(l1.btn), l1);
+        chequear("su clave queda guardada en " + CLV + " (sin la clave a la vista)", Object.keys(be.st[CLV] || {}).length === 1 && !JSON.stringify(be.st[CLV]).includes("4321"), be.st[CLV]);
         chequear("lo que hace queda a su nombre", (await D.evaluate(() => nombreAutorizante())) === "OPERADOR, UNO");
         const d10 = (s.d + 23) % 28;
         await D.evaluate(([s, d10]) => { const t = ORIGINAL_CODES[s.c][d10]; const n = ["MD", "M", "N"].find(c => c !== t && c !== people[s.c].codes[d10]);
@@ -917,11 +929,44 @@ function chequear(nombre, cond, detalle) {
         // Entra el otro y cierra la sesión a mano
         await D.evaluate(async () => { [...document.querySelectorAll("#opLista .op-nombre")].find(b => /DOS/.test(b.textContent)).click();
           document.getElementById("opClave").value = "5678"; await entrarOp(); });
+        await elegir("8765", "8765");
         await wait(800);
         chequear("entra el otro usuario con su clave", /OPERADOR/.test((await lock()).btn) && (await D.evaluate(() => nombreAutorizante())) === "OPERADOR, DOS");
-        await D.evaluate(() => { window.confirm = () => true; document.getElementById("btnOperador").click(); });
+        await D.evaluate(() => { document.getElementById("btnOperador").click(); document.getElementById("opMenuSalir").click(); });
         await wait(800);
         chequear("al cerrar la sesión vuelve a preguntar", (await lock()).open && hist().some(h => h.tipo === "sale" && h.op === "OPERADOR, DOS"));
+        // Con la provisoria ya no entra; con la suya entra directo
+        const entra = clave => D.evaluate(async c => { [...document.querySelectorAll("#opLista .op-nombre")].find(b => /UNO/.test(b.textContent)).click();
+          document.getElementById("opClave").value = c; await entrarOp();
+          return { msg: document.getElementById("opClaveMsg").textContent, dentro: !!opActual, nueva: document.getElementById("opNuevaOverlay").classList.contains("open") }; }, clave);
+        const r1 = await entra("1234");
+        chequear("la provisoria deja de valer cuando eligió la suya", !r1.dentro && /incorrecta/.test(r1.msg) && !r1.nueva, r1);
+        await D.evaluate(() => { document.getElementById("opVolver").click(); });
+        const r2 = await entra("4321");
+        chequear("con su clave secreta entra directo", r2.dentro && !r2.nueva, r2);
+        // Cambia su clave desde el botón 👤
+        const cam = await D.evaluate(async () => { document.getElementById("btnOperador").click(); document.getElementById("opMenuClave").click();
+          document.getElementById("opNuevaActual").value = "0000"; document.getElementById("opNueva1").value = "1357"; document.getElementById("opNueva2").value = "1357";
+          await guardarNuevaClave(); const mal = document.getElementById("opNuevaMsg").textContent;
+          document.getElementById("opNuevaActual").value = "4321"; await guardarNuevaClave();
+          return { mal, open: document.getElementById("opNuevaOverlay").classList.contains("open") }; });
+        await wait(800);
+        chequear("puede cambiar su clave (pide la de ahora)", /no es esa/.test(cam.mal) && !cam.open && hist().some(h => h.tipo === "clave" && h.op === "OPERADOR, UNO"), cam);
+        // Se olvidó la clave: el admin le da una provisoria nueva y lo saca de la PC
+        await AD.evaluate(async id => { window.prompt = () => "2468"; document.getElementById("btnCelulares").click();
+          const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id)); row.querySelector(".btn-ops").click();
+          await new Promise(r => setTimeout(r, 800));
+          const fila = [...document.querySelectorAll("#opsList .acu-row")].find(r => /UNO/.test(r.textContent));
+          fila.querySelector("button").click(); }, idD);
+        await wait(2000);
+        const est = await AD.evaluate(() => { const t = document.getElementById("opsList").innerText; document.getElementById("closeOps").click(); document.getElementById("closeCelulares").click(); return t; });
+        const l3 = await lock();
+        chequear("con una provisoria nueva del admin, la sesión se cierra y la clave vieja deja de valer", l3.open && Object.keys(be.st[CLV] || {}).length === 1 && /provisoria/.test(est), { l3, est });
+        const r3 = await entra("2468");
+        chequear("y con la provisoria nueva vuelve a elegir la suya", !r3.dentro && r3.nueva, r3);
+        await D.evaluate(() => document.getElementById("opNuevaCancelar").click());
+        const roba = await B.evaluate(() => fbDb.collection(CLAVES_COLLECTION).doc("x_u1").set({ h: "x", k: "u1", v: "", uid: fbAuth.currentUser.uid, t: 1 }).then(() => "ok", e => e.code));
+        chequear("un común no puede guardar claves", roba === "permission-denied", roba);
         const hv = await AD.evaluate(async () => { document.getElementById("btnCelulares").click(); await abrirHistorial();
           const r = { txt: document.getElementById("histList").innerText, ops: [...document.querySelectorAll("#histPersona option")].map(o => o.value) };
           document.getElementById("histPersona").value = "OPERADOR, DOS"; renderHistorial();

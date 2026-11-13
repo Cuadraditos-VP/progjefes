@@ -44,6 +44,7 @@ module.exports = function crearBackend(app, turnosColl) {
     if (email === ADMIN) return true;
     if (coll === "padron_" + app) return id != null;  // de a un legajo, nunca la lista
     if (coll === "historial_" + app) return false; // el historial de la División: solo el admin
+    if (coll === "claves_" + app) return esDivision(uid); // las claves que eligió cada usuario de la PC de la División
     if (coll === turnosColl || coll === "pedidos_" + app || coll === "propios_" + app || coll === "division_" + app) return registrado(uid);
     return true;
   }
@@ -83,6 +84,13 @@ module.exports = function crearBackend(app, turnosColl) {
     }
     // division_<app>: la arma solo el admin (también los usuarios de la PC de la División y sus claves)
     if (w.coll === "division_" + app) return w.email === ADMIN;
+    // claves_<app>: cada usuario de la PC de la División guarda la clave que eligió (doc "<id de la PC>_<k>")
+    if (w.coll === "claves_" + app) {
+      if (w.email === ADMIN) return w.op === "delete";
+      const yo = (st["yo_" + app] || {})[w.uid];
+      return w.op === "set" && esDivision(w.uid) && !!next && next.uid === w.uid && w.id === yo.id + "_" + next.k &&
+        Object.keys(next).every(k => ["h", "k", "v", "uid", "t"].includes(k));
+    }
     // historial_<app>: la División solo agrega (con su uid); lo lee y lo borra el admin
     if (w.coll === "historial_" + app) {
       if (w.email === ADMIN) return true;

@@ -1,4 +1,4 @@
-# Reglas de Firebase: usuarios de la PC de la División e historial (jefes)
+# Reglas de Firebase: usuarios de la PC de la División, sus claves e historial (jefes)
 
 En la PC de la División pueden entrar varios empleados, cada uno con su clave. El admin los carga
 en Celulares (👥 en la fila de la División). Quedan dentro del mismo doc `division_jefes/{id}`
@@ -19,5 +19,22 @@ función `esDivision()`):
     }
 ```
 
+## Claves secretas
+El admin le da a cada uno una clave **provisoria** (va en `ops`, de `division_jefes`). La primera vez que entra,
+elige su clave secreta y la PC la guarda en `claves_jefes/{id de la PC}_{k}` (solo la huella). Si el admin le da
+una provisoria nueva (cambia `ops.k.v`), la elegida deja de valer.
+
+```
+    // Claves que elige cada usuario de la PC de la División: las guarda la PC; el admin las puede borrar
+    match /claves_jefes/{id} {
+      allow read: if esAdmin() || esDivision();
+      allow create, update: if esDivision()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['h', 'k', 'v', 'uid', 't'])
+        && id == string(get(yoPath()).data.get('id', '-')) + '_' + request.resource.data.k;
+      allow delete: if esAdmin();
+    }
+```
+
 ## Cómo verificar desde afuera
-Un anónimo (registrado o no) no puede leer `historial_jefes` (PERMISSION_DENIED) ni escribir en él.
+Un anónimo (registrado o no) no puede leer `historial_jefes` ni `claves_jefes` (PERMISSION_DENIED) ni escribir en él.

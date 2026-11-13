@@ -864,12 +864,80 @@ function chequear(nombre, cond, detalle) {
       const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
       chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && /\(División\) cargó un cambio de palabra/.test(avAdD) && /\(División\) publicó/.test(avAdD), avAdD);
       await AD.evaluate(() => cerrarAvisos());
+      // Varios usuarios en la PC de la División, cada uno con su clave, e historial solo para el admin
+      if (html.includes("function revisarOperador")) {
+        const HIST = "historial_" + APP;
+        const agregarOp = (leg, nom, clave) => AD.evaluate(([id, leg, nom, clave]) => { document.getElementById("btnCelulares").click();
+          const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+          row.querySelector(".btn-ops").click();
+          document.getElementById("opsLegajo").value = leg; document.getElementById("opsNombre").value = nom; document.getElementById("opsClave").value = clave;
+          document.getElementById("opsAgregar").click(); }, [idD, leg, nom, clave]);
+        await agregarOp("", "OPERADOR, UNO", "1234");
+        await wait(1500);
+        await agregarOp("", "OPERADOR, DOS", "5678");
+        await wait(1500);
+        await AD.evaluate(() => { document.getElementById("closeOps").click(); document.getElementById("closeCelulares").click(); });
+        const opsG = ((be.st[DIVC] || {})[idD] || {}).ops || {};
+        chequear("el admin carga dos usuarios con clave en la PC de la División (sin guardar la clave)", Object.keys(opsG).length === 2 &&
+          !JSON.stringify(opsG).includes("1234") && Object.values(opsG).every(o => o.h), opsG);
+        const lock = () => D.evaluate(() => ({ open: document.getElementById("opOverlay").classList.contains("open"),
+          nombres: [...document.querySelectorAll("#opLista .op-nombre")].map(b => b.textContent),
+          btn: getComputedStyle(document.getElementById("btnOperador")).display !== "none" ? document.getElementById("btnOperador").textContent : "" }));
+        const l0 = await lock();
+        chequear("la PC de la División pregunta quién la está usando", l0.open && l0.nombres.length === 2 && !l0.btn, l0);
+        const mal = await D.evaluate(async () => { [...document.querySelectorAll("#opLista .op-nombre")].find(b => /UNO/.test(b.textContent)).click();
+          document.getElementById("opClave").value = "9999"; await entrarOp();
+          return { msg: document.getElementById("opClaveMsg").textContent, open: document.getElementById("opOverlay").classList.contains("open") }; });
+        chequear("con la clave equivocada no entra", /incorrecta/.test(mal.msg) && mal.open, mal);
+        await D.evaluate(async () => { document.getElementById("opClave").value = "1234"; await entrarOp(); });
+        await wait(1000);
+        const l1 = await lock();
+        chequear("con su clave entra y arriba dice quién es", !l1.open && /OPERADOR/.test(l1.btn), l1);
+        chequear("lo que hace queda a su nombre", (await D.evaluate(() => nombreAutorizante())) === "OPERADOR, UNO");
+        const d10 = (s.d + 23) % 28;
+        await D.evaluate(([s, d10]) => { const t = ORIGINAL_CODES[s.c][d10]; const n = ["MD", "M", "N"].find(c => c !== t && c !== people[s.c].codes[d10]);
+          document.querySelector('td[data-pi="' + s.c + '"][data-di="' + d10 + '"]').click(); applyShift(n); document.getElementById("closeShift").click();
+          window.confirm = () => true; document.getElementById("btnPublicarDiv").click(); }, [s, d10]);
+        await wait(3000);
+        const pp = (((be.st[TURNOS] || {})[s.mes] || {}).publicadoPor || {})[s.idc + ":" + d10] || {};
+        chequear("lo publicado a mano queda firmado por ese usuario", pp.n === "OPERADOR, UNO", pp);
+        const hist = () => Object.values(be.st[HIST] || {});
+        chequear("en el historial queda que entró y lo que publicó", hist().some(h => h.tipo === "entra" && h.op === "OPERADOR, UNO") &&
+          hist().some(h => h.tipo === "publica" && h.op === "OPERADOR, UNO"), hist());
+        const leeD = await D.evaluate(() => fbDb.collection(HIST_COLLECTION).get().then(() => "ok", e => e.code));
+        chequear("la División no puede leer el historial (solo el admin)", leeD === "permission-denied", leeD);
+        const tramposo = await B.evaluate(() => fbDb.collection(HIST_COLLECTION).doc("x").set({ t: 1, op: "X", uid: fbAuth.currentUser.uid }).then(() => "ok", e => e.code));
+        chequear("un común no puede escribir en el historial", tramposo === "permission-denied", tramposo);
+        // 15 minutos sin usar la PC: se cierra sola
+        await D.evaluate(() => { opActual.ult = Date.now() - 16 * 60 * 1000; revisarOperador(); });
+        await wait(800);
+        const l2 = await lock();
+        chequear("a los 15 minutos sin usarla se cierra sola", l2.open && !l2.btn && !(await D.evaluate(() => localStorage.getItem(OP_KEY))), l2);
+        chequear("y queda en el historial", hist().some(h => h.tipo === "auto" && h.op === "OPERADOR, UNO"));
+        // Entra el otro y cierra la sesión a mano
+        await D.evaluate(async () => { [...document.querySelectorAll("#opLista .op-nombre")].find(b => /DOS/.test(b.textContent)).click();
+          document.getElementById("opClave").value = "5678"; await entrarOp(); });
+        await wait(800);
+        chequear("entra el otro usuario con su clave", /OPERADOR/.test((await lock()).btn) && (await D.evaluate(() => nombreAutorizante())) === "OPERADOR, DOS");
+        await D.evaluate(() => { window.confirm = () => true; document.getElementById("btnOperador").click(); });
+        await wait(800);
+        chequear("al cerrar la sesión vuelve a preguntar", (await lock()).open && hist().some(h => h.tipo === "sale" && h.op === "OPERADOR, DOS"));
+        const hv = await AD.evaluate(async () => { document.getElementById("btnCelulares").click(); await abrirHistorial();
+          const r = { txt: document.getElementById("histList").innerText, ops: [...document.querySelectorAll("#histPersona option")].map(o => o.value) };
+          document.getElementById("histPersona").value = "OPERADOR, DOS"; renderHistorial();
+          r.filtrado = document.getElementById("histList").innerText;
+          document.getElementById("closeHist").click(); document.getElementById("closeCelulares").click(); return r; });
+        chequear("el admin ve el historial y lo puede filtrar por persona", /OPERADOR, UNO/.test(hv.txt) && /Publicó a mano/.test(hv.txt) && /Se cerró sola/.test(hv.txt) &&
+          hv.ops.includes("OPERADOR, DOS") && !/OPERADOR, UNO/.test(hv.filtrado) && /Cerró la sesión/.test(hv.filtrado), hv);
+      }
       // El admin le saca la División
       await AD.evaluate(id => { document.getElementById("btnCelulares").click();
         const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
         row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD);
       await wait(2000);
       chequear("al sacarle la División deja de serlo", !(await esDiv(D)).div && !(be.st[DIVC] || {})[idD]);
+      if (html.includes("function revisarOperador"))
+        chequear("y ya no pregunta quién usa la PC", !(await D.evaluate(() => document.getElementById("opOverlay").classList.contains("open"))));
       const vd1 = await vD(D);
       chequear("y vuelve a la vista normal (sin botón de vistas)", !vd1.vis && !vd1.d && vd1.modo === "actual", vd1);
       await D.close();

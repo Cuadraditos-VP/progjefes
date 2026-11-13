@@ -146,6 +146,15 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cambian turnos a mano igual que en A (ámbar hasta que la División toca ⬆ Publicar; ahí pasan a verde); tocar una celda de un cambio acordado abre Acordados filtrado a ese
   cambio (`abrirCeldaD`, `acuFiltro`, con "Ver todos" y "✎ Cambiar a mano") para pasarlo a lo oficial, imprimir el
   ticket o rechazarlo.
+  **Varios usuarios en la PC de la División** (a pedido de Guillermo): el admin carga en Celulares (👥 al lado de la coronita)
+  los empleados del área con nombre, legajo opcional y clave de 4 a 6 números (`ops` dentro del doc de `division_*`, con una
+  huella SHA-256 de la clave, nunca la clave; `abrirOps`). Si hay usuarios cargados, la PC muestra "¿Quién está usando la PC?"
+  (`opOverlay`, `revisarOperador`, `entrarOp`; 5 claves mal = 30 s de espera) y todo sale a nombre de quien entró
+  (`nombreAutorizante` → `opActual`); arriba un botón 👤 Apellido cierra la sesión. Se cierra sola a los 15 min sin tocar la PC
+  (`OP_INACTIVO_MS`; se guarda en `localStorage` para sobrevivir la recarga automática). Sin usuarios cargados funciona como antes.
+  **Historial** (`historial_*`, `regDiv`): entra, sale, se cerró sola, autorizó, pasó a lo oficial, de palabra, rechazó,
+  publicó a mano, imprimió ticket. Solo lo lee el admin (Celulares → "📜 Historial de la División", filtro por persona).
+  Reglas: `REGLAS-FIREBASE-HISTORIAL.md`.
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =

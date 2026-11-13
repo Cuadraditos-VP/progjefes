@@ -1553,6 +1553,21 @@
     .ped-opc { margin-top: 8px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.82rem; color: #1e293b; }
     .ped-opc.ok { border-color: #86efac; background: #f0fdf4; }
     #btnPedidos { position: relative; overflow: visible; }
+    /* Admin en el celular: "Celulares" afuera de Cambios y Cambios con un simbolito */
+    .ped-sim, .cel-top-btn { display: none; }
+    @media (max-width: 1000px), (pointer: coarse) {
+      body.is-admin .cel-top-btn { display: inline-flex; align-items: center; position: relative; overflow: visible; background: #1d4ed8;
+        height: 34px; border-radius: 17px; padding: 0 12px; font-size: 1.1rem; line-height: 1; }
+      body.is-admin #bancoAcc #btnCelulares { display: none !important; }
+      body.is-admin #btnPedidos .ped-txt { display: none; }
+      body.is-admin #btnPedidos .ped-sim { display: inline; font-size: 1.15rem; line-height: 1; }
+      body.is-admin #btnPedidos { padding: 0 12px !important; }
+    }
+    @media (max-width: 400px) {
+      body.is-admin .cel-top-btn { padding: 0 9px; }
+      body.is-admin #btnPedidos { padding: 0 9px !important; }
+    }
+    #btnCelTop[data-n]::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #dc2626; color: #fff; font-size: 0.65rem; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px #fff; }
     #btnPedidos[data-n]::after { content: attr(data-n); position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #dc2626; color: #fff; font-size: 0.65rem; font-weight: 800; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px #fff; }
     #shiftAlcance { margin: -4px 0 10px; padding: 7px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; text-align: left; }
     #shiftAlcance.alc-pub { background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a; }
@@ -1640,7 +1655,8 @@
         <button type="button" id="btnImportJson" class="json-btn admin-only" title="Importar JSON">↑ JSON</button>
         <button type="button" id="btnColors" class="json-btn admin-only" title="Colores de los CT">🎨 Colores</button>
         <button type="button" id="btnMiAlmanaque" class="mi-btn" title="Mi almanaque" style="display:none"></button>
-        <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno">Cambios</button>
+        <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno"><span class="ped-txt">Cambios</span><span class="ped-sim" aria-hidden="true">⇄</span></button>
+        <button type="button" id="btnCelTop" class="json-btn admin-only cel-top-btn" title="Celulares" aria-label="Celulares">📱</button>
         <button type="button" id="btnOperador" class="json-btn fb-only division-only op-btn" style="display:none"></button>
         <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos que cambiaste">⬆ Publicar</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
@@ -7090,6 +7106,8 @@
       if (dup) extra.push(dup + " ⚠");
       const b = document.getElementById("btnCelulares");
       if (b) b.textContent = "Celulares" + (extra.length ? " (" + extra.join(", ") + ")" : "");
+      const bt = document.getElementById("btnCelTop");
+      if (bt) { const n = nPasos + nuevos + dup; if (n) bt.dataset.n = (dup ? "⚠" : "") + n; else delete bt.dataset.n; bt.title = b ? b.textContent : "Celulares"; }
     }
     const celularesOverlay = document.getElementById("celularesOverlay");
     function fechaCorta(t) {
@@ -7336,6 +7354,7 @@
       renderCelulares(); renderInvitaciones(); updateCelularesBtn();
       celularesOverlay.classList.add("open");
     });
+    document.getElementById("btnCelTop").addEventListener("click", () => document.getElementById("btnCelulares").click());
     document.getElementById("closeCelulares").addEventListener("click", cerrarCelulares);
     celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) cerrarCelulares(); });
 

@@ -109,6 +109,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   clave "admin"). Siguen en azul para todos porque se comparan con la inicial.
   En cada celular, lo que tenía cargado en esa celda **antes** de la publicación del admin se borra y pasa a ver
   lo del admin (`soltarEditsPisados`, compara la hora del cambio con `changedAt`); si lo cambia después, se respeta.
+- **Admin en el celular** (pantalla ≤1000px o táctil, a pedido de Guillermo): Celulares sale de Cambios y queda arriba
+  como 📱 (`btnCelTop`, con globito rojo de nuevos/piden entrar), y Cambios pasa a ser ⇄. En la PC sigue como antes.
 - **Botón de admin (muñequito)**: solo aparece en dispositivos donde ya se entró como admin
   (`localStorage` `vpFueAdmin`). En cualquier otro se entra manteniendo apretado **Cambios** 3 segundos y soltando.
 - Vistas del admin (botón arriba a la izquierda): **A** (lo que ven todos, editable) → **I** (la programación

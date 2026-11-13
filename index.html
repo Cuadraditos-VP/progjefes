@@ -817,7 +817,11 @@
       font-weight: 700; font-size: 0.9rem; cursor: pointer; text-align: left; }
     .op-nombre:hover { background: #ede9fe; }
     #opClave, .ops-in { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; margin: 4px 0; }
-    #opClaveMsg, #opsMsg { color: #b91c1c; font-size: 0.8rem; font-weight: 600; min-height: 1em; }
+    #opNuevaOverlay { z-index: 1250; background: rgba(15, 23, 42, 0.88); }
+    #opMenuOverlay { z-index: 1150; }
+    .op-estado { font-size: 0.72rem; color: #64748b; }
+    .op-estado.ok { color: #047857; font-weight: 600; }
+    #opClaveMsg, #opsMsg, #opNuevaMsg { color: #b91c1c; font-size: 0.8rem; font-weight: 600; min-height: 1em; }
     .op-admin { display: block; margin: 14px auto 0; background: none; border: none; color: #64748b; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
     .op-btn { background: #f5f3ff !important; color: #5b21b6 !important; border: 1px solid #7c3aed !important; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
     .hist-dia { font-weight: 700; font-size: 0.8rem; color: #334155; margin: 12px 0 4px; }
@@ -1879,12 +1883,12 @@
         <h3 id="opsTitle">Usuarios de la División</h3>
         <button class="close-btn" id="closeOps" title="Cerrar">×</button>
       </div>
-      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Los empleados que usan esta PC. Al abrir la app cada uno elige su nombre y pone su clave: lo que hace queda a su nombre y en el historial. Se cierra sola a los 15 minutos sin usar la PC.</p>
+      <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Los empleados que usan esta PC. A cada uno le das una clave provisoria: la primera vez que entra elige su propia clave secreta (ni vos la sabés). Lo que hace queda a su nombre y en el historial. Se cierra sola a los 15 minutos sin usar la PC.</p>
       <div id="opsList"></div>
       <div class="ped-lbl">Agregar un usuario</div>
       <input id="opsLegajo" class="ops-in" type="text" inputmode="numeric" placeholder="Legajo (si tiene)" autocomplete="off">
       <input id="opsNombre" class="ops-in" type="text" placeholder="Nombre (ej. PÉREZ, JUAN)" autocomplete="off">
-      <input id="opsClave" class="ops-in" type="text" inputmode="numeric" placeholder="Clave: de 4 a 6 números" autocomplete="off" maxlength="6">
+      <input id="opsClave" class="ops-in" type="text" inputmode="numeric" placeholder="Clave provisoria: de 4 a 6 números" autocomplete="off" maxlength="6">
       <div id="opsMsg"></div>
       <button type="button" class="ped-act" id="opsAgregar" style="width:100%;margin-top:6px">＋ Agregar usuario</button>
     </div>
@@ -1898,6 +1902,32 @@
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Quién hizo cada cosa en la PC de la División y cuándo. Solo lo ve el administrador.</p>
       <select id="histPersona" class="pal-sel"></select>
       <div id="histList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="opNuevaOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="opNuevaTitulo">Elegí tu clave secreta</h3>
+      </div>
+      <p class="op-intro" id="opNuevaIntro"></p>
+      <input id="opNuevaActual" class="ops-in" type="password" inputmode="numeric" maxlength="6" placeholder="Tu clave de ahora" autocomplete="off">
+      <input id="opNueva1" class="ops-in" type="password" inputmode="numeric" maxlength="6" placeholder="Clave nueva (de 4 a 6 números)" autocomplete="off">
+      <input id="opNueva2" class="ops-in" type="password" inputmode="numeric" maxlength="6" placeholder="Repetí la clave nueva" autocomplete="off">
+      <div id="opNuevaMsg"></div>
+      <div class="palette-actions">
+        <button class="btn btn-clear" id="opNuevaCancelar">Cancelar</button>
+        <button class="btn btn-done" id="opNuevaOk">Guardar</button>
+      </div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="opMenuOverlay">
+    <div class="palette-modal">
+      <div class="palette-header">
+        <h3 id="opMenuTitulo"></h3>
+        <button class="close-btn" id="closeOpMenu" title="Cerrar">×</button>
+      </div>
+      <button type="button" class="ped-act sec" id="opMenuClave" style="width:100%;margin:4px 0">🔑 Cambiar mi clave</button>
+      <button type="button" class="ped-act" id="opMenuSalir" style="width:100%;margin:4px 0">Cerrar sesión</button>
     </div>
   </div>
   <div class="palette-overlay op-lock" id="opOverlay">
@@ -2767,7 +2797,7 @@
     // así los dispositivos que ya tienen la página abierta reciben los cambios solos.
     const AUTO_REFRESH_MS = 3 * 60 * 1000; // cada 3 minutos
     setInterval(() => {
-      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay), #loginOverlay.open");
+      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay):not(#opNuevaOverlay), #loginOverlay.open");
       if (openOverlay) return; // no interrumpir si hay un modal abierto (editando un turno, login, etc.)
       if (fbReady) return; // con Firebase los cambios llegan solos en tiempo real
       loadSharedSchedule();
@@ -2779,7 +2809,7 @@
     const FULL_RELOAD_MS = 20 * 60 * 1000; // cada 20 minutos
     // Antes de recargar se guarda dónde estaba la grilla, para volver ahí (no a tu grupo)
     function recargaAutomatica() {
-      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay), #loginOverlay.open");
+      const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay):not(#opNuevaOverlay), #loginOverlay.open");
       if (openOverlay) return;
       try {
         const w = document.getElementById("scheduleWrap");
@@ -3514,9 +3544,13 @@
     // La sesión se cierra sola tras 15 minutos sin tocar la PC.
     const HIST_COLLECTION = DIV_COLLECTION.replace("division_", "historial_");
     const OP_KEY = DIV_COLLECTION.replace("division_", "") + "DivOp";
+    // La clave que elige cada uno: claves_*/{id de la PC}_{k} = { h, k, v, uid, t } (vale si su v es el de ops[k].v;
+    // si el admin le da una provisoria nueva cambia ops[k].v y la vieja deja de valer)
+    const CLAVES_COLLECTION = DIV_COLLECTION.replace("division_", "claves_");
     const OP_INACTIVO_MS = 15 * 60 * 1000;
     let opActual = null;   // { k, name, leg, h, desde, ult }
     let opElegido = null, opFallos = 0, opEsperaHasta = 0, opUltGuardado = 0;
+    let opPendiente = null, opNuevaModo = "";
     function opsDivision() { const o = soyDivision() && divisionDoc && divisionDoc.ops; return o && typeof o === "object" ? o : {}; }
     async function huellaClave(divId, k, clave) {
       const txt = "vpdiv|" + divId + "|" + k + "|" + clave;
@@ -3538,11 +3572,15 @@
       if (!opActual) { const g = leerOp(); if (g && g.div === divLeg && g.k) opActual = g; }
       if (opActual) {
         const o = ops[opActual.k];
-        if (!o || o.h !== opActual.h) { cerrarSesionOp("quitado"); return; }   // lo sacaron o le cambiaron la clave
+        if (!o || String(o.v || "") !== String(opActual.v || "")) { cerrarSesionOp("quitado"); return; }   // lo sacaron o el admin le dio una provisoria nueva
         if (Date.now() - (opActual.ult || 0) > OP_INACTIVO_MS) { cerrarSesionOp("auto"); return; }
         opActual.name = o.name;
       }
       if (opActual) cerrarLockOp(); else abrirLockOp();
+      if (!opActual) {
+        document.getElementById("opMenuOverlay").classList.remove("open");
+        if (opNuevaModo === "cambiar") cerrarNuevaClave();
+      }
       actualizarBtnOp();
     }
     function cerrarSesionOp(motivo) {
@@ -3560,11 +3598,87 @@
       b.textContent = "👤 " + String(opActual.name).split(",")[0].trim();
       b.title = "Está usando la PC: " + opActual.name + ". Tocá para cerrar la sesión.";
     }
+    // Botón 👤: cambiar la clave propia o cerrar la sesión
     document.getElementById("btnOperador").addEventListener("click", () => {
       if (!opActual) return;
-      if (!confirm("¿Cerrar la sesión de " + opActual.name + "?\n\nLa PC vuelve a preguntar quién la está usando.")) return;
+      document.getElementById("opMenuTitulo").textContent = opActual.name;
+      document.getElementById("opMenuOverlay").classList.add("open");
+    });
+    document.getElementById("closeOpMenu").addEventListener("click", () => document.getElementById("opMenuOverlay").classList.remove("open"));
+    document.getElementById("opMenuSalir").addEventListener("click", () => {
+      document.getElementById("opMenuOverlay").classList.remove("open");
       cerrarSesionOp("sale");
     });
+    document.getElementById("opMenuClave").addEventListener("click", () => {
+      document.getElementById("opMenuOverlay").classList.remove("open");
+      if (opActual) abrirNuevaClave("cambiar");
+    });
+    // La clave que eligió (si sigue valiendo) o null = todavía tiene la provisoria
+    async function clavePropia(k, o) {
+      const x = await fbDb.collection(CLAVES_COLLECTION).doc(divLeg + "_" + k).get();
+      const cd = x.exists ? x.data() : null;
+      return cd && cd.h && String(cd.v || "") === String(o.v || "") ? cd : null;
+    }
+    function entrarComoOp(k, o, txt) {
+      const ahora = Date.now();
+      opActual = { k, name: o.name, leg: o.leg || "", v: String(o.v || ""), desde: ahora, ult: ahora };
+      guardarOp(); opElegido = null;
+      regDiv("entra", txt || "Entró");
+      revisarOperador();
+      showShareToast("Hola, " + o.name + ". Lo que hagas queda a tu nombre.");
+    }
+    // Elegir la clave secreta: la primera vez (con la provisoria) o cuando quiere cambiarla
+    function abrirNuevaClave(modo) {
+      opNuevaModo = modo;
+      const primera = modo === "primera";
+      document.getElementById("opNuevaTitulo").textContent = primera ? "Elegí tu clave secreta" : "Cambiar mi clave";
+      document.getElementById("opNuevaIntro").textContent = primera
+        ? "Entraste con la clave provisoria. Ahora elegí una que solo sepas vos (de 4 a 6 números): desde ahora entrás con esa."
+        : "Escribí tu clave de ahora y después la nueva (de 4 a 6 números), dos veces.";
+      document.getElementById("opNuevaActual").style.display = primera ? "none" : "";
+      ["opNuevaActual", "opNueva1", "opNueva2"].forEach(x => { document.getElementById(x).value = ""; });
+      document.getElementById("opNuevaMsg").textContent = "";
+      document.getElementById("opNuevaOk").disabled = false;
+      document.getElementById("opNuevaOverlay").classList.add("open");
+      setTimeout(() => document.getElementById(primera ? "opNueva1" : "opNuevaActual").focus(), 30);
+    }
+    function cerrarNuevaClave() {
+      opNuevaModo = ""; opPendiente = null;
+      document.getElementById("opNuevaOverlay").classList.remove("open");
+      ["opNuevaActual", "opNueva1", "opNueva2"].forEach(x => { document.getElementById(x).value = ""; });
+    }
+    async function guardarNuevaClave() {
+      const msg = document.getElementById("opNuevaMsg"), ok = document.getElementById("opNuevaOk");
+      const modo = opNuevaModo, p = modo === "primera" ? opPendiente : opActual;
+      const o = p && opsDivision()[p.k];
+      if (!o) { cerrarNuevaClave(); return; }
+      const actual = document.getElementById("opNuevaActual").value.trim();
+      const n1 = document.getElementById("opNueva1").value.trim(), n2 = document.getElementById("opNueva2").value.trim();
+      if (!/^\d{4,6}$/.test(n1)) { msg.textContent = "La clave nueva tiene que ser de 4 a 6 números."; return; }
+      if (n1 !== n2) { msg.textContent = "Las dos claves nuevas no son iguales."; document.getElementById("opNueva2").value = ""; return; }
+      if (modo === "primera" && n1 === p.prov) { msg.textContent = "Elegí una distinta de la provisoria."; return; }
+      ok.disabled = true; msg.textContent = "";
+      try {
+        if (modo === "cambiar") {
+          const cd = await clavePropia(p.k, o);
+          if (await huellaClave(divLeg, p.k, actual) !== (cd ? cd.h : o.h)) { msg.textContent = "Tu clave de ahora no es esa."; ok.disabled = false; return; }
+        }
+        const h = await huellaClave(divLeg, p.k, n1);
+        await fbDb.collection(CLAVES_COLLECTION).doc(divLeg + "_" + p.k).set({ h, k: p.k, v: String(o.v || ""), uid: fbAuth.currentUser.uid, t: Date.now() });
+      } catch (err) {
+        // Sin alert (después de esperar a Firebase): el error queda escrito en el cuadro
+        msg.textContent = err && err.code === "permission-denied"
+          ? "Firebase no dejó guardar la clave (faltan las reglas de las claves)." : "No se pudo guardar. Revisá la conexión y probá de nuevo.";
+        ok.disabled = false;
+        return;
+      }
+      cerrarNuevaClave();
+      if (modo === "primera") entrarComoOp(p.k, o, "Eligió su clave secreta y entró");
+      else { regDiv("clave", "Cambió su clave"); showShareToast("Listo: tu clave nueva quedó guardada."); }
+    }
+    document.getElementById("opNuevaOk").addEventListener("click", guardarNuevaClave);
+    document.getElementById("opNueva2").addEventListener("keydown", e => { if (e.key === "Enter") guardarNuevaClave(); });
+    document.getElementById("opNuevaCancelar").addEventListener("click", () => { cerrarNuevaClave(); revisarOperador(); });
     // Anota en el historial lo que hizo la División (no frena nada si falla)
     function regDiv(tipo, txt, op) {
       if (!fbReady || !soyDivision() || !fbAuth || !fbAuth.currentUser) return;
@@ -3609,21 +3723,21 @@
       if (Date.now() < opEsperaHasta) { msg.textContent = "Demasiados intentos. Esperá un momento y probá de nuevo."; return; }
       const clave = inp.value.trim();
       if (!clave) { msg.textContent = "Escribí tu clave."; inp.focus(); return; }
+      let propia = null;
+      try { propia = await clavePropia(k, o); }
+      catch (e) { msg.textContent = "No se pudo comprobar la clave. Revisá la conexión y probá de nuevo."; return; }
       const h = await huellaClave(divLeg, k, clave);
-      if (h !== o.h) {
+      if (h !== (propia ? propia.h : o.h)) {
         opFallos++;
         if (opFallos >= 5) { opFallos = 0; opEsperaHasta = Date.now() + 30000; }
         msg.textContent = "Clave incorrecta."; inp.value = ""; inp.focus();
         return;
       }
       opFallos = 0;
-      const ahora = Date.now();
-      opActual = { k, name: o.name, leg: o.leg || "", h: o.h, desde: ahora, ult: ahora };
-      guardarOp();
-      inp.value = ""; msg.textContent = ""; opElegido = null;
-      regDiv("entra", "Entró");
-      revisarOperador();
-      showShareToast("Hola, " + o.name + ". Lo que hagas queda a tu nombre.");
+      inp.value = ""; msg.textContent = "";
+      // Con la provisoria: antes de entrar elige su clave secreta
+      if (!propia) { opPendiente = { k, prov: clave }; abrirNuevaClave("primera"); return; }
+      entrarComoOp(k, o);
     }
     document.getElementById("opEntrar").addEventListener("click", entrarOp);
     document.getElementById("opClave").addEventListener("keydown", e => { if (e.key === "Enter") entrarOp(); });
@@ -3644,7 +3758,16 @@
 
     // (Admin) Usuarios de la PC de la División
     let opsDivId = "";
+    const clavesAdmin = {};   // (admin) claves_*: quién ya eligió su clave
+    function cargarClavesAdmin() {
+      fbDb.collection(CLAVES_COLLECTION).get().then(qs => {
+        Object.keys(clavesAdmin).forEach(x => delete clavesAdmin[x]);
+        qs.docs.forEach(x => { clavesAdmin[x.id] = x.data(); });
+        if (document.getElementById("opsOverlay").classList.contains("open")) renderOps();
+      }).catch(err => console.warn("Claves:", err));
+    }
     function abrirOps(id) {
+      cargarClavesAdmin();
       opsDivId = String(id);
       ["opsNombre", "opsLegajo", "opsClave"].forEach(x => { document.getElementById(x).value = ""; });
       document.getElementById("opsMsg").textContent = "";
@@ -3662,16 +3785,24 @@
         const o = ops[k];
         const row = document.createElement("div");
         row.className = "acu-row";
-        row.innerHTML = '<div class="acu-top"><span>' + escH(o.name) + (o.leg ? ' · ' + escH(o.leg) : '') + '</span></div>';
+        const cd = clavesAdmin[opsDivId + "_" + k];
+        const propia = !!cd && String(cd.v || "") === String(o.v || "");
+        row.innerHTML = '<div class="acu-top"><span>' + escH(o.name) + (o.leg ? ' · ' + escH(o.leg) : '') + '</span></div>' +
+          '<div class="op-estado' + (propia ? ' ok' : '') + '">' + (propia ? '🔒 Ya eligió su clave secreta' : 'Tiene la clave provisoria (todavía no eligió la suya)') + '</div>';
         const bc = document.createElement("button");
-        bc.type = "button"; bc.className = "ped-act sec"; bc.textContent = "Cambiar clave";
+        bc.type = "button"; bc.className = "ped-act sec"; bc.textContent = "Clave nueva";
+        bc.title = "Si se olvidó la clave: le das una provisoria nueva y la próxima vez elige otra";
         bc.addEventListener("click", async () => {
-          const c = prompt("Nueva clave para " + o.name + " (de 4 a 6 números):");
+          const c = prompt("Clave provisoria nueva para " + o.name + " (de 4 a 6 números).\n\nLa que tenía deja de valer. La próxima vez que entre va a elegir su clave secreta.");
           if (c == null) return;
           if (!/^\d{4,6}$/.test(c.trim())) { alert("La clave tiene que ser de 4 a 6 números."); return; }
           const h = await huellaClave(opsDivId, k, c.trim());
-          fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k + ".h"]: h })
-            .then(() => showShareToast("Listo: clave nueva para " + o.name + "."))
+          fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k + ".h"]: h, ["ops." + k + ".v"]: String(Date.now()) })
+            .then(() => {
+              fbDb.collection(CLAVES_COLLECTION).doc(opsDivId + "_" + k).delete().catch(() => {});
+              delete clavesAdmin[opsDivId + "_" + k]; renderOps();
+              showShareToast("Listo: " + o.name + " entra con la provisoria y elige su clave nueva.");
+            })
             .catch(err => errDivision(err, "guardar"));
         });
         const bq = document.createElement("button");
@@ -3679,6 +3810,7 @@
         bq.addEventListener("click", () => {
           if (!confirm("¿Quitar a " + o.name + " de los usuarios de la PC de la División?")) return;
           fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k]: firebase.firestore.FieldValue.delete() })
+            .then(() => fbDb.collection(CLAVES_COLLECTION).doc(opsDivId + "_" + k).delete().catch(() => {}))
             .catch(err => errDivision(err, "guardar"));
         });
         const btns = document.createElement("span");
@@ -3704,13 +3836,14 @@
       const d = divisionDocs[opsDivId], ops = (d && d.ops) || {};
       if (Object.keys(ops).some(k => String(ops[k].name).toLowerCase() === name.toLowerCase())) { msg.textContent = "Ya hay un usuario con ese nombre."; return; }
       const k = "u" + Date.now().toString(36);
-      const data = { name: name.slice(0, 60), h: await huellaClave(opsDivId, k, clave), t: Date.now() };
+      const t = Date.now();
+      const data = { name: name.slice(0, 60), h: await huellaClave(opsDivId, k, clave), v: String(t), t };
       if (leg) data.leg = leg.slice(0, 20);
       msg.textContent = "";
       fbDb.collection(DIV_COLLECTION).doc(opsDivId).update({ ["ops." + k]: data })
         .then(() => {
           ["opsNombre", "opsLegajo", "opsClave"].forEach(x => { document.getElementById(x).value = ""; });
-          showShareToast("Listo: " + data.name + " ya puede entrar en la PC de la División con su clave.");
+          showShareToast("Listo: " + data.name + " entra con la clave provisoria y ahí elige la suya.");
         })
         .catch(err => errDivision(err, "guardar"));
     });
@@ -3718,7 +3851,7 @@
 
     // (Admin) Historial de la División
     let histDocs = [];
-    const HIST_ICONO = { entra: "🔓", sale: "🔒", auto: "⏱", autoriza: "✅", pasa: "⬆", palabra: "🗣", rechaza: "✖", publica: "✎", ticket: "🖨" };
+    const HIST_ICONO = { clave: "🔑", entra: "🔓", sale: "🔒", auto: "⏱", autoriza: "✅", pasa: "⬆", palabra: "🗣", rechaza: "✖", publica: "✎", ticket: "🖨" };
     async function abrirHistorial() {
       const list = document.getElementById("histList"), sel = document.getElementById("histPersona");
       list.innerHTML = '<div class="ped-note info">Cargando…</div>';

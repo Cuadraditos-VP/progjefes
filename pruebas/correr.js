@@ -756,7 +756,9 @@ function chequear(nombre, cond, detalle) {
         const r = ov.classList.contains("open"); ov.classList.remove("open"); return r; }, [s, d6]);
       chequear("el admin sí lo puede cambiar", admEd);
       const avZ = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
-      chequear("a A le llega \"Autorizado por la División\" con el nombre", /Autorizado por la División/.test(avZ) && avZ.indexOf(nomD) >= 0, avZ);
+      chequear("a A le llega \"Autorizado por la División\" sin el nombre", /Autorizado por la División/.test(avZ) && avZ.indexOf("División — " + nomD) < 0, avZ);
+      chequear("el nombre de quién lo autorizó lo ve solo el admin", (await AD.evaluate(n => textoAutorizado({ por: { name: n } }), nomD)).indexOf(nomD) >= 0 &&
+        (await D.evaluate(n => textoAutorizado({ por: { name: n } }), nomD)).indexOf(nomD) < 0);
       await A.evaluate(() => cerrarAvisos());
       const enBanco = await A.evaluate(d6 => { setPedidosMode(true); bancoDiaSel = d6; renderBancoDia(); const t = document.getElementById("bancoDia").innerText; setPedidosMode(false); return t; }, d6);
       chequear("en el banco, ese día A ve que se lo autorizaron", /Autorizado por la División/.test(enBanco), enBanco);

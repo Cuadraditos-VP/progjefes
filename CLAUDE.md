@@ -134,7 +134,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   ahí lo pasa a lo oficial (la app no controla la firma). Sin copias para los empleados: les alcanza el aviso de la app.
   **Rechazar** (Acordados, División y admin, solo si no está en lo oficial; `rechazarAcuerdo`): pide el motivo, el pedido queda
   `estado: "rechazado"` con `rechazo = {motivo, por, t, adm?}`, se sacan los propios de esas celdas y cada celular de los dos
-  vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo, pero solo dice "La División" sin el nombre de quién (a pedido de Guillermo; el nombre lo ven el admin y la División, `textoRechazo`); al admin le llega aviso con el nombre si fue la División.
+  vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo; al admin, si fue la División.
   Queda en Acordados en gris; ese día se puede volver a pedir.
   **Vista D** (de la División): la División arranca en D y su botón de vistas pasa a I y vuelve (no ve la A, a pedido
   de Guillermo); el admin ve
@@ -160,6 +160,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   **Historial** (`historial_*`, `regDiv`): entra, sale, se cerró sola, autorizó, pasó a lo oficial, de palabra, rechazó,
   publicó a mano, imprimió ticket. Solo lo lee el admin (Celulares → "📜 Historial de la División", filtro por persona).
   Reglas: `REGLAS-FIREBASE-HISTORIAL.md`.
+  **Quién de la División fue lo ve solo el admin** (a pedido de Guillermo): a los empleados y a la misma División, en avisos,
+  banco, Acordados y ticket, les dice solo "la División" (`nomDivVisible`, `laDivision`, `textoAutorizado`, `textoRechazo`).
+  El nombre igual se guarda en Firebase (`por`, `pasadoPor`, `rechazo.por`, `publicadoPor`, historial).
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =

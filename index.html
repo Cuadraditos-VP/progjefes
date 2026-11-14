@@ -1463,6 +1463,13 @@
     .ped-note.info { background: #f1f5f9; color: #475569; }
     /* Uso de la app en Celulares: solo cuando el admin lo pide (📊 Ver uso) */
     #celularesOverlay:not(.ver-uso) #celularesUso, #celularesOverlay:not(.ver-uso) .cel-uso { display: none; }
+    /* Celular: rayita arriba de Celulares para indicar que se cierra deslizando hacia abajo */
+    @media (pointer: coarse) {
+      #celularesOverlay .palette-modal::before {
+        content: ""; display: block; width: 40px; height: 4px; border-radius: 2px;
+        background: #cbd5e1; margin: -4px auto 8px;
+      }
+    }
     .cal-day.con-resp, .cal-day-h.con-resp { box-shadow: inset 0 0 0 3px #ea580c !important; }
     .ped-resp { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 8px 10px; border: 1px solid #fdba74; background: #fff7ed; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #7c2d12; }
     .ped-act { border: 0; border-radius: 8px; padding: 8px 12px; font-weight: 700; font-size: 0.8rem; cursor: pointer; background: #ea580c; color: #fff; }
@@ -7361,6 +7368,49 @@
     document.getElementById("btnCelTop").addEventListener("click", () => document.getElementById("btnCelulares").click());
     document.getElementById("closeCelulares").addEventListener("click", cerrarCelulares);
     celularesOverlay.addEventListener("click", (e) => { if (e.target === celularesOverlay) cerrarCelulares(); });
+    // Celular: deslizar la ventana de Celulares hacia abajo la cierra (a pedido de Guillermo)
+    function cerrarAlDeslizar(overlay, cerrar) {
+      const modal = overlay.querySelector(".palette-modal");
+      let y0 = null, x0 = 0, t0 = 0, dy = 0, arrastrando = false;
+      const volver = () => {
+        modal.style.transition = "transform .2s ease";
+        modal.style.transform = "";
+        overlay.style.background = "";
+        arrastrando = false; y0 = null;
+      };
+      modal.addEventListener("touchstart", (e) => {
+        if (e.touches.length !== 1 || modal.scrollTop > 0) { y0 = null; return; }
+        y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; t0 = Date.now(); dy = 0; arrastrando = false;
+        modal.style.transition = "";
+      }, { passive: true });
+      modal.addEventListener("touchmove", (e) => {
+        if (y0 === null) return;
+        const t = e.touches[0], dx = Math.abs(t.clientX - x0);
+        dy = t.clientY - y0;
+        if (!arrastrando) {
+          if (dy > 10 && dy > dx * 1.5 && modal.scrollTop <= 0) arrastrando = true;
+          else { if (dy < -5 || dx > 10) y0 = null; return; }
+        }
+        e.preventDefault();
+        const d = Math.max(0, dy);
+        modal.style.transform = "translateY(" + d + "px)";
+        overlay.style.background = "rgba(15,23,42," + Math.max(0.1, 0.45 - d / 800).toFixed(2) + ")";
+      }, { passive: false });
+      modal.addEventListener("touchend", () => {
+        if (!arrastrando) { y0 = null; return; }
+        if (dy > 100 || (dy > 40 && Date.now() - t0 < 300)) {
+          arrastrando = false; y0 = null;
+          modal.style.transition = "transform .18s ease";
+          modal.style.transform = "translateY(100vh)";
+          setTimeout(() => {
+            cerrar();
+            modal.style.transition = ""; modal.style.transform = ""; overlay.style.background = "";
+          }, 180);
+        } else volver();
+      });
+      modal.addEventListener("touchcancel", () => { if (arrastrando) volver(); y0 = null; });
+    }
+    cerrarAlDeslizar(celularesOverlay, cerrarCelulares);
 
 
     // ========== INVITACIONES (externos que habilita el admin) ==========

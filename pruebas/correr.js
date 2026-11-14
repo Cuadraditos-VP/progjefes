@@ -821,9 +821,10 @@ function chequear(nombre, cond, detalle) {
           (await verR(A)) === xR + "/" + yR && (await verR(B)) === xR + "/" + yR && (await verR(C)) === xR + "/" + yR, [await verR(A), await verR(B), await verR(C)]);
         const avR = await B.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
         chequear("a B le llega que la División lo rechazó, con el motivo", /rechazó tu cambio/.test(avR) && /Falta personal/.test(avR), avR);
+        chequear("a B no se le dice quién de la División lo rechazó", /La División rechazó tu cambio/.test(avR) && !avR.includes("(" + nomD + ") rechazó"), avR);
         await B.evaluate(() => cerrarAvisos());
         const avRA = await AD.evaluate(() => avisosAdmin().map(a => a.txt).join(" | "));
-        chequear("al admin le llega que la División rechazó un cambio", /rechazó el cambio/.test(avRA), avRA);
+        chequear("al admin le llega que la División rechazó un cambio (con el nombre)", /rechazó el cambio/.test(avRA) && avRA.includes(nomD), avRA);
         chequear("A puede volver a pedir cambio ese día", await A.evaluate(([s, d]) => !pedidoDe(people[s.a].id, d) && marcasCerrados()[s.a + ":" + d] !== "daval" && acordadosDelDia(d).length === 0, [s, dR]));
       }
       await D.evaluate(() => document.getElementById("closeAcuerdos").click());

@@ -134,7 +134,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   ahí lo pasa a lo oficial (la app no controla la firma). Sin copias para los empleados: les alcanza el aviso de la app.
   **Rechazar** (Acordados, División y admin, solo si no está en lo oficial; `rechazarAcuerdo`): pide el motivo, el pedido queda
   `estado: "rechazado"` con `rechazo = {motivo, por, t, adm?}`, se sacan los propios de esas celdas y cada celular de los dos
-  vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo; al admin, si fue la División.
+  vuelve a lo oficial (`deshacerRechazados`). A los dos les llega el aviso con el motivo, pero solo dice "La División" sin el nombre de quién (a pedido de Guillermo; el nombre lo ven el admin y la División, `textoRechazo`); al admin le llega aviso con el nombre si fue la División.
   Queda en Acordados en gris; ese día se puede volver a pedir.
   **Vista D** (de la División): la División arranca en D y su botón de vistas pasa a I y vuelve (no ve la A, a pedido
   de Guillermo); el admin ve

@@ -6382,7 +6382,9 @@
     // A los dos les llega el aviso y cada uno vuelve a su turno oficial (ver deshacerRechazados).
     function textoRechazo(a) {
       const r = a && a.rechazo || {};
-      return r.adm ? "El administrador" : "La División" + (r.por ? " (" + r.por + ")" : "");
+      // A los empleados comunes no se les dice quién de la División lo rechazó (a pedido de Guillermo)
+      if (r.adm) return "El administrador";
+      return "La División" + (r.por && (currentUser === "ADMIN" || soyDivision()) ? " (" + r.por + ")" : "");
     }
     function rechazarAcuerdo(k, a) {
       if (!puedeAutorizar() || !a || a.estado !== "acordado" || a.pasado || !a.con) return;

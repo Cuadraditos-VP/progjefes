@@ -6302,6 +6302,9 @@
     }
     function esAvalado(a) { return a.estado === "autorizado" || !!a.pasado; }
     function rebuildDMarks() { const r = marcasCerrados(); D_MARKS = r.marcas; D_CODES = r.codes; D_KEYS = r.keys; }
+    // Excepción pedida por Guillermo: en esos meses, lo que publicó el admin desde esa fecha no aparece en la D
+    // (sí los pedidos del banco y lo que publica la División). Mes → desde cuándo (hora de Argentina).
+    const D_OCULTAR_DESDE = { "2026-11": Date.parse("2026-11-15T00:00:00-03:00") };
     function marcasCerrados() {
       const marcas = {}, keys = {};
       const codes = people.map((p, pi) => (INITIAL_CODES[pi] || p.codes || []).slice());
@@ -6330,6 +6333,8 @@
           const difiere = (ofi[di] || "") !== (ini[di] || "");
           const divMano = !!pp[k] && !x.adm;   // la División lo publicó a mano (aunque haya vuelto a lo de la inicial)
           if (!difiere && !divMano) continue;
+          const desde = D_OCULTAR_DESDE[currentMes];
+          if (!divMano && desde != null && (Number(ca[k]) || 0) >= desde) continue;
           cambiosD.push({ t: Number(ca[k]) || x.t || 0, id: String(p.id), di, code: ofi[di] || "", m: "daval", ofi: 1 });
         }
       });

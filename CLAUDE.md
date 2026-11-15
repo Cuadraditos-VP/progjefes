@@ -143,7 +143,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   acordó todavía** (esquinita celeste, `dped`: el turno no cambia; tocarla abre el pedido para verlo o autorizarlo, con
   "✎ Cambiar a mano"), y encima **lo que se cambió a mano en
   ese mismo celular** (ámbar) (`marcasCerrados` → `D_CODES`, `D_MARKS`, `D_KEYS`). También muestra en verde **todo lo oficial que quedó distinto de la inicial** (lo publicado por la División, por el
-  admin o al volver a subir el mes; a pedido de Guillermo, caso Aguiar). NO muestra lo que los demás usuarios
+  admin o al volver a subir el mes; a pedido de Guillermo, caso Aguiar). Excepción por mes (`D_OCULTAR_DESDE`): en
+  noviembre 2026, lo que publicó el admin desde el 15/11 (según `changedAt`) no aparece en la D; lo de la División y los
+  pedidos del banco sí. Si se vuelve a subir el mes con ↑ JSON se pierde `changedAt` y eso vuelve a aparecer. NO muestra lo que los demás usuarios
   cambiaron a mano (propios, CJ) mientras no pase a lo oficial. Esquinita naranja = acordado entre los dos (falta
   avalarlo), verde = avalado (pasado a lo oficial, autorizado, de palabra o publicado a mano por la División). En D se
   cambian turnos a mano igual que en A (ámbar hasta que la División toca ⬆ Publicar; ahí pasan a verde); tocar una celda de un cambio acordado abre Acordados filtrado a ese

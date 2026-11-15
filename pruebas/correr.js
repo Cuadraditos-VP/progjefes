@@ -653,6 +653,8 @@ function chequear(nombre, cond, detalle) {
       const DIVC = "division_" + APP;
       const idD = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre, libre2, DE_PRUEBA[14]].includes(id));
       const D = await cel("uDv", idD);
+      // La excepción de un mes real (D_OCULTAR_DESDE) no se aplica en las pruebas, salvo donde se prueba a propósito
+      await D.evaluate(() => { if (typeof D_OCULTAR_DESDE !== "undefined") Object.keys(D_OCULTAR_DESDE).forEach(k => delete D_OCULTAR_DESDE[k]); });
       const codDe = (id, di) => { const f = ((be.st[TURNOS] || {})[s.mes] || { people: [] }).people.find(p => String(p.id) === String(id));
         return f ? (Array.isArray(f.codes) ? f.codes : String(f.codes).split(/\s+/))[di] : undefined; };
       const esDiv = pg => pg.evaluate(() => ({ div: document.body.classList.contains("is-division"),
@@ -872,6 +874,14 @@ function chequear(nombre, cond, detalle) {
       // Lo que publicó el admin (antes, con su ⬆ Publicar) también se ve en la D, en verde
       const enDAdm = await D.evaluate(([s, d3]) => ({ ofi: ORIGINAL_CODES[s.b][d3], ini: INITIAL_CODES[s.b][d3], ve: codesFor(s.b)[d3], mk: cellMark(s.b, d3) }), [s, (s.d + 5) % 28]);
       chequear("en D se ve lo que publicó el admin (en verde)", enDAdm.ofi !== enDAdm.ini && enDAdm.ve === enDAdm.ofi && enDAdm.mk === "daval", enDAdm);
+      // Excepción de un mes: lo que publicó el admin desde una fecha no aparece en la D (lo de la División sí)
+      if (html.includes("D_OCULTAR_DESDE")) {
+        const exc = await D.evaluate(([s, d3, d7]) => { D_OCULTAR_DESDE[s.mes] = 0; refreshAfterEdit();
+          const r = { adm: codesFor(s.b)[d3], ini: INITIAL_CODES[s.b][d3], mk: cellMark(s.b, d3) || "", div: cellMark(s.c, d7) };
+          delete D_OCULTAR_DESDE[s.mes]; refreshAfterEdit(); return r; }, [s, (s.d + 5) % 28, d7]);
+        chequear("con la excepción del mes, lo publicado por el admin no aparece en la D", exc.adm === exc.ini && exc.mk !== "daval", exc);
+        chequear("y lo que publicó la División sí", exc.div === "daval", exc);
+      }
       const avPal = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a C le llegan los dos avisos de palabra", /cargó tu cambio de palabra/.test(avPal) && /tu cambio de palabra/.test(avPal.replace(/cargó tu cambio de palabra/, "")), avPal);
       await C.evaluate(() => cerrarAvisos());

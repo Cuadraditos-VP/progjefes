@@ -6315,20 +6315,27 @@
           const m = esAvalado(a) ? "daval" : "dacu";
           celdasDeCerrado(a).forEach(c => cambiosD.push({ t: a.t || 0, id: c.id, di: c.di, code: c.code, m, k }));
         });
-      // Lo que la División publicó a mano (en publicadoPor sin "a"): lo oficial de esa celda, en verde
+      // Todo lo oficial que quedó distinto de la inicial (lo publicó la División, el admin o se volvió a subir el mes):
+      // en verde, con lo oficial de esa celda. Va en el orden en que se publicó (changedAt; sin hora, primero).
       const fb = loadFbCache(currentMes);
       const pp = (fb && fb.publicadoPor) || {};
-      Object.keys(pp).forEach(key => {
-        const x = pp[key] || {};
-        if (x.a || x.adm) return;
-        const cut = key.lastIndexOf(":"), id = key.slice(0, cut), di = Number(key.slice(cut + 1));
-        const pi = pos[id];
-        if (pi == null) return;
-        cambiosD.push({ t: x.t || 0, id, di, code: (ORIGINAL_CODES[pi] || [])[di] || "", m: "daval" });
+      const ca = (fb && fb.changedAt) || {};
+      people.forEach((p, pi) => {
+        if (!p || p.id == null) return;
+        const ofi = ORIGINAL_CODES[pi] || [], ini = INITIAL_CODES[pi] || [];
+        for (let di = 0; di < DAYS; di++) {
+          const k = p.id + ":" + di, x = pp[k] || {};
+          // Lo que salió del banco (autorizado, acordado, de palabra) ya lo marca su pedido
+          if (x.a) continue;
+          const difiere = (ofi[di] || "") !== (ini[di] || "");
+          const divMano = !!pp[k] && !x.adm;   // la División lo publicó a mano (aunque haya vuelto a lo de la inicial)
+          if (!difiere && !divMano) continue;
+          cambiosD.push({ t: Number(ca[k]) || x.t || 0, id: String(p.id), di, code: ofi[di] || "", m: "daval", ofi: 1 });
+        }
       });
       cambiosD.sort((x, y) => x.t - y.t).forEach(c => {
         const pi = pos[String(c.id)];
-        if (pi == null || !c.code || !(c.di >= 0 && c.di < DAYS)) return;
+        if (pi == null || (!c.code && !c.ofi) || !(c.di >= 0 && c.di < DAYS)) return;
         const key = pi + ":" + c.di;
         codes[pi][c.di] = c.code;
         marcas[key] = c.m;

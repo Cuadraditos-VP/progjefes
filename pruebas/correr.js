@@ -684,13 +684,13 @@ function chequear(nombre, cond, detalle) {
         await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));
       chequear("en D se ve el acuerdo de A y B cargado", JSON.stringify(await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s])) === JSON.stringify([s.y, s.x]),
         await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s]));
-      // Fuera de los acuerdos, D es la inicial: no se ve lo que cada uno cambió por su cuenta
+      // Fuera de los acuerdos, D es lo oficial (la inicial más lo publicado): no se ve lo que cada uno cambió por su cuenta
       const soloIni = await D.evaluate(() => { let distintas = 0, propiasFuera = 0;
-        people.forEach((p, pi) => (INITIAL_CODES[pi] || []).forEach((c, di) => { if (D_KEYS[pi + ":" + di]) return;
+        people.forEach((p, pi) => (ORIGINAL_CODES[pi] || []).forEach((c, di) => { if (D_KEYS[pi + ":" + di]) return;
           if ((codesFor(pi)[di] || "") !== (c || "")) distintas++;
           if ((p.codes[di] || "") !== (c || "")) propiasFuera++; }));
         return { distintas, propiasFuera }; });
-      chequear("en D no se ven los cambios a mano de los usuarios (solo la inicial)", soloIni.distintas === 0 && soloIni.propiasFuera > 0, soloIni);
+      chequear("en D no se ven los cambios a mano de los usuarios (solo lo oficial)", soloIni.distintas === 0 && soloIni.propiasFuera > 0, soloIni);
       const toqueD = await D.evaluate(([s]) => { const ov = document.getElementById("shiftOverlay");
         const td = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]'); td.click();
         const r = { picker: ov.classList.contains("open"), lista: document.getElementById("acuerdosOverlay").classList.contains("open"),
@@ -869,6 +869,9 @@ function chequear(nombre, cond, detalle) {
         return { pal: codesFor(s.c)[d9], mk: cellMark(s.c, d9), ajena: codesFor(s.c)[d7], mkA: cellMark(s.c, d7) }; }, [s, d7, d9]);
       chequear("en D se ve el cambio de palabra como avalado (verde)", enD.pal === quiere9 && enD.mk === "daval", enD);
       chequear("en D se ve lo que la División publicó a mano (en verde)", enD.ajena === nuevo7 && enD.mkA === "daval", enD);
+      // Lo que publicó el admin (antes, con su ⬆ Publicar) también se ve en la D, en verde
+      const enDAdm = await D.evaluate(([s, d3]) => ({ ofi: ORIGINAL_CODES[s.b][d3], ini: INITIAL_CODES[s.b][d3], ve: codesFor(s.b)[d3], mk: cellMark(s.b, d3) }), [s, (s.d + 5) % 28]);
+      chequear("en D se ve lo que publicó el admin (en verde)", enDAdm.ofi !== enDAdm.ini && enDAdm.ve === enDAdm.ofi && enDAdm.mk === "daval", enDAdm);
       const avPal = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
       chequear("a C le llegan los dos avisos de palabra", /cargó tu cambio de palabra/.test(avPal) && /tu cambio de palabra/.test(avPal.replace(/cargó tu cambio de palabra/, "")), avPal);
       await C.evaluate(() => cerrarAvisos());

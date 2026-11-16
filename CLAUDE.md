@@ -129,6 +129,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Todo eso usa `publicarCeldas` (transacción: solo cambia esas celdas sobre lo último de Firebase y anota
   `publicadoPor["legajo:día"] = {n, t, a}`, a: 1 autorizó / 2 acuerdo / 3 de palabra); al admin le llega aviso de lo que hizo. No toca Celulares, invitaciones,
   colores ni meses. Reglas: `REGLAS-FIREBASE-DIVISION.md`. El admin también puede autorizar ("Autorizado por el administrador").
+  **Colores** (a pedido de Guillermo): la División tiene arriba un menú ☰ (`btnDivMenu`, `divMenuOverlay`) con Colores (`btnColorsDiv`, `puedeColores()`), igual
+  que el admin; su ⬆ Publicar los cuenta y los publica en el doc del mes (`colores`; queda en el historial).
+  Reglas: `REGLAS-FIREBASE-DIVISION.md`. (En jefes no hay feriados.)
   **Ticket** (Acordados → "🖨 Ticket", División y admin; `imprimirTicket`): imprime UN solo ticket chico (ticketera 80 mm)
   con el cambio y lugar para la firma de los dos empleados; cualquiera de ellos se lo presenta firmado a la División, que recién
   ahí lo pasa a lo oficial (la app no controla la firma). Sin copias para los empleados: les alcanza el aviso de la app.

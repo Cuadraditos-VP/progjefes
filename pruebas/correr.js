@@ -903,6 +903,31 @@ function chequear(nombre, cond, detalle) {
       chequear("un común no tiene \"Cambio de palabra\"", !cB && !(await B.evaluate(d => { setPedidosMode(true); bancoDiaSel = d; renderBancoDia(); const r = !!document.getElementById("bancoPalabra"); setPedidosMode(false); return r; }, d8)));
       const docM = (be.st[TURNOS] || {})[s.mes];
       chequear("la División no toca nada más del mes (gente, inicial)", docM.people.length === M0.people.length && Array.isArray(docM.inicial) && docM.inicial.length === M0.people.length);
+      // La División también marca colores (y en cajeros feriados), como el admin, y los publica con su ⬆ Publicar
+      const btnCol = html.includes('id="btnColoresDiv"') ? "btnColoresDiv" : "btnColorsDiv";
+      const verBtn = (pg, id) => pg.evaluate(id => { const b = document.getElementById(id); return !!b && getComputedStyle(b).display !== "none"; }, id);
+      chequear("la División tiene su menú ☰ (un común no)", await verBtn(D, "btnDivMenu") && !(await verBtn(B, "btnDivMenu")));
+      await D.evaluate(() => document.getElementById("btnDivMenu").click());
+      chequear("en el menú de la División están los colores", await D.evaluate(id => document.getElementById("divMenuOverlay").classList.contains("open") &&
+        !!document.querySelector("#divMenuList #" + id), btnCol));
+      const nuevoColor = "#123456";
+      await D.evaluate(([id, hex]) => { document.getElementById(id).click();
+        if (document.getElementById("divMenuOverlay").classList.contains("open")) return "el menú no se cerró"; colorEditCode = "T";
+        const inp = document.getElementById("colorCustom") || document.getElementById("customColor");
+        inp.value = hex; inp.dispatchEvent(new Event("input")); document.getElementById("closeColors").click(); }, [btnCol, nuevoColor]);
+      const conFer = html.includes('id="btnFeriadosDiv"');
+      if (conFer) {
+        chequear("y los feriados", await D.evaluate(() => !!document.querySelector("#divMenuList #btnFeriadosDiv")));
+        await D.evaluate(() => { document.getElementById("btnDivMenu").click(); document.getElementById("btnFeriadosDiv").click();
+          document.querySelector('#feriadosGrid .fer-day[data-di="9"]').click(); document.getElementById("doneFeriados").click(); });
+      }
+      const btxtC = await D.evaluate(() => document.getElementById("btnPublicarDiv").textContent);
+      chequear("⬆ Publicar de la División cuenta los colores" + (conFer ? " y feriados" : ""), btxtC === "⬆ " + (conFer ? 2 : 1), btxtC);
+      await D.evaluate(() => { window.confirm = () => true; document.getElementById("btnPublicarDiv").click(); });
+      await wait(3000);
+      const colB = await B.evaluate(() => String(colorMap.T || "").toUpperCase());
+      chequear("B ve el color que publicó la División", colB === nuevoColor, colB);
+      if (conFer) chequear("B ve el feriado que marcó la División", await B.evaluate(() => isFeriado(9)));
       const avAdD = await AD.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
       chequear("al admin le llega lo que hizo la División", /\(División\) autorizó/.test(avAdD) && /\(División\) pasó a lo oficial un cambio acordado/.test(avAdD) && /\(División\) cargó un cambio de palabra/.test(avAdD) && /\(División\) publicó/.test(avAdD), avAdD);
       await AD.evaluate(() => cerrarAvisos());

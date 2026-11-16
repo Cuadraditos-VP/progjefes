@@ -839,7 +839,9 @@
     body.is-admin .adm-menu-btn { display: inline-flex; align-items: center; }
     .adm-menu-btn.pending { background: #dc2626; }
     .adm-menu-modal { max-width: 320px; }
-    #adminMenuList { display: flex; flex-direction: column; gap: 8px; }
+    .div-menu-btn { font-size: 0.95rem; padding: 4px 10px; background: #7c3aed; }
+    #adminMenuList, #divMenuList { display: flex; flex-direction: column; gap: 8px; }
+    #divMenuList button { width: 100%; height: auto; margin: 0; padding: 12px; border-radius: 10px; font-size: 0.92rem; font-weight: 700; justify-content: center; gap: 8px; }
     #adminMenuList button {
       width: 100%; height: auto; margin: 0; padding: 12px; border-radius: 10px;
       font-size: 0.92rem; font-weight: 700; justify-content: center; gap: 8px;
@@ -1666,7 +1668,8 @@
         <button type="button" id="btnPedidos" class="json-btn fb-only ped-btn" title="Pedidos de cambio de turno"><span class="ped-txt">Cambios</span><span class="ped-sim" aria-hidden="true">⇄</span></button>
         <button type="button" id="btnCelTop" class="json-btn admin-only cel-top-btn" title="Celulares" aria-label="Celulares">📱</button>
         <button type="button" id="btnOperador" class="json-btn fb-only division-only op-btn" style="display:none"></button>
-        <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos que cambiaste">⬆ Publicar</button>
+        <button type="button" id="btnDivMenu" class="json-btn fb-only division-only div-menu-btn" title="Herramientas de la División" aria-label="Herramientas de la División">☰</button>
+        <button type="button" id="btnPublicarDiv" class="json-btn fb-only division-only div-pub-btn" title="División: publicar para todos los turnos y colores que cambiaste">⬆ Publicar</button>
         <button type="button" id="btnPublish" class="json-btn admin-only fb-only publish-btn" title="Publicar turnos y colores para todos">⬆ Publicar</button>
         <button type="button" id="btnAdminMenu" class="json-btn admin-only adm-menu-btn" title="Herramientas de admin" aria-label="Herramientas de admin">☰</button>
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
@@ -1860,6 +1863,17 @@
       </div>
       <p style="font-size:0.75rem;color:#64748b;margin:-6px 0 6px">Cambios que los jefes cerraron entre ellos. Ya los ven todos (cada uno lo tiene en su fila). Para que queden en lo oficial, cambialos en la grilla, tocá ⬆ Publicar y después "Ya lo pasé".</p>
       <div id="acuerdosList"></div>
+    </div>
+  </div>
+  <div class="palette-overlay" id="divMenuOverlay">
+    <div class="palette-modal adm-menu-modal">
+      <div class="palette-header">
+        <h3>División</h3>
+        <button class="close-btn" id="closeDivMenu" title="Cerrar">×</button>
+      </div>
+      <div id="divMenuList">
+        <button type="button" id="btnColorsDiv" class="json-btn">🎨 Colores</button>
+      </div>
     </div>
   </div>
   <div class="palette-overlay" id="adminMenuOverlay">
@@ -3875,7 +3889,7 @@
 
     // (Admin) Historial de la División
     let histDocs = [];
-    const HIST_ICONO = { clave: "🔑", entra: "🔓", sale: "🔒", auto: "⏱", autoriza: "✅", pasa: "⬆", palabra: "🗣", rechaza: "✖", publica: "✎", ticket: "🖨" };
+    const HIST_ICONO = { clave: "🔑", entra: "🔓", sale: "🔒", auto: "⏱", autoriza: "✅", pasa: "⬆", palabra: "🗣", rechaza: "✖", publica: "✎", ticket: "🖨", colores: "🎨" };
     async function abrirHistorial() {
       const list = document.getElementById("histList"), sel = document.getElementById("histPersona");
       list.innerHTML = '<div class="ped-note info">Cargando…</div>';
@@ -3962,17 +3976,18 @@
     function updateDivPublishBtn() {
       const b = document.getElementById("btnPublicarDiv");
       if (!b || b.disabled) return;
-      const n = soyDivision() && FB_MESES[currentMes] ? turnosAPublicar().cambiados.length : 0;
+      const n = soyDivision() && FB_MESES[currentMes] ? turnosAPublicar().cambiados.length + Object.keys(colorOverrides).length : 0;
       // Con cambios queda corto ("⬆ 2"), como el ☰ del admin, para no apretar la barra
       b.textContent = n ? "⬆ " + n : "⬆ Publicar";
-      b.title = n ? "División: publicar para todos " + (n === 1 ? "1 turno cambiado" : n + " turnos cambiados") : "División: publicar para todos los turnos que cambiaste";
+      b.title = n ? "División: publicar para todos " + (n === 1 ? "1 cambio" : n + " cambios") : "División: publicar para todos los turnos y colores que cambiaste";
       b.classList.toggle("pending", n > 0);
     }
     document.getElementById("btnPublicarDiv").addEventListener("click", async () => {
       if (!soyDivision() || !fbReady || !FB_MESES[currentMes]) return;
       const tp = turnosAPublicar();
-      if (!tp.cambiados.length) {
-        showShareToast("No cambiaste turnos. Tocá las celdas, cambialas y después tocá ⬆ Publicar.");
+      const cols = Object.keys(colorOverrides);
+      if (!tp.cambiados.length && !cols.length) {
+        showShareToast("No cambiaste turnos ni colores. Cambialos y después tocá ⬆ Publicar.");
         return;
       }
       const cambios = tp.cambiados.map(k => {
@@ -3982,17 +3997,28 @@
       }).filter(c => c.pi >= 0).sort((a, b) => a.pi - b.pi || a.di - b.di);
       const lineas = cambios.map(c => "• " + people[c.pi].name + " el " + (c.di + 1) + ": " + (c.antes || "vacío") + " → " + (c.code || "vacío"));
       const choques = choquesConPropios(tp);
-      if (!confirm("¿Publicar para todos?\n\n" + (lineas.length > 15 ? lineas.slice(0, 15).concat("… y " + (lineas.length - 15) + " más") : lineas).join("\n") +
-        "\n\nPasan a la programación oficial." + textoChoques(choques))) return;
+      const txtCols = cols.length ? "Colores: " + cols.map(c => c === "LINEAS" ? "líneas de la grilla" : c).join(", ") : "";
+      const partes = (lineas.length > 15 ? lineas.slice(0, 15).concat("… y " + (lineas.length - 15) + " más") : lineas).slice();
+      if (lineas.length) partes.push("(los turnos pasan a la programación oficial)");
+      if (txtCols) partes.push("• " + txtCols);
+      if (!confirm("¿Publicar para todos?\n\n" + partes.join("\n") + textoChoques(choques))) return;
       const b = document.getElementById("btnPublicarDiv");
       b.disabled = true; b.textContent = "Publicando…";
       try {
-        await publicarCeldas(cambios, false);
-        regDiv("publica", "Publicó a mano: " + lineas.map(x => x.replace(/^• /, "")).join("; "));
-        choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
+        if (cambios.length) {
+          await publicarCeldas(cambios, false);
+          regDiv("publica", "Publicó a mano: " + lineas.map(x => x.replace(/^• /, "")).join("; "));
+          choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
+        }
+        if (cols.length) {
+          await fbDb.collection(TURNOS_COLLECTION).doc(currentMes).update({ colores: Object.assign({}, colorMap), version: Date.now() });
+          colorOverrides = {}; saveColorOverrides();
+          regDiv("colores", "Cambió " + txtCols.charAt(0).toLowerCase() + txtCols.slice(1));
+        }
         b.disabled = false; b.textContent = "✓ Publicado"; b.classList.remove("pending");
         setTimeout(updateDivPublishBtn, 2000);
-        showShareToast("Listo: " + (cambios.length === 1 ? "1 turno pasó" : cambios.length + " turnos pasaron") + " a lo oficial.");
+        showShareToast("Listo: " + [cambios.length ? (cambios.length === 1 ? "1 turno pasó" : cambios.length + " turnos pasaron") + " a lo oficial" : "",
+          cols.length ? "colores publicados" : ""].filter(Boolean).join(", ") + ".");
       } catch (err) {
         b.disabled = false; updateDivPublishBtn();
         errDivision(err, "publicar");
@@ -7761,6 +7787,14 @@
     });
     const closeDl = () => dlOverlay.classList.remove("open");
     // Bajar, JSON, Colores y Publicar van en la ventana del botón ☰ (en el celular y en la PC).
+    // Menú ☰ de la División (Feriados y Colores; acá se suman otras herramientas)
+    (function menuDivision() {
+      const overlay = document.getElementById("divMenuOverlay");
+      const cerrar = () => overlay.classList.remove("open");
+      document.getElementById("btnDivMenu").addEventListener("click", () => overlay.classList.add("open"));
+      document.getElementById("closeDivMenu").addEventListener("click", cerrar);
+      overlay.addEventListener("click", (e) => { if (e.target === overlay || e.target.closest("#divMenuList button")) cerrar(); });
+    })();
     (function menuAdmin() {
       const IDS = ["btnDownload", "btnExportJson", "btnImportJson", "btnColors", "btnPublish"];
       const QUEDA_ABIERTO = ["btnPublish"]; // para ver "Publicando…"
@@ -7863,9 +7897,12 @@
       applyColors();
       if (personOverlay.classList.contains("open") && currentCalPi !== null) openPersonCalendar(currentCalPi);
       renderColorEditor();
+      updatePublishBtn();
     }
+    // Colores: el admin y la División
+    function puedeColores() { return currentUser === "ADMIN" || soyDivision(); }
     function setCodeColor(hex) {
-      if (!colorEditCode) return;
+      if (!colorEditCode || !puedeColores()) return;
       colorMap[colorEditCode] = hex;
       colorOverrides[colorEditCode] = hex;
       afterColorChange();
@@ -7879,14 +7916,16 @@
       afterColorChange();
     });
     function closeColors() { colorOverlay.classList.remove("open"); }
-    document.getElementById("btnColors").addEventListener("click", () => {
-      if (currentUser !== "ADMIN") return;
+    function openColors() {
+      if (!puedeColores()) return;
       colorEditCode = null;
       renderColorEditor();
       colorOverlay.classList.add("open");
-    });
+    }
+    document.getElementById("btnColors").addEventListener("click", openColors);
+    document.getElementById("btnColorsDiv").addEventListener("click", openColors);
     document.querySelectorAll("[data-lineas]").forEach(b => b.addEventListener("click", () => {
-      if (currentUser !== "ADMIN") return;
+      if (!puedeColores()) return;
       const v = b.dataset.lineas === "oscuro" ? LINEAS_OSCURO : LINEAS_CLARO;
       colorMap.LINEAS = v;
       colorOverrides.LINEAS = v;

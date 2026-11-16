@@ -155,8 +155,23 @@ function chequear(nombre, cond, detalle) {
     const avA = await A.evaluate(() => { revisarAvisos(); return document.getElementById("avisosOverlay").classList.contains("open") ? document.getElementById("avisosList").innerText : ""; });
     chequear("A recibe aviso de interesados", /interesad/.test(avA), avA);
     await A.evaluate(() => cerrarAvisos());
+    if (html.includes('id="avisoFijo"')) {
+      // Cartel fijo abajo: queda a la vista hasta confirmar, aunque se cierre la ventana de avisos
+      const fijo = await A.evaluate(() => { const el = document.getElementById("avisoFijo");
+        return { ve: el.classList.contains("show") && getComputedStyle(el).display !== "none", txt: el.innerText }; });
+      chequear("queda un cartel fijo de respuestas pendientes", fijo.ve && /2 respuestas/.test(fijo.txt), fijo);
+      await A.evaluate(() => document.getElementById("avisoFijo").click());
+      await wait(150);
+      const abre = await A.evaluate(s => { const r = { pedido: pedidoOverlay.classList.contains("open") && pedPi === s.a, escondido: !document.getElementById("avisoFijo").classList.contains("show") };
+        closePedido(); setPedidosMode(false); return r; }, s);
+      await wait(150);
+      chequear("al tocarlo abre tu pedido (y se esconde mientras está abierto)", abre.pedido && abre.escondido, abre);
+      chequear("al cerrar el pedido sin confirmar, el cartel vuelve", await A.evaluate(() => document.getElementById("avisoFijo").classList.contains("show")));
+      chequear("B no ve el cartel (no es su pedido)", !(await B.evaluate(() => document.getElementById("avisoFijo").classList.contains("show"))));
+    }
     await A.evaluate(s => { const r = pedidoDe(people[s.a].id, s.d).respuestas[s.idb]; confirmarAcuerdo(s.a, s.d, r); }, s);
     await wait(2500);
+    if (html.includes('id="avisoFijo"')) chequear("al confirmar, el cartel fijo se va", !(await A.evaluate(() => document.getElementById("avisoFijo").classList.contains("show"))));
     const ver = pg => pg.evaluate(s => people[s.a].codes[s.d] + "/" + people[s.b].codes[s.d], s);
     const esperado = s.y + "/" + s.x;
     chequear("el cambio confirmado lo ve A", (await ver(A)) === esperado, await ver(A));

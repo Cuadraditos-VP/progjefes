@@ -205,6 +205,8 @@ function chequear(nombre, cond, detalle) {
       const espE = t.y + "/" + t.x;
       chequear("con el celular del otro cerrado, el que confirmó ve las dos filas", (await verE(A)) === espE, await verE(A));
       chequear("con el celular del otro cerrado, un tercero ve las dos filas", (await verE(C)) === espE, await verE(C));
+      const colE = await C.evaluate(([s, t]) => cellMark(t.e, t.d), [s, t]);
+      chequear("la fila del otro se ve en azul (no en ámbar)", colE === "pub", colE);
       await C.evaluate(() => cerrarAvisos()); await A.evaluate(() => cerrarAvisos());
       // Se borra este acuerdo para no mezclarlo con las pruebas que siguen
       const borrado = await A.evaluate(async ([s, t]) => {

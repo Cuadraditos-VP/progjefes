@@ -727,6 +727,14 @@ function chequear(nombre, cond, detalle) {
       chequear("en el pedido de A la División ve \"Autorizar\"", /Autorizar/.test(caja) && caja.indexOf(quiere) >= 0, caja);
       const cajaB = await B.evaluate(([s, d6]) => { openPedido(s.a, d6); const r = !!document.querySelector("#pedidoBody .ped-div"); closePedido(); return r; }, [s, d6]);
       chequear("un común no ve \"Autorizar\"", !cajaB);
+      // Si da un turno que no es el oficial (se lo cambió por su cuenta), la División lo ve avisado
+      const noOfi = await D.evaluate(([s, d6, pedId]) => { const ped = pedidosDocs[pedId], ofi = oficialDe(s.a, d6), antes = ped.ofrece;
+        openPedido(s.a, d6); const sinAviso = !document.querySelector("#pedidoBody .ped-nooficial"); closePedido();
+        ped.ofrece = ["MS", "T3", "E"].find(c => c !== ofi); openPedido(s.a, d6);
+        const el = document.querySelector("#pedidoBody .ped-nooficial"); const txt = el ? el.textContent : ""; closePedido();
+        ped.ofrece = antes; return { sinAviso, txt, ofi, da: ["MS", "T3", "E"].find(c => c !== ofi) }; }, [s, d6, pedId]);
+      chequear("si da un turno que no es el oficial, la División ve el aviso con el oficial",
+        noOfi.sinAviso && noOfi.txt.indexOf(noOfi.ofi) >= 0 && noOfi.txt.indexOf(noOfi.da) >= 0 && /no está avalada/.test(noOfi.txt), noOfi);
       const opF = await D.evaluate(([s, d6]) => opcionesAutorizar({ ofrece: "T", acepta: ["F"], francos: [d6 + 3] }, s.a, d6), [s, d6]);
       chequear("si ofrece un franco, autorizar da F ese día y su turno el día del franco",
         opF.length === 1 && opF[0].code === "F" && JSON.stringify(opF[0].cambios) === JSON.stringify([{ di: d6, code: "F" }, { di: d6 + 2, code: "T" }]), opF);

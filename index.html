@@ -1192,34 +1192,18 @@
       border-color: transparent #9333ea transparent transparent;
       pointer-events: none; z-index: 3;
     }
-    /* Titilar fuerte solo al editar (borde grueso + glow) */
-    @keyframes titilar {
-      0%, 100% {
-        opacity: 0;
-        border-color: transparent;
-        box-shadow: none;
-      }
-      50% {
-        opacity: 1;
-        border-color: #b45309;
-        box-shadow:
-          0 0 0 3px #b45309,
-          0 0 14px 4px rgba(180, 83, 9, 0.85);
-      }
+    /* Día de hoy en el almanaque individual: titila para encontrarlo rápido */
+    @keyframes hoyTitila {
+      0%, 100% { outline-color: #0f766e; }
+      50% { outline-color: transparent; }
     }
-    td.edited::after, .cal-day.edited::after, .cal-day-h.edited::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border: 3px solid transparent;
-      box-sizing: border-box;
-      animation: titilar 0.85s ease-in-out 3;
-      animation-fill-mode: forwards;
-      pointer-events: none;
-      z-index: 2;
+    .cal-day.hoy-cal, .cal-day-h.hoy-cal {
+      outline: 4px solid #0f766e;
+      outline-offset: -4px;
+      animation: hoyTitila 1s ease-in-out infinite;
     }
     @media (prefers-reduced-motion: reduce) {
-      td.edited::after, .cal-day.edited::after, .cal-day-h.edited::after { animation: none; }
+      .cal-day.hoy-cal, .cal-day-h.hoy-cal { animation: none; }
     }
 
     /* Ocultar columna de nombre (solo legajo) */
@@ -4478,7 +4462,7 @@
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
         const mk = marcaCal(pi, d);
-        gridHtml += `<div class="cal-day${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        gridHtml += `<div class="cal-day${d === diaHoy() ? " hoy-cal" : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-num">${d + 1}</span>
           <span class="cal-code">${code || "·"}</span>
           ${cellComment(pi, d) ? '<span class="comment-dot"></span>' : ""}
@@ -4494,7 +4478,7 @@
         const fg = code ? getTextColor(bg) : "#94a3b8";
         const mk = marcaCal(pi, d);
         const wd = WEEKDAY_ABBR[(MES.startWd + d) % 7];
-        rowHtml += `<div class="cal-day-h${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        rowHtml += `<div class="cal-day-h${d === diaHoy() ? " hoy-cal" : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-wd-h">${wd}</span>
           <span class="cal-num-h">${d + 1}</span>
           <span class="cal-code-h">${code || "·"}</span>

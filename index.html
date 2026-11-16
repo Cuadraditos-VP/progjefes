@@ -4889,7 +4889,9 @@
           if (ch.type === "removed") delete pedidosDocs[ch.doc.id];
           else pedidosDocs[ch.doc.id] = ch.doc.data();
         });
+        const tocaAcuerdo = qs.docChanges().some(ch => ch.type === "removed" || !!(ch.doc.data() || {}).con);
         aplicarAcuerdos();
+        if (tocaAcuerdo) { resetPeopleFromOfficial(); refreshAfterEdit(); }
         if (document.getElementById("acuerdosOverlay").classList.contains("open")) renderAcuerdos();
         if (pedidosMode) {
           refreshAfterEdit();
@@ -6077,14 +6079,39 @@
     // Pone arriba de la oficial lo que publicó cada uno en su fila
     function aplicarPropios() {
       if (!veCambiosAjenos()) return;
+      const tAcu = aplicarAcuerdosATodos();
       people.forEach(p => {
         const d = propDe(currentMes, p.id);
         if (!d || !d.edits) return;
         Object.keys(d.edits).forEach(k => {
           const di = Number(k.slice(1));
+          // Lo que el dueño publicó ANTES del acuerdo no tapa el acuerdo (su celular todavía no lo cargó)
+          const ta = tAcu[p.id + ":" + di];
+          if (ta && (Number((d.t || {})[k]) || Number(d.updated) || 0) < ta) return;
           if (di >= 0 && di < p.codes.length) p.codes[di] = String(d.edits[k] || "");
         });
       });
+    }
+    // Cambios acordados en el banco (todavía no pasados a lo oficial): todos ven las dos filas apenas se confirma,
+    // sin esperar a que el celular de cada uno lo cargue. Si después se publicó otra cosa en lo oficial, manda lo oficial.
+    // Devuelve "legajo:día" -> cuándo se acordó.
+    function aplicarAcuerdosATodos() {
+      const out = {};
+      let ca = {};
+      try { ca = changedAtDe(currentMes) || {}; } catch (e) {}
+      Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && !a.pasado && a.con && a.mes === currentMes)
+        .sort((x, y) => (x.t || 0) - (y.t || 0))
+        .forEach(a => {
+          (cambiosDeAcuerdo(a) || []).forEach(x => {
+            const key = String(x.id) + ":" + x.di;
+            if ((Number(ca[key]) || 0) > (a.t || 0)) return;
+            const p = people.find(q => String(q.id) === String(x.id));
+            if (!p || !x.code || x.di >= p.codes.length) return;
+            p.codes[x.di] = x.code;
+            out[key] = a.t || 0;
+          });
+        });
+      return out;
     }
     function nombreDe(id, p) {
       const q = people.find(x => String(x.id) === String(id));
@@ -6578,6 +6605,7 @@
         try { if (localStorage.getItem(flag)) return; } catch (e) {}
         const cambios = cambiosDeAcuerdo(a);
         if (!cambios) return;
+        if (!people.some(pp => String(pp.id) === String(miLegajo))) return; // todavía no cargó la gente: lo hace después
         cambios.forEach(x => {
           const di = x.di;
           if (String(x.id) !== String(miLegajo)) return; // la fila del otro la publica su celular

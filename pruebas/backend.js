@@ -102,8 +102,14 @@ module.exports = function crearBackend(app, turnosColl) {
       if (!esDivision(w.uid) || w.op !== "update" || !prev || !next) return false;
       const keys = new Set(Object.keys(prev).concat(Object.keys(next)));
       const toca = [...keys].filter(k => JSON.stringify(prev[k]) !== JSON.stringify(next[k]));
-      return toca.every(k => ["people", "changedAt", "publicadoPor", "version"].includes(k)) &&
+      // En jefes los colores van en el mismo doc del mes: la División también los puede cambiar
+      return toca.every(k => ["people", "changedAt", "publicadoPor", "version"].concat(turnosColl === app ? ["colores"] : []).includes(k)) &&
         Array.isArray(next.people) && next.people.length === (prev.people || []).length;
+    }
+    // Colores, letras y feriados del mes (en cajeros van aparte, colección "<app>"): el admin y la División
+    if (w.coll === app && turnosColl !== app) {
+      if (w.email !== ADMIN && !esDivision(w.uid)) return false;
+      return w.op === "set" && !!next && Object.keys(next).every(k => ["mes", "version", "colores", "feriados", "letras"].includes(k));
     }
     if (w.coll !== "propios_" + app) return true;
     if (w.email === ADMIN) return true;

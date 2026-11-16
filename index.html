@@ -2394,6 +2394,7 @@
 
     // Marca de una celda: "own" = cambio personal sin publicar (ámbar),
     // "pub" = cambio oficial publicado respecto de la programación inicial (azul), "" = sin cambios.
+    var ACU_CELDAS = {};   // "legajo:día" -> turno que quedó por un acuerdo (se ve en azul: lo ven todos)
     function cellMark(pi, di) {
       if (viewMode === "inicial") return "";
       if (viewMode === "division") return D_MARKS[pi + ":" + di] || "";
@@ -2401,7 +2402,7 @@
       const shown = (codesFor(pi)[di] || "");
       // Distinto de lo oficial: azul si ya está publicado por su dueño, ámbar si es solo de este celular
       if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || ""))
-        return propCode(currentMes, (people[pi] || {}).id, di) === shown ? "pub" : "own";
+        return propCode(currentMes, (people[pi] || {}).id, di) === shown || ACU_CELDAS[(people[pi] || {}).id + ":" + di] === shown ? "pub" : "own";
       const ini = INITIAL_CODES[pi];
       if (ini && shown !== (ini[di] || "")) return "pub";
       return "";
@@ -6097,6 +6098,7 @@
     // Devuelve "legajo:día" -> cuándo se acordó.
     function aplicarAcuerdosATodos() {
       const out = {};
+      ACU_CELDAS = {};
       let ca = {};
       try { ca = changedAtDe(currentMes) || {}; } catch (e) {}
       Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && !a.pasado && a.con && a.mes === currentMes)
@@ -6109,6 +6111,7 @@
             if (!p || !x.code || x.di >= p.codes.length) return;
             p.codes[x.di] = x.code;
             out[key] = a.t || 0;
+            ACU_CELDAS[key] = x.code;
           });
         });
       return out;

@@ -1461,6 +1461,7 @@
     .ped-note { margin-top: 10px; padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
     .ped-note.ok { background: #dcfce7; color: #166534; }
     .ped-note.info { background: #f1f5f9; color: #475569; }
+    .ped-note.warn { background: #fef3c7; color: #92400e; }
     /* Uso de la app en Celulares: solo cuando el admin lo pide (📊 Ver uso) */
     #celularesOverlay:not(.ver-uso) #celularesUso, #celularesOverlay:not(.ver-uso) .cel-uso { display: none; }
     /* Celular: rayita arriba de Celulares para indicar que se cierra deslizando hacia abajo */
@@ -5472,6 +5473,14 @@
             body.appendChild(row);
           });
           if (yaResp && yaResp.dia) body.insertAdjacentHTML("beforeend", '<div class="ped-note ok">Le avisaste que te sirve el franco del ' + yaResp.dia + '. Falta que ' + p.name + ' confirme.</div>');
+        }
+      }
+      // División (o admin): si lo que da no es su turno oficial (lo cambió por su cuenta), se avisa
+      if (puedeAutorizar() && !desdeFranco) {
+        const daU = String(da || "").toUpperCase();
+        if (daU && ofrece && daU !== ofrece) {
+          body.insertAdjacentHTML("beforeend", '<div class="ped-note warn ped-nooficial">En lo oficial tiene ' + pill(ofrece) +
+            '. La ' + pill(daU) + ' la cargó por su cuenta (no está avalada).</div>');
         }
       }
       // División (o admin): puede autorizarlo sin que haya otro que cambie

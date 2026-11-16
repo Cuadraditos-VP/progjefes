@@ -71,7 +71,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - **Cambios** (pedidos de cambio de turno, `pedidos_jefes`): quien pide da su turno de ese
   día y marca lo que **acepta** (`acepta`: uno o varios turnos, `"*"` = cualquiera, o `F`
   ofreciendo sus francos en `francos`). Otros responden "Me sirve"; quien pidió confirma y
-  queda un acuerdo (`estado: "acordado"`). Cada celular carga solo su propia fila del acuerdo.
+  queda un acuerdo (`estado: "acordado"`). Cada celular publica solo su propia fila del acuerdo, pero todos
+  ven las dos filas apenas se confirma (`aplicarAcuerdosATodos`, dentro de `aplicarPropios`; si después se publicó otra cosa
+  en lo oficial, manda lo oficial; lo que el dueño publicó antes del acuerdo no lo tapa).
   Se ven en el **banco de cambios**: el botón Cambios abre un cuadro (fondo oscuro) con el
   almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
   sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";
@@ -83,6 +85,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   "Acordados" y "Celulares" (admin) y "¿Quién sos?" están arriba de ese cuadro.
 - **Avisos** ("Novedades de tus cambios"): interesados en tu pedido, confirmación, pedido
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
+  Si alguien respondió "Me sirve" a tu pedido y falta confirmar, queda un cartel naranja fijo abajo (`avisoFijo`,
+  `actualizarAvisoFijo`) que abre el pedido (`abrirMiPedido`); en Android vibra. Notificaciones push: Guillermo no las quiere.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas. También suma lo publicado en `propios_*` (aunque ese celular no haya
   mandado nada). Un celular no manda a CJ hasta tener los turnos del mes (si no, lo borraría).

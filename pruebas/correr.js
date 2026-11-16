@@ -182,6 +182,38 @@ function chequear(nombre, cond, detalle) {
     const avC = await C.evaluate(() => { revisarAvisos(); return document.getElementById("avisosList").innerText; });
     chequear("C recibe aviso de que se cerró con otro", /otra persona/.test(avC), avC);
     await B.evaluate(() => cerrarAvisos()); await C.evaluate(() => cerrarAvisos());
+    if (html.includes("function aplicarAcuerdosATodos")) {
+      // El otro confirma con la app de la contraparte CERRADA: igual todos ven las dos filas del acuerdo
+      const usados = [s.ida, s.idb, s.idc, idP, libre, libre2, DE_PRUEBA[14]];
+      const idE = DE_PRUEBA.slice().reverse().find(id => !usados.includes(id));
+      const E = await cel("uE", idE);
+      const t = await A.evaluate(([s, idE]) => {
+        const e = people.findIndex(p => String(p.id) === idE);
+        for (let d = s.d + 1; d < DAYS; d++) {
+          const x = actualDe(s.a, d), y = actualDe(e, d);
+          if (trabaja(x) && trabaja(y) && x !== y && !pedidoDe(people[s.a].id, d)) return { d, e, x, y };
+        }
+      }, [s, idE]);
+      await A.evaluate(([s, t]) => { pedTengoSel = actualDe(s.a, t.d); guardarPedido(s.a, t.d, [t.y]); closePedido(); }, [s, t]);
+      await wait(800);
+      await E.evaluate(([s, t]) => { responderPedido(s.a, t.d, true); closePedido(); }, [s, t]);
+      await wait(800);
+      await E.close();
+      await A.evaluate(([s, t]) => { const r = pedidoDe(people[s.a].id, t.d).respuestas[people[t.e].id]; confirmarAcuerdo(s.a, t.d, r); cerrarAvisos(); }, [s, t]);
+      await wait(2500);
+      const verE = pg => pg.evaluate(([s, t]) => people[s.a].codes[t.d] + "/" + people[t.e].codes[t.d], [s, t]);
+      const espE = t.y + "/" + t.x;
+      chequear("con el celular del otro cerrado, el que confirmó ve las dos filas", (await verE(A)) === espE, await verE(A));
+      chequear("con el celular del otro cerrado, un tercero ve las dos filas", (await verE(C)) === espE, await verE(C));
+      await C.evaluate(() => cerrarAvisos()); await A.evaluate(() => cerrarAvisos());
+      // Se borra este acuerdo para no mezclarlo con las pruebas que siguen
+      const borrado = await A.evaluate(async ([s, t]) => {
+        const k = Object.keys(pedidosDocs).find(k => { const a = pedidosDocs[k]; return a && a.estado === "acordado" && String(a.id) === String(people[s.a].id) && a.dia === t.d + 1; });
+        try { await fbDb.collection(PED_COLLECTION).doc(k).delete(); return true; } catch (e) { return String(e); }
+      }, [s, t]);
+      await wait(800);
+      chequear("(limpieza del acuerdo de prueba)", borrado === true, borrado);
+    }
 
     console.log("\nFila propia (publicada) y filas ajenas (solo en tu celular)");
     const d2 = (s.d + 3) % 28;

@@ -22,6 +22,9 @@
   function write(coll, id, op, data, opts) {
     // Sin internet: lo escrito queda esperando (como en Firebase, que no confirma hasta que vuelve la red)
     if (window.__SIN_RED) return new Promise(() => {});
+    // Para probar errores al mandar: localStorage "__fallar" = [colecciones] → esas escrituras fallan
+    let fallar = []; try { fallar = JSON.parse(localStorage.getItem("__fallar") || "[]"); } catch (e) {}
+    if (fallar.includes(coll)) { const e = new Error("unavailable"); e.code = "unavailable"; return Promise.reject(e); }
     return window.__fbWrite(enc({ coll, id, op, data, opts, uid: window.__UID, email: window.__EMAIL || null }))
       .then(r => { if (r && r !== "ok") { const e = new Error(r); e.code = r; throw e; } });
   }

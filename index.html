@@ -3266,7 +3266,7 @@
       fbDb.collection("cj").doc(key + "_" + u.uid)
         .set({ mes: key, uid: u.uid, edits, updated: Date.now() })
         .then(() => { try { localStorage.setItem(sentKey, payload); } catch (e) {} })
-        .catch(() => {});
+        .catch(() => { setTimeout(() => scheduleCjSync(key), REINTENTO_MS); });
     }
 
     function startCjListener() {
@@ -4879,9 +4879,11 @@
       document.getElementById("btnPasarApp").style.display = me && currentUser !== "ADMIN" && enIphoneWeb() ? "" : "none";
     }
 
+    var pedListo = false;
     function startPedidos() {
       if (pedUnsub || !fbReady || !habilitado()) return;
       pedUnsub = fbDb.collection(PED_COLLECTION).onSnapshot(qs => {
+        if (!pedListo) { pedListo = true; setTimeout(() => { if (typeof syncTodosPropios === "function") syncTodosPropios(); }, 0); }
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete pedidosDocs[ch.doc.id];
           else pedidosDocs[ch.doc.id] = ch.doc.data();
@@ -6141,6 +6143,7 @@
     // Publica los cambios de MI fila de ese mes
     function syncPropios(mes) {
       if (!fbReady || !fbAuth || !propListo || !miLegajo) return;
+      if (!pedListo) return; // sin los acuerdos todavía no se sabe qué hay que publicar (cuando llegan, se vuelve a mandar)
       const u = fbAuth.currentUser;
       if (!u) return;
       const list = officialPeopleFor(mes);
@@ -6177,9 +6180,24 @@
         .catch(err => {
           console.warn("Propios:", err);
           if (err && err.code === "permission-denied") showShareToast("No se pudo publicar tu cambio (permiso de Firebase).");
+          // No se publicó: no darlo por hecho (vuelve a ámbar) y reintentar solo
+          if (propDocs[docId] && propDocs[docId].updated === data.updated) {
+            if (prev) propDocs[docId] = prev; else delete propDocs[docId];
+            if (mes === currentMes) { resetPeopleFromOfficial(); refreshAfterEdit(); }
+          }
+          setTimeout(() => schedulePropSync(mes), REINTENTO_MS);
         });
     }
     function syncTodosPropios() { AVAILABLE_MESES.forEach(k => schedulePropSync(k)); }
+    // Si algo no se pudo mandar, se reintenta solo; y al volver a la app se revisa si quedó algo sin publicar
+    const REINTENTO_MS = 30000;
+    function reenviarPendientes() {
+      if (!propListo) return;
+      syncTodosPropios();
+      AVAILABLE_MESES.forEach(k => scheduleCjSync(k));
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) reenviarPendientes(); });
+    window.addEventListener("online", reenviarPendientes);
 
     // En MI celular: aplica lo que descartó el admin y recupera lo publicado si este celular no lo tenía
     function procesarMisPropios() {

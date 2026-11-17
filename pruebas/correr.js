@@ -243,6 +243,25 @@ function chequear(nombre, cond, detalle) {
       chequear("(limpieza del acuerdo de prueba)", borrado === true, borrado);
     }
 
+    console.log("\nSi no se pudo publicar, no lo da por hecho y lo vuelve a mandar");
+    {
+      const dF = (s.d + 5) % 28;
+      const cF = await A.evaluate(([s, d]) => ["MS", "T", "N", "M", "T3"].find(c => c !== people[s.a].codes[d]), [s, dF]);
+      await A.evaluate(c => localStorage.setItem("__fallar", JSON.stringify(["propios_" + c])), APP);
+      await A.evaluate(([s, d, c]) => { openShiftPicker(s.a, d); applyShift(c); }, [s, dF, cF]);
+      await wait(2500);
+      const fallo = await A.evaluate(([s, d]) => cellMark(s.a, d), [s, dF]);
+      const enC1 = await C.evaluate(([s, d]) => people[s.a].codes[d], [s, dF]);
+      chequear("si falla al publicar, queda en ámbar (no como publicado) y los demás no lo ven", fallo === "own" && enC1 !== cF, { fallo, enC1, cF });
+      await A.evaluate(() => { localStorage.removeItem("__fallar"); document.dispatchEvent(new Event("visibilitychange")); });
+      await wait(3000);
+      const enC2 = await C.evaluate(([s, d]) => people[s.a].codes[d], [s, dF]);
+      const marca2 = await A.evaluate(([s, d]) => cellMark(s.a, d), [s, dF]);
+      chequear("al volver a la app lo manda solo y lo ven todos", enC2 === cF && marca2 === "pub", { enC2, marca2, cF });
+      await A.evaluate(([s, d]) => { openShiftPicker(s.a, d); document.getElementById("restoreShift").click(); }, [s, dF]);
+      await wait(2000);
+    }
+
     console.log("\nFila propia (publicada) y filas ajenas (solo en tu celular)");
     const d2 = (s.d + 3) % 28;
     await A.evaluate(([s, d2]) => { openShiftPicker(s.a, d2); applyShift("X"); document.getElementById("closeShift").click(); }, [s, d2]);

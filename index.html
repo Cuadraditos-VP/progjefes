@@ -4274,7 +4274,10 @@
     document.getElementById("restoreShift").addEventListener("click", () => {
       const original = ORIGINAL_CODES[shiftPersonIdx][shiftDayIdx];
       people[shiftPersonIdx].codes[shiftDayIdx] = original;
-      removeEdit(shiftPersonIdx, shiftDayIdx);
+      // Si un acuerdo cambió esa celda, volver a lo original es un cambio que tienen que ver todos
+      const acuR = ACU_CELDAS[(people[shiftPersonIdx] || {}).id + ":" + shiftDayIdx];
+      if (acuR !== undefined && acuR !== original) saveEdit(shiftPersonIdx, shiftDayIdx, original);
+      else removeEdit(shiftPersonIdx, shiftDayIdx);
       refreshAfterEdit();
       closeShiftPicker();
     });
@@ -6092,19 +6095,30 @@
     function aplicarAcuerdosATodos() {
       const out = {};
       ACU_CELDAS = {};
+      const ac = acuerdoCeldasDe(currentMes);
+      Object.keys(ac).forEach(key => {
+        const i = key.lastIndexOf(":"), id = key.slice(0, i), di = Number(key.slice(i + 1));
+        const p = people.find(q => String(q.id) === id);
+        if (!p || di >= p.codes.length) return;
+        p.codes[di] = ac[key].code;
+        out[key] = ac[key].t;
+        ACU_CELDAS[key] = ac[key].code;
+      });
+      return out;
+    }
+    // Celdas que cambió un acuerdo del banco de ese mes (todavía no pasado a lo oficial): "legajo:día" -> {code, t}
+    function acuerdoCeldasDe(mes) {
+      const out = {};
       let ca = {};
-      try { ca = changedAtDe(currentMes) || {}; } catch (e) {}
-      Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && !a.pasado && a.con && a.mes === currentMes)
+      try { ca = changedAtDe(mes) || {}; } catch (e) {}
+      Object.values(pedidosDocs).filter(a => a && a.estado === "acordado" && !a.pasado && a.con && a.mes === mes)
         .sort((x, y) => (x.t || 0) - (y.t || 0))
         .forEach(a => {
           (cambiosDeAcuerdo(a) || []).forEach(x => {
             const key = String(x.id) + ":" + x.di;
             if ((Number(ca[key]) || 0) > (a.t || 0)) return;
-            const p = people.find(q => String(q.id) === String(x.id));
-            if (!p || !x.code || x.di >= p.codes.length) return;
-            p.codes[x.di] = x.code;
-            out[key] = a.t || 0;
-            ACU_CELDAS[key] = x.code;
+            if (!x.code) return;
+            out[key] = { code: x.code, t: a.t || 0 };
           });
         });
       return out;
@@ -6138,12 +6152,18 @@
       const prev = propDocs[docId];
       const desc = (prev && prev.descartados) || {};
       const edits = {}, t = {};
+      const acu = acuerdoCeldasDe(mes);
       Object.keys(em).forEach(k => {
         const [a, di] = k.split(":").map(Number);
         if (a !== pi) return;
         const c = em[k] || "";
-        if (c === ((list[pi].codes || [])[di] || "")) return;
         const tm = times[miLegajo + ":" + di] || 0;
+        if (c === ((list[pi].codes || [])[di] || "")) {
+          // Igual a lo oficial: no hace falta publicarlo, salvo que un acuerdo haya cambiado esa celda
+          // y el dueño la haya vuelto a cambiar después (si no, los demás seguirían viendo lo del acuerdo)
+          const ac = acu[miLegajo + ":" + di];
+          if (!ac || ac.code === c || tm <= ac.t) return;
+        }
         const ds = desc["d" + di];
         if (ds && (ds.t || 0) >= tm) return; // el admin lo descartó después
         edits["d" + di] = c;

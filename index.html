@@ -1200,10 +1200,17 @@
     .cal-day.hoy-cal, .cal-day-h.hoy-cal {
       outline: 4px solid #0f766e;
       outline-offset: -4px;
-      animation: hoyTitila 1s ease-in-out infinite;
     }
+    /* Titila solo dos veces al abrir el almanaque; después queda el borde fijo */
+    .cal-day.hoy-titila, .cal-day-h.hoy-titila { animation: hoyTitila 0.7s ease-in-out 2; }
+    /* Grilla: al abrir la app, la columna de hoy titila dos veces */
+    @keyframes hoyColTitila {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: inset 0 0 0 999px rgba(15, 118, 110, 0.45); }
+    }
+    #scheduleWrap .hoy-col { animation: hoyColTitila 0.7s ease-in-out 2; }
     @media (prefers-reduced-motion: reduce) {
-      .cal-day.hoy-cal, .cal-day-h.hoy-cal { animation: none; }
+      .cal-day.hoy-titila, .cal-day-h.hoy-titila, #scheduleWrap .hoy-col { animation: none; }
     }
 
     /* Ocultar columna de nombre (solo legajo) */
@@ -4449,6 +4456,8 @@
     }
 
     function openPersonCalendar(pi) {
+      // Hoy titila solo al abrir el almanaque (no cada vez que se redibuja)
+      const hoyCls = personOverlay.classList.contains("open") ? " hoy-cal" : " hoy-cal hoy-titila";
       currentCalPi = pi;
       const person = people[pi];
       const codesArr = calModoPedir ? (person.codes || []) : codesFor(pi);
@@ -4462,7 +4471,7 @@
         const bg = code ? (colorMap[code] || "#e2e8f0") : "#f8fafc";
         const fg = code ? getTextColor(bg) : "#94a3b8";
         const mk = marcaCal(pi, d);
-        gridHtml += `<div class="cal-day${d === diaHoy() ? " hoy-cal" : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        gridHtml += `<div class="cal-day${d === diaHoy() ? hoyCls : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-num">${d + 1}</span>
           <span class="cal-code">${code || "·"}</span>
           ${cellComment(pi, d) ? '<span class="comment-dot"></span>' : ""}
@@ -4478,7 +4487,7 @@
         const fg = code ? getTextColor(bg) : "#94a3b8";
         const mk = marcaCal(pi, d);
         const wd = WEEKDAY_ABBR[(MES.startWd + d) % 7];
-        rowHtml += `<div class="cal-day-h${d === diaHoy() ? " hoy-cal" : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
+        rowHtml += `<div class="cal-day-h${d === diaHoy() ? hoyCls : ""}${mk ? " " + mk : ""}${cellComment(pi, d) ? " has-comment" : ""}" data-pi="${pi}" data-di="${d}" style="background:${bg};color:${fg}">
           <span class="cal-wd-h">${wd}</span>
           <span class="cal-num-h">${d + 1}</span>
           <span class="cal-code-h">${code || "·"}</span>
@@ -6222,6 +6231,22 @@
       window.scrollTo(0, p.y || 0);
       return true;
     }
+    // Al abrir: la grilla se corre para dejar el día de hoy en el medio y esa columna titila dos veces
+    function centrarHoyEnGrilla() {
+      const di = diaHoy();
+      const w = document.getElementById("scheduleWrap");
+      if (di < 0 || !w || selectedDay !== null) return;
+      const th = w.querySelector('thead th[data-di="' + di + '"]');
+      if (!th) return;
+      const fija = w.querySelector("thead th.sticky-col-2");
+      const wr = w.getBoundingClientRect();
+      const izq = fija ? fija.getBoundingClientRect().right : wr.left;
+      const r = th.getBoundingClientRect();
+      w.scrollLeft += (r.left + r.width / 2) - (izq + wr.right) / 2;
+      const celdas = w.querySelectorAll('th[data-di="' + di + '"], td[data-di="' + di + '"]');
+      celdas.forEach(el => el.classList.add("hoy-col"));
+      setTimeout(() => celdas.forEach(el => el.classList.remove("hoy-col")), 1600);
+    }
     // Al abrir se ve la grilla principal (en las dos apps)
     const ABRIR_ALMANAQUE_AL_INICIO = false;
     let almanaqueInicialHecho = false;
@@ -6230,7 +6255,7 @@
       if (miLegajo && !people.length) return; // todavía no llegaron los turnos
       almanaqueInicialHecho = true;
       // Al abrir se ve el inicio de la grilla (tras la recarga automática, donde estaba)
-      if (!ABRIR_ALMANAQUE_AL_INICIO) { setTimeout(volverAPosicion, 50); return; }
+      if (!ABRIR_ALMANAQUE_AL_INICIO) { setTimeout(() => { if (!volverAPosicion()) centrarHoyEnGrilla(); }, 50); return; }
       try { if (sessionStorage.getItem("almanaqueInicial")) return; } catch (e) {}
       if (currentUser === "ADMIN") return;
       const me = miPersona();

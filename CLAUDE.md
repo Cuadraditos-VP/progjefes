@@ -98,6 +98,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - Al abrir, la app muestra el inicio de la grilla principal (ni el grupo propio ni el almanaque:
   `ABRIR_ALMANAQUE_AL_INICIO = false`).
   Tras la recarga automática de 20 min vuelve a donde estaba (`recargaAutomatica` / `volverAPosicion`).
+  Si no (al abrir), la grilla se corre para dejar **hoy en el medio** y esa columna titila dos veces (`centrarHoyEnGrilla`, `hoy-col`).
+  En el almanaque individual, hoy tiene borde verde y titila dos veces solo al abrirlo (`hoy-cal`, `hoy-titila`).
 - Arriba: solo el selector de mes (el título solo si hay un único mes) y un botón con el
   apellido del usuario (`btnMiAlmanaque`) que abre su almanaque; el admin no lo ve.
 - Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al

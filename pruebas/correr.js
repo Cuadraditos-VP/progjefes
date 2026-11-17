@@ -1384,6 +1384,35 @@ function chequear(nombre, cond, detalle) {
       await SF.close(); await APP2.close(); await AJ.close();
     }
 
+    if (html.includes('deslizarParaCerrar("personOverlay"')) {
+      console.log("\nCerrar arrastrando hacia arriba (cuadro del turno y almanaque)");
+      const TT = await be.celular(browser, URL, "uDesliz", "guillermo.nemaric@gmail.com", errores, { tactil: true });
+      await wait(3000);
+      // Simula el dedo: toca el título y lo arrastra "dy" píxeles (negativo = hacia arriba)
+      const arrastrar = (pg, ovId, dy) => pg.evaluate(([ovId, dy]) => new Promise(res => {
+        const el = document.querySelector("#" + ovId + " .palette-header");
+        const r = el.getBoundingClientRect(), x = r.left + 20, y = r.top + 10;
+        const t = yy => new Touch({ identifier: 1, target: el, clientX: x, clientY: yy });
+        const ev = (tipo, yy) => el.dispatchEvent(new TouchEvent(tipo, { bubbles: true, cancelable: true,
+          touches: tipo === "touchend" ? [] : [t(yy)], changedTouches: [t(yy)] }));
+        ev("touchstart", y);
+        for (let k = 1; k <= 8; k++) ev("touchmove", y + dy * k / 8);
+        ev("touchend", y + dy);
+        setTimeout(() => res(document.getElementById(ovId).classList.contains("open")), 500);
+      }), [ovId, dy]);
+      const hay = await TT.evaluate(() => people.length > 0);
+      if (hay) {
+        await TT.evaluate(() => openPersonCalendar(0));
+        chequear("el almanaque no se cierra con un arrastre corto", await arrastrar(TT, "personOverlay", -30));
+        chequear("el almanaque se cierra arrastrándolo hacia arriba", !(await arrastrar(TT, "personOverlay", -200)));
+        chequear("y queda limpio (sin restos del arrastre)", await TT.evaluate(() => !document.querySelector("#personOverlay .palette-modal").style.transform &&
+          !document.getElementById("personOverlay").style.backgroundColor));
+        await TT.evaluate(() => openShiftPicker(0, 0));
+        chequear("el cuadro del turno se cierra arrastrándolo hacia arriba", !(await arrastrar(TT, "shiftOverlay", -200)));
+      } else chequear("hay gente para probar el arrastre", false);
+      await TT.close();
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

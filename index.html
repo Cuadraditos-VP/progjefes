@@ -4249,12 +4249,24 @@
       shiftOverlay.classList.add("open");
     }
 
-    // Cuadro del turno: arrastrando el dedo hacia arriba se va y se cierra (si se suelta antes, vuelve)
-    (function deslizarParaCerrar() {
-      const modal = shiftOverlay.querySelector(".palette-modal");
+    // Cuadros que se cierran arrastrando el dedo hacia arriba (si se suelta antes, vuelve).
+    // Para que se vea fluido: se mueve una vez por cuadro de pantalla (requestAnimationFrame), el fondo oscuro
+    // se aclara a la par (antes desaparecía de golpe al final y hacía un "chispazo") y no se cambia la
+    // transparencia del cuadro (eso lo hacía parpadear en algunos celulares).
+    function deslizarParaCerrar(overlayId, cerrar) {
+      const ov = document.getElementById(overlayId);
+      const modal = ov && ov.querySelector(".palette-modal");
       if (!modal) return;
-      let y0 = null, x0 = 0, dy = 0, arrastra = false, ignorarClick = false;
-      const volver = () => { modal.style.transition = ""; modal.style.transform = ""; modal.style.opacity = ""; };
+      let y0 = null, x0 = 0, dy = 0, arrastra = false, ignorarClick = false, raf = 0;
+      const pintar = () => {
+        raf = 0;
+        modal.style.transform = "translate3d(0," + dy + "px,0)";
+        ov.style.backgroundColor = "rgba(15,23,42," + (0.45 * Math.max(0, 1 + dy / 400)).toFixed(3) + ")";
+      };
+      const volver = () => {
+        modal.style.transition = ""; modal.style.transform = ""; modal.style.willChange = "";
+        ov.style.transition = ""; ov.style.backgroundColor = "";
+      };
       modal.addEventListener("touchstart", e => {
         y0 = null;
         if (e.touches.length !== 1 || e.target.closest("textarea, input")) return;
@@ -4266,12 +4278,13 @@
         if (y0 == null) return;
         const d = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
         if (!arrastra) {
-          if (d < -10 && Math.abs(d) > Math.abs(dx)) { arrastra = true; modal.style.transition = "none"; }
-          else { if (d > 10 || Math.abs(dx) > 10) y0 = null; return; }
+          if (d < -10 && Math.abs(d) > Math.abs(dx)) {
+            arrastra = true; y0 += d;   // arranca desde acá: sin salto al empezar
+            modal.style.transition = "none"; ov.style.transition = "none"; modal.style.willChange = "transform";
+          } else { if (d > 10 || Math.abs(dx) > 10) y0 = null; return; }
         }
-        dy = Math.min(0, d);
-        modal.style.transform = "translateY(" + dy + "px)";
-        modal.style.opacity = String(Math.max(0.3, 1 + dy / 300));
+        dy = Math.min(0, e.touches[0].clientY - y0);
+        if (!raf) raf = requestAnimationFrame(pintar);
         if (e.cancelable) e.preventDefault();
       }, { passive: false });
       const fin = () => {
@@ -4279,18 +4292,23 @@
         y0 = null;
         if (!arrastra) return;
         arrastra = false;
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
         ignorarClick = true; setTimeout(() => { ignorarClick = false; }, 400);
-        modal.style.transition = "transform .18s ease, opacity .18s ease";
-        if (dy < -80) {
-          modal.style.transform = "translateY(-120%)"; modal.style.opacity = "0";
-          setTimeout(() => { document.getElementById("closeShift").click(); volver(); }, 180);
-        } else { modal.style.transform = ""; modal.style.opacity = ""; setTimeout(volver, 200); }
+        modal.style.transition = "transform .2s ease-out"; ov.style.transition = "background-color .2s ease-out";
+        if (dy < -70) {
+          modal.style.transform = "translate3d(0," + (-(modal.getBoundingClientRect().bottom + 40)) + "px,0)";
+          ov.style.backgroundColor = "rgba(15,23,42,0)";
+          setTimeout(() => { cerrar(); volver(); }, 200);
+        } else { modal.style.transform = ""; ov.style.backgroundColor = ""; setTimeout(volver, 220); }
       };
       modal.addEventListener("touchend", fin);
       modal.addEventListener("touchcancel", fin);
-      // Que soltar el dedo sobre un turno no lo elija
+      // Que soltar el dedo sobre un turno o un día no lo elija
       modal.addEventListener("click", e => { if (ignorarClick && e.isTrusted) { e.stopPropagation(); e.preventDefault(); } }, true);
-    })();
+    }
+    // El cuadro del turno y el almanaque de cada uno
+    deslizarParaCerrar("shiftOverlay", () => document.getElementById("closeShift").click());
+    deslizarParaCerrar("personOverlay", () => document.getElementById("closePersonCal").click());
 
     // Hora de cada cambio personal, por legajo:día (para que el admin vea el último en "CJ")
     function editTimesKey(mes) { return "ctEditTimes:" + mes; }

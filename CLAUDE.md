@@ -79,6 +79,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   `syncPropios` espera a tener los pedidos (`pedListo`). Si publicar (propios o CJ) falla, no lo da por hecho (vuelve a ámbar)
   y reintenta a los 30 s (`REINTENTO_MS`); al volver a la app o a internet manda lo pendiente (`reenviarPendientes`).
   Las pruebas pueden demorar una colección (`localStorage` `__demora`) o hacer fallar escrituras (`__fallar`).
+  **Pedido quitado y conexión dormida** (caso Paz): en el iPhone la conexión en vivo con Firebase a veces se duerme y no avisa
+  que un pedido se quitó. Al volver a la app (tras >5 s afuera), al volver internet o al abrir Cambios se reconecta
+  (`refrescarConexion`: disableNetwork/enableNetwork). Al abrir un pedido se lo pide al servidor (`verificarPedido`); "Me sirve" y
+  confirmar van con transacción que revisa que el pedido siga en pie y el otro siga interesado (`guardarAcuerdo`); si no,
+  se saca del celular y avisa con un cartelito (`pedidoYaNoEsta`).
   Se ven en el **banco de cambios**: el botón Cambios abre un cuadro (fondo oscuro) con el
   almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
   sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";

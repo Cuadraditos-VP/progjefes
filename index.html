@@ -1750,6 +1750,7 @@
         <button class="close-btn" id="closeShift" title="Cerrar">×</button>
       </div>
       <div id="shiftAlcance"></div>
+      <button type="button" class="bd-pedir" id="shiftPedir" style="display:none;margin:0 0 10px">⇄ Pedir cambio</button>
       <div class="shift-grid" id="shiftGrid"></div>
       <div id="shiftCommentWrap">
         <label for="shiftComment">Comentario</label>
@@ -4218,6 +4219,12 @@
       const ta = document.getElementById("shiftComment");
       if (ta) ta.value = commentsMap[pi + ":" + di] || "";
       document.body.classList.add("shift-open");
+      // En su propia fila: botón para pedir cambio de ese día (o ver el pedido que ya tiene)
+      const bpS = document.getElementById("shiftPedir");
+      const meS = miPersona();
+      const pideS = !!meS && meS.pi === pi && !diaPasado(di) && actualDe(pi, di) !== "LIC";
+      bpS.style.display = pideS ? "" : "none";
+      if (pideS) bpS.textContent = pedidoDe(person.id, di) ? "⇄ Ver mi pedido de cambio del " + (di + 1) : "⇄ Pedir cambio el " + (di + 1);
       shiftOverlay.classList.add("open");
     }
 
@@ -4297,6 +4304,12 @@
       else delete commentsMap[k];
       saveComments();
     }
+    document.getElementById("shiftPedir").addEventListener("click", () => {
+      const pi = shiftPersonIdx, di = shiftDayIdx;
+      if (pi == null || di == null) return;
+      closeShiftPicker();
+      openPedido(pi, di);
+    });
     function closeShiftPicker() {
       persistComment();
       document.body.classList.remove("shift-open");
@@ -6285,6 +6298,11 @@
       celdas.forEach(el => el.classList.add("hoy-col"));
       setTimeout(() => celdas.forEach(el => el.classList.remove("hoy-col")), 1600);
     }
+    // Al volver a la app tras 30 min sin usarla: igual que al abrirla, salvo que tenga una ventana abierta
+    function centrarAlVolver() {
+      if (document.querySelector('.open[id$="Overlay"]') || pedidosMode) return;
+      setTimeout(centrarHoyEnGrilla, 50);
+    }
     // Al abrir se ve la grilla principal (en las dos apps)
     const ABRIR_ALMANAQUE_AL_INICIO = false;
     let almanaqueInicialHecho = false;
@@ -7214,7 +7232,7 @@
     if (!document.hidden) marcarEnUso();
     function revisarUso() {
       if (document.hidden) return;
-      if (volvioTrasPausa()) aperturaContada = false;
+      if (volvioTrasPausa()) { aperturaContada = false; centrarAlVolver(); }
       marcarEnUso();
       contarApertura();
     }

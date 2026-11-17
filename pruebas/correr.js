@@ -262,6 +262,51 @@ function chequear(nombre, cond, detalle) {
       await wait(2000);
     }
 
+    console.log("\nAl volver a la app tras un rato, la grilla se centra en hoy");
+    {
+      const volver = (pg, ventana) => pg.evaluate(async ventana => {
+        const h = window.__HOY; window.__HOY = new Date(MES.y, MES.m - 1, 20, 12).getTime();
+        const w = document.getElementById("scheduleWrap"); w.scrollLeft = 0;
+        if (ventana) { await new Promise(r => setTimeout(r, 1800)); const me = miPersona(); openShiftPicker(me.pi, [...Array(DAYS).keys()].find(x => puedeEditar(me.pi, x))); }
+        localStorage.setItem(EN_USO_KEY, String(Date.now() - 31 * 60 * 1000));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await new Promise(r => setTimeout(r, 300));
+        const r = { left: w.scrollLeft, titila: document.querySelectorAll(".hoy-col").length > 0, ventana: shiftOverlay.classList.contains("open") };
+        if (ventana) closeShiftPicker();
+        window.__HOY = h; return r;
+      }, ventana);
+      const v1 = await volver(A, false);
+      chequear("tras más de 30 min sin usarla, al volver se centra en hoy y titila", v1.left > 0 && v1.titila, v1);
+      const v2 = await volver(A, true);
+      chequear("si tenía una ventana abierta, no se mueve", v2.ventana && v2.left === 0 && !v2.titila, v2);
+      const v3 = await A.evaluate(async () => {
+        const h = window.__HOY; window.__HOY = new Date(MES.y, MES.m - 1, 20, 12).getTime();
+        const w = document.getElementById("scheduleWrap"); w.scrollLeft = 0;
+        document.dispatchEvent(new Event("visibilitychange"));
+        await new Promise(r => setTimeout(r, 300));
+        window.__HOY = h; return w.scrollLeft;
+      });
+      chequear("si volvió enseguida, queda donde estaba", v3 === 0, v3);
+      // Desde el cuadro de un turno propio se puede pedir cambio de ese día
+      const pc = await A.evaluate(s => {
+        const me = miPersona(), b = document.getElementById("shiftPedir");
+        const d = [...Array(DAYS).keys()].find(x => puedeEditar(me.pi, x) && !pedidoDe(people[me.pi].id, x) && !diaPasado(x) && actualDe(me.pi, x) !== "LIC");
+        openShiftPicker(me.pi, d);
+        const r = { ve: getComputedStyle(b).display !== "none", txt: b.textContent };
+        b.click();
+        r.pedido = pedidoOverlay.classList.contains("open") && pedPi === me.pi && pedDi === d;
+        r.cerro = !shiftOverlay.classList.contains("open");
+        closePedido();
+        const otro = people.findIndex((p, i) => i !== me.pi && puedeEditar(i, d));
+        openShiftPicker(otro, d);
+        r.ajeno = getComputedStyle(b).display === "none";
+        closeShiftPicker();
+        return r;
+      }, s);
+      chequear("en el cuadro de un turno propio aparece \"Pedir cambio\" y abre el pedido de ese día", pc.ve && /Pedir cambio el/.test(pc.txt) && pc.pedido && pc.cerro, pc);
+      chequear("en un turno ajeno no aparece", pc.ajeno, pc);
+    }
+
     console.log("\nFila propia (publicada) y filas ajenas (solo en tu celular)");
     const d2 = (s.d + 3) % 28;
     await A.evaluate(([s, d2]) => { openShiftPicker(s.a, d2); applyShift("X"); document.getElementById("closeShift").click(); }, [s, d2]);

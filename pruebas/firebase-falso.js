@@ -22,6 +22,9 @@
   function write(coll, id, op, data, opts) {
     // Sin internet: lo escrito queda esperando (como en Firebase, que no confirma hasta que vuelve la red)
     if (window.__SIN_RED) return new Promise(() => {});
+    // Para probar errores al mandar: localStorage "__fallar" = [colecciones] → esas escrituras fallan
+    let fallar = []; try { fallar = JSON.parse(localStorage.getItem("__fallar") || "[]"); } catch (e) {}
+    if (fallar.includes(coll)) { const e = new Error("unavailable"); e.code = "unavailable"; return Promise.reject(e); }
     return window.__fbWrite(enc({ coll, id, op, data, opts, uid: window.__UID, email: window.__EMAIL || null }))
       .then(r => { if (r && r !== "ok") { const e = new Error(r); e.code = r; throw e; } });
   }
@@ -54,7 +57,9 @@
       get: () => puede(coll, null).then(ok => { if (!ok) throw denegado(); const docs = Object.entries(local[coll] || {}).map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: f => docs.forEach(f), size: docs.length, empty: !docs.length }; }),
       onSnapshot: (cb, errCb) => {
         const l = { coll, id: null, cb }; let vivo = true;
-        puede(coll, null).then(ok => {
+        // Para probar el orden de carga: localStorage "__demora" = {colección: ms} demora la primera entrega
+        let dem = 0; try { dem = (JSON.parse(localStorage.getItem("__demora") || "{}") || {})[coll] || 0; } catch (e) {}
+        puede(coll, null).then(ok => new Promise(r => setTimeout(() => r(ok), dem))).then(ok => {
           if (!vivo) return;
           if (!ok) { if (errCb) errCb(denegado()); return; }
           listeners.push(l);

@@ -76,6 +76,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   en lo oficial, manda lo oficial; lo que el dueño publicó antes del acuerdo no lo tapa).
   Si después del acuerdo el dueño vuelve a su turno de antes (igual a lo oficial, o con Restaurar), igual se publica
   en su `propios_*` para tapar el acuerdo (`acuerdoCeldasDe` en `syncPropios`; caso Nemaric/Paz).
+  `syncPropios` espera a tener los pedidos (`pedListo`). Si publicar (propios o CJ) falla, no lo da por hecho (vuelve a ámbar)
+  y reintenta a los 30 s (`REINTENTO_MS`); al volver a la app o a internet manda lo pendiente (`reenviarPendientes`).
+  Las pruebas pueden demorar una colección (`localStorage` `__demora`) o hacer fallar escrituras (`__fallar`).
   Se ven en el **banco de cambios**: el botón Cambios abre un cuadro (fondo oscuro) con el
   almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
   sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";

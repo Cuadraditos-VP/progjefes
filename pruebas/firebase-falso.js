@@ -54,7 +54,9 @@
       get: () => puede(coll, null).then(ok => { if (!ok) throw denegado(); const docs = Object.entries(local[coll] || {}).map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: f => docs.forEach(f), size: docs.length, empty: !docs.length }; }),
       onSnapshot: (cb, errCb) => {
         const l = { coll, id: null, cb }; let vivo = true;
-        puede(coll, null).then(ok => {
+        // Para probar el orden de carga: localStorage "__demora" = {colección: ms} demora la primera entrega
+        let dem = 0; try { dem = (JSON.parse(localStorage.getItem("__demora") || "{}") || {})[coll] || 0; } catch (e) {}
+        puede(coll, null).then(ok => new Promise(r => setTimeout(() => r(ok), dem))).then(ok => {
           if (!vivo) return;
           if (!ok) { if (errCb) errCb(denegado()); return; }
           listeners.push(l);

@@ -220,6 +220,20 @@ function chequear(nombre, cond, detalle) {
       await wait(2500);
       const rest = await C.evaluate(([s, t]) => people[s.a].codes[t.d], [s, t]);
       chequear("y si lo restaura a lo original, también", rest === t.x, { rest, esperado: t.x });
+      // Caso Nemaric: el cambio quedó en su celular pero no publicado (de antes del arreglo). Al abrir la app
+      // tiene que publicarlo aunque los acuerdos lleguen después que sus propios
+      await A.evaluate(async ([s, t]) => {
+        const id = currentMes + "_" + people[s.a].id, d = propDocs[id], edits = Object.assign({}, d.edits), tt = Object.assign({}, d.t || {});
+        delete edits["d" + t.d]; delete tt["d" + t.d];
+        await fbDb.collection(PROP_COLLECTION).doc(id).set({ edits, t: tt, updated: Date.now() }, { mergeFields: ["edits", "t", "updated"] });
+      }, [s, t]);
+      await wait(1500);
+      const sinPub = await C.evaluate(([s, t]) => people[s.a].codes[t.d], [s, t]);
+      await A.evaluate(c => localStorage.setItem("__demora", JSON.stringify({ [c]: 2500 })), "pedidos_" + APP);
+      await A.reload(); await wait(6000);
+      await A.evaluate(() => localStorage.removeItem("__demora"));
+      const alAbrir = await C.evaluate(([s, t]) => people[s.a].codes[t.d], [s, t]);
+      chequear("si no estaba publicado, al abrir la app lo publica (aunque los acuerdos lleguen después)", sinPub === t.y && alAbrir === t.x, { sinPub, alAbrir, esperado: t.x });
       // Se borra este acuerdo para no mezclarlo con las pruebas que siguen
       const borrado = await A.evaluate(async ([s, t]) => {
         const k = Object.keys(pedidosDocs).find(k => { const a = pedidosDocs[k]; return a && a.estado === "acordado" && String(a.id) === String(people[s.a].id) && a.dia === t.d + 1; });

@@ -83,7 +83,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
   sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";
   el día del franco ofrecido dice "busca F el N"); cada una abre el cuadro del pedido
-  (`openPedido`), y "＋ Pedir cambio el N" carga uno propio. La grilla ya no muestra pedidos.
+  (`openPedido`), y "＋ Pedir cambio el N" carga uno propio.
+  **Propuestas en la grilla** (vista A y D, `propClase`/`propuestaEn`): en la celda del que ofrece (o del franco ofrecido)
+  va una rayita abajo: **verde + borde verde** = te sirve (`prop-sirve`), **gris** = no te sirve (`prop`), **★** = tu propio pedido
+  (`prop-mio`). Hoy y lo pasado, nada. Tocar la celda de otro abre el pedido (con "✎ Cambiar a mano"). El admin y la División
+  (en D, reemplaza a la esquinita celeste de antes) ven todas en gris.
   Los cambios vencen el mismo día: hoy y los días pasados quedan grises en el banco (`diaPasado`),
   y los pedidos sin acordar de hoy desaparecen (`pedidoVencido`). El banco arranca en mañana.
   Excepción: la División y el admin sí pueden tocar hoy en el banco (para un cambio de palabra).
@@ -114,7 +118,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   apellido del usuario (`btnMiAlmanaque`) que abre su almanaque; el admin no lo ve.
 - Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al
   instante y sin internet; solo en registrados/admin y se borra si el admin libera el celular.
-- Colores de celdas: ámbar = cambio solo en este celular; azul = publicado.
+- Colores de celdas: ámbar = cambio solo en este celular; azul = publicado. **El usuario común ve el azul solo en su
+  propia fila** (lo que publicó él o le cambió el admin/División); en las demás ve el turno nuevo sin marca (a pedido de
+  Guillermo, para no ensuciar la grilla). El ámbar sí en cualquier fila. El admin ve todo como siempre (`cellMark`).
 - **Nube del iPhone**: el iPhone nuevo pone un difuminado debajo de la hora que tapaba los botones de arriba. En
   iPhone/iPad el encabezado baja 44px (`ios-nube`, con `ES_IOS`). Ya se probó cambiar `viewport-fit`/`status-bar-style`
   en jefes y quedó peor (se volvió atrás): no tocar eso, que obliga a reinstalar la app.

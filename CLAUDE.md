@@ -112,8 +112,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   En el almanaque individual, hoy tiene borde verde y titila dos veces solo al abrirlo (`hoy-cal`, `hoy-titila`).
 - **Pedir cambio desde el cuadro del turno**: al tocar un turno propio (no pasado, no LIC) aparece arriba "⇄ Pedir cambio el N"
   (o "Ver mi pedido…"), que abre `openPedido` de ese día (`shiftPedir`).
-  Ese cuadro se cierra arrastrándolo con el dedo hacia arriba (`deslizarParaCerrar`, más de 80 px; si es más alto que la
-  pantalla, solo desde el título; soltar sobre un turno no lo elige).
+  Ese cuadro y el almanaque individual se cierran arrastrándolos con el dedo hacia arriba (`deslizarParaCerrar(overlayId, cerrar)`,
+  más de 70 px; si es más alto que la pantalla, solo desde el título; soltar sobre un turno/día no lo elige). Para que no
+  "chispee": se mueve con requestAnimationFrame, el fondo oscuro se aclara a la par y no se toca la opacidad del cuadro.
 - Arriba: solo el selector de mes (el título solo si hay un único mes) y un botón con el
   apellido del usuario (`btnMiAlmanaque`) que abre su almanaque; el admin no lo ve.
 - Copia de los meses en el celular (cajeros `cajTurnos:<mes>`, jefes `ctFb:<mes>`) para abrir al

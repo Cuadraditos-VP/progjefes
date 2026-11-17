@@ -206,7 +206,9 @@ function chequear(nombre, cond, detalle) {
       chequear("con el celular del otro cerrado, el que confirmó ve las dos filas", (await verE(A)) === espE, await verE(A));
       chequear("con el celular del otro cerrado, un tercero ve las dos filas", (await verE(C)) === espE, await verE(C));
       const colE = await C.evaluate(([s, t]) => cellMark(t.e, t.d), [s, t]);
-      chequear("la fila del otro se ve en azul (no en ámbar)", colE === "pub", colE);
+      chequear("la fila del otro (publicada) se ve sin marca para un tercero (ni azul ni ámbar)", colE === "", colE);
+      const colEA = await A.evaluate(([s, t]) => cellMark(s.a, t.d), [s, t]);
+      chequear("en su propia fila sí la ve en azul", colEA === "pub", colEA);
       await C.evaluate(() => cerrarAvisos()); await A.evaluate(() => cerrarAvisos());
       // Después del acuerdo, el dueño vuelve a su turno de antes (igual a lo oficial): los demás lo tienen que ver
       await A.evaluate(([s, t]) => { openShiftPicker(s.a, t.d); applyShift(t.x); }, [s, t]);
@@ -491,7 +493,8 @@ function chequear(nombre, cond, detalle) {
       chequear("queda en lo oficial (Firebase)", codA === c2, codA);
       chequear("lo del admin manda: C lo ve", (await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
       chequear("y A también", (await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
-      chequear("sigue marcado como cambiado (azul) para los demás", await C.evaluate(([s, d5]) => markClass(s.a, d5) === "changed", [s, d5]));
+      chequear("al dueño le queda marcado en azul en su fila (lo cambió el admin)", await A.evaluate(([s, d5]) => markClass(s.a, d5) === "changed", [s, d5]));
+      chequear("a los demás les aparece sin marca", await C.evaluate(([s, d5]) => markClass(s.a, d5) === "", [s, d5]));
       await A.evaluate(() => cerrarAvisos());
       // A lo vuelve a cambiar: al admin le llega un aviso
       await AD.evaluate(() => cerrarAvisos());
@@ -852,15 +855,26 @@ function chequear(nombre, cond, detalle) {
         pedTengoSel = t; guardarPedido(s.a, d6, [q]); closePedido(); return q; }, [s, d6]);
       await wait(1500);
       const pedId = s.mes + "_" + s.ida + "_" + (d6 + 1);
-      // En D, el pedido sin acordar se marca en celeste (sin cambiar el turno) y al tocarlo se abre el pedido
+      // En D, el pedido sin acordar lleva la rayita gris (sin cambiar el turno) y al tocarlo se abre el pedido
       const enDPed = await D.evaluate(([s, d6]) => { const r = { m: cellMark(s.a, d6), igual: codesFor(s.a)[d6] === (INITIAL_CODES[s.a] || [])[d6],
-          td: !!document.querySelector('td.dpedido[data-pi="' + s.a + '"][data-di="' + d6 + '"]') };
+          td: !!document.querySelector('td.prop[data-pi="' + s.a + '"][data-di="' + d6 + '"]') };
         document.querySelector('td[data-pi="' + s.a + '"][data-di="' + d6 + '"]').click();
         r.cuadro = document.getElementById("pedidoOverlay").classList.contains("open");
         r.picker = document.getElementById("shiftOverlay").classList.contains("open");
         r.mano = !!document.querySelector("#pedidoBody .ped-mano"); closePedido(); return r; }, [s, d6]);
-      chequear("en D, el pedido sin acordar se ve en celeste y abre el pedido (con \"Cambiar a mano\")",
-        enDPed.m === "dped" && enDPed.td && enDPed.igual && enDPed.cuadro && !enDPed.picker && enDPed.mano, enDPed);
+      chequear("en D, el pedido sin acordar se ve con la rayita gris y abre el pedido (con \"Cambiar a mano\")",
+        enDPed.m === "" && enDPed.td && enDPed.igual && enDPed.cuadro && !enDPed.picker && enDPed.mano, enDPed);
+      // En la grilla (A): el que pidió ve su ★; los demás, la rayita (verde con borde si les sirve) y al tocarla se abre el pedido
+      const enAPed = await A.evaluate(([s, d6]) => !!document.querySelector('td.prop-mio[data-pi="' + s.a + '"][data-di="' + d6 + '"]'), [s, d6]);
+      chequear("en la grilla, el que pidió ve la ★ en su celda", enAPed);
+      const enBPed = await B.evaluate(([s, d6]) => { const td = document.querySelector('td[data-pi="' + s.a + '"][data-di="' + d6 + '"]');
+        const me = miPersona(); const sirve = !!me && aceptaTurno(pedidoDe(people[s.a].id, d6), actualDe(me.pi, d6));
+        const r = { cls: td.classList.contains(sirve ? "prop-sirve" : "prop"), sirve };
+        td.click(); r.cuadro = document.getElementById("pedidoOverlay").classList.contains("open");
+        r.picker = document.getElementById("shiftOverlay").classList.contains("open");
+        r.mano = !!document.querySelector("#pedidoBody .ped-mano"); closePedido(); return r; }, [s, d6]);
+      chequear("los demás ven la propuesta en la grilla y al tocarla se abre el pedido (con \"Cambiar a mano\")",
+        enBPed.cls && enBPed.cuadro && !enBPed.picker && enBPed.mano, enBPed);
       const caja = await D.evaluate(([s, d6]) => { openPedido(s.a, d6); const b = document.querySelector("#pedidoBody .ped-div button");
         return b ? b.textContent : ""; }, [s, d6]);
       chequear("en el pedido de A la División ve \"Autorizar\"", /Autorizar/.test(caja) && caja.indexOf(quiere) >= 0, caja);

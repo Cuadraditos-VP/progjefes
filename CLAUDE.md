@@ -127,6 +127,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
 - Colores de celdas: ámbar = cambio solo en este celular; azul = publicado. **El usuario común ve el azul solo en su
   propia fila** (lo que publicó él o le cambió el admin/División); en las demás ve el turno nuevo sin marca (a pedido de
   Guillermo, para no ensuciar la grilla). El ámbar sí en cualquier fila. El admin ve todo como siempre (`cellMark`).
+  En su propia fila, lo que oficializó el admin o la División (igual a lo oficial pero distinto de la inicial) va con
+  esquinita **verde** (`ofi` → clase `oficial`) y lo que publicó él, azul (a pedido de Guillermo, para distinguirlos).
 - **Nube del iPhone**: el iPhone nuevo pone un difuminado debajo de la hora que tapaba los botones de arriba. En
   iPhone/iPad el encabezado baja 44px (`ios-nube`, con `ES_IOS`). Ya se probó cambiar `viewport-fit`/`status-bar-style`
   en jefes y quedó peor (se volvió atrás): no tocar eso, que obliga a reinstalar la app.

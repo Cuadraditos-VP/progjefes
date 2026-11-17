@@ -1164,6 +1164,14 @@
       border-color: transparent #2563eb transparent transparent;
       pointer-events: none; z-index: 3;
     }
+    /* Tu fila (usuario común): verde = lo oficializó el admin o la División; azul = lo publicaste vos */
+    td.oficial, .cal-day.oficial, .cal-day-h.oficial { position: relative; }
+    td.oficial::before, .cal-day.oficial::before, .cal-day-h.oficial::before {
+      content: ""; position: absolute; top: 0; right: 0; width: 0; height: 0;
+      border-style: solid; border-width: 0 12px 12px 0;
+      border-color: transparent #16a34a transparent transparent;
+      pointer-events: none; z-index: 3;
+    }
     /* Vista D (División): naranja = acordado entre los dos (falta avalarlo); verde = avalado (ya es oficial) */
     td.dacordado, td.davalado, .cal-day.dacordado, .cal-day.davalado, .cal-day-h.dacordado, .cal-day-h.davalado { position: relative; }
     td.dacordado::before, td.davalado::before, .cal-day.dacordado::before, .cal-day.davalado::before,
@@ -2412,12 +2420,14 @@
       if (viewMode === "actual" && shown !== ((ORIGINAL_CODES[pi] || [])[di] || ""))
         return propCode(currentMes, (people[pi] || {}).id, di) === shown || ACU_CELDAS[(people[pi] || {}).id + ":" + di] === shown ? azul : "own";
       const ini = INITIAL_CODES[pi];
-      if (ini && shown !== (ini[di] || "")) return azul;
+      // En su propia fila, el usuario común ve en verde lo que oficializó el admin o la División
+      // (y en azul lo que publicó él), para distinguirlos
+      if (ini && shown !== (ini[di] || "")) return viewMode === "actual" && currentUser !== "ADMIN" && esMiFila(people[pi] || {}) ? "ofi" : azul;
       return "";
     }
     function markClass(pi, di) {
       const m = cellMark(pi, di);
-      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : (m === "cjp" ? "cjpropio" : (m === "dacu" ? "dacordado" : (m === "daval" ? "davalado" : (m === "dped" ? "dpedido" : ""))))));
+      return m === "own" ? "edited" : (m === "pub" ? "changed" : (m === "cj" ? "cjchanged" : (m === "cjp" ? "cjpropio" : (m === "dacu" ? "dacordado" : (m === "daval" ? "davalado" : (m === "dped" ? "dpedido" : (m === "ofi" ? "oficial" : "")))))));
     }
     function cellWasEdited(pi, fromDi, toDi) {
       if (viewMode !== "actual") return false;
@@ -4637,7 +4647,7 @@
         ctx.lineTo(x + w, y);
         ctx.lineTo(x + w, y + 16);
         ctx.closePath();
-        ctx.fillStyle = edited === "pub" ? "#2563eb" : "#b45309";
+        ctx.fillStyle = edited === "pub" ? "#2563eb" : edited === "ofi" ? "#16a34a" : "#b45309";
         ctx.fill();
         ctx.restore();
       }

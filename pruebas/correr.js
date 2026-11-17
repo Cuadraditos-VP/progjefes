@@ -493,7 +493,7 @@ function chequear(nombre, cond, detalle) {
       chequear("queda en lo oficial (Firebase)", codA === c2, codA);
       chequear("lo del admin manda: C lo ve", (await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await C.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
       chequear("y A también", (await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5])) === c2, await A.evaluate(([s, d5]) => people[s.a].codes[d5], [s, d5]));
-      chequear("al dueño le queda marcado en azul en su fila (lo cambió el admin)", await A.evaluate(([s, d5]) => markClass(s.a, d5) === "changed", [s, d5]));
+      chequear("al dueño le queda marcado en verde en su fila (lo oficializó el admin)", await A.evaluate(([s, d5]) => markClass(s.a, d5) === "oficial", [s, d5]));
       chequear("a los demás les aparece sin marca", await C.evaluate(([s, d5]) => markClass(s.a, d5) === "", [s, d5]));
       await A.evaluate(() => cerrarAvisos());
       // A lo vuelve a cambiar: al admin le llega un aviso

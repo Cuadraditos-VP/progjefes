@@ -616,6 +616,40 @@ function chequear(nombre, cond, detalle) {
     chequear("sin internet sigue viendo lo guardado", (await veDatos(OF)) && of.reg && !of.vacio, of);
     await OF.close();
 
+    if (html.includes("function pedidoYaNoEsta")) {
+      console.log("\nPedido quitado que este celular todavía ve (conexión dormida)");
+      // B cree que A tiene un pedido que en Firebase ya no está
+      const fant = await B.evaluate(s => new Promise(res => {
+        const d = [...Array(DAYS).keys()].reverse().find(x => !diaPasado(x) && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)));
+        if (d == null) return res(null);
+        const id = pedDocId(currentMes, people[s.a].id, d);
+        pedidosDocs[id] = { mes: currentMes, id: String(people[s.a].id), name: people[s.a].name, dia: d + 1, quiere: "*", acepta: ["*"], ofrece: actualDe(s.a, d), t: Date.now() };
+        refreshAfterEdit();
+        const antes = !!pedidoDe(people[s.a].id, d);
+        responderPedido(s.a, d, true);
+        setTimeout(() => {
+          const t = document.getElementById("shareToast");
+          res({ antes, despues: !!pedidosDocs[id], abierto: document.getElementById("pedidoOverlay").classList.contains("open"), toast: t && t.textContent });
+        }, 1500);
+      }), s);
+      if (fant) {
+        chequear("\"Me sirve\" a un pedido que ya no está no se guarda", fant.antes && !fant.despues && !fant.abierto, fant);
+        chequear("y avisa que lo quitaron", /ya no está/.test(fant.toast || ""), fant.toast);
+      }
+      // Al abrir un pedido que ya no está, se va solo
+      const fant2 = await B.evaluate(s => new Promise(res => {
+        const d = [...Array(DAYS).keys()].reverse().find(x => !diaPasado(x) && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)));
+        if (d == null) return res(null);
+        const id = pedDocId(currentMes, people[s.a].id, d);
+        pedidosDocs[id] = { mes: currentMes, id: String(people[s.a].id), name: people[s.a].name, dia: d + 1, quiere: "*", acepta: ["*"], ofrece: actualDe(s.a, d), t: Date.now() };
+        refreshAfterEdit();
+        openPedido(s.a, d);
+        const antes = document.getElementById("pedidoOverlay").classList.contains("open");
+        setTimeout(() => res({ antes, despues: !!pedidosDocs[id], abierto: document.getElementById("pedidoOverlay").classList.contains("open") }), 1500);
+      }), s);
+      if (fant2) chequear("al abrir un pedido que ya no está, se cierra y desaparece", fant2.antes && !fant2.despues && !fant2.abierto, fant2);
+    }
+
     console.log("\nCelda del franco ofrecido");
     const fr = await A.evaluate(s => {
       const f = [...Array(DAYS).keys()].find(x => x !== s.d && actualDe(s.a, x) === "F");

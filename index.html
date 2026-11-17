@@ -5012,7 +5012,7 @@
       document.body.classList.toggle("pedidos-on", on);
       // Cambios se abre como un cuadro arriba de la grilla (con el fondo oscuro)
       document.getElementById("bancoOverlay").classList.toggle("open", on);
-      if (on) { startPedidos(); updatePedidosBar(); }
+      if (on) { startPedidos(); updatePedidosBar(); refrescarConexion(); }
       refreshAfterEdit();
       // Al admin no se le pregunta "¿Quién sos?" (lo puede abrir con el botón si quiere asignar el celular)
       if (on && !miPersona() && !soyExterno() && currentUser !== "ADMIN") openYo();
@@ -5421,7 +5421,9 @@
       if (!veCambiosAjenos()) { openYo(); return; }
       const diTocado = di;
       if (!pedidoDe(p.id, di) && refDia(pi, di) != null) di = refDia(pi, di);
+      const recienAbierto = !(pedidoOverlay.classList.contains("open") && pedPi === pi && pedDi === di);
       pedPi = pi; pedDi = di; pedDiTocado = diTocado;
+      if (recienAbierto) setTimeout(() => verificarPedido(pi, di), 0);
       const me = miPersona();
       const esMio = me && me.pi === pi;
       const ped = pedidoDe(p.id, di);
@@ -5858,9 +5860,64 @@
       refreshAfterEdit();
       // Solo se toca la respuesta propia: así dos que responden a la vez no se pisan
       const campo = "respuestas." + me.p.id;
-      fbDb.collection(PED_COLLECTION).doc(id)
-        .update({ [campo]: si ? resp[me.p.id] : firebase.firestore.FieldValue.delete() }).catch(errPed);
+      const ref = fbDb.collection(PED_COLLECTION).doc(id);
+      if (!si) { ref.update({ [campo]: firebase.firestore.FieldValue.delete() }).catch(errPed); return; }
+      // "Me sirve": antes se mira en Firebase que el pedido siga en pie (si lo quitaron, no se responde)
+      fbDb.runTransaction(tx => tx.get(ref).then(snap => {
+        const f = snap.exists ? snap.data() : null;
+        if (!f || !f.quiere || cerrado(f) || f.estado === "rechazado") { const e = new Error("ya-no-esta"); e.code = "ya-no-esta"; e.f = f; throw e; }
+        tx.update(ref, { [campo]: resp[me.p.id] });
+      })).catch(err => {
+        if (err && (err.code === "ya-no-esta" || err.code === "not-found")) pedidoYaNoEsta(id, err.f || null, d.name);
+        else errPed(err);
+      });
     }
+    // El pedido ya no está (lo quitaron o se cerró con otro): se saca de este celular y se avisa
+    function pedidoYaNoEsta(id, fresco, nombre) {
+      if (fresco) pedidosDocs[id] = fresco; else delete pedidosDocs[id];
+      const abierto = pedidoOverlay.classList.contains("open") && pedPi !== null && pedDocId(currentMes, people[pedPi].id, pedDi) === id;
+      if (abierto) closePedido();
+      aplicarAcuerdos();
+      resetPeopleFromOfficial();
+      refreshAfterEdit();
+      updatePedidosBar();
+      showShareToast(fresco && cerrado(fresco) ? "Ese pedido ya se cerró con otra persona." : "Ese pedido ya no está: " + (nombre ? nombre + " lo quitó." : "lo quitaron."));
+    }
+    // Al abrir un pedido se lo pide a Firebase (no a la copia del celular) por si cambió y la conexión en vivo no avisó
+    function verificarPedido(pi, di) {
+      if (!fbReady || !fbDb || !navigator.onLine || !people[pi]) return;
+      const id = pedDocId(currentMes, people[pi].id, di);
+      const local = pedidosDocs[id];
+      if (!local || cerrado(local)) return;
+      let ref;
+      try { ref = fbDb.collection(PED_COLLECTION).doc(id); } catch (e) { return; }
+      ref.get({ source: "server" }).then(snap => {
+        const f = snap.exists ? snap.data() : null;
+        if (!f || cerrado(f) || f.estado === "rechazado" || !f.quiere) { pedidoYaNoEsta(id, f, local.name); return; }
+        if (JSON.stringify(f) !== JSON.stringify(pedidosDocs[id])) {
+          pedidosDocs[id] = f;
+          refreshAfterEdit();
+          if (pedidoOverlay.classList.contains("open") && pedPi !== null && pedDocId(currentMes, people[pedPi].id, pedDi) === id) openPedido(pedPi, pedDiTocado != null ? pedDiTocado : pedDi);
+          if (pedidosMode) renderBanco();
+        }
+      }).catch(() => {});
+      // De paso, se despierta la conexión en vivo
+      refrescarConexion();
+    }
+    // En el iPhone (y a veces en Android) la conexión en vivo con Firebase se queda dormida al guardar la app
+    // y no avisa lo que cambió (caso Paz). Al volver a la app, al volver internet o al abrir Cambios se reconecta.
+    let ultReconexion = 0, ocultaDesde = 0;
+    function refrescarConexion(forzar) {
+      if (!fbReady || !fbDb || !navigator.onLine || !fbDb.disableNetwork) return;
+      if (!forzar && Date.now() - ultReconexion < 20000) return;
+      ultReconexion = Date.now();
+      fbDb.disableNetwork().then(() => fbDb.enableNetwork()).catch(() => { try { fbDb.enableNetwork().catch(() => {}); } catch (e) {} });
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { ocultaDesde = Date.now(); return; }
+      if (ocultaDesde && Date.now() - ocultaDesde > 5000) refrescarConexion(true);
+    });
+    window.addEventListener("online", () => refrescarConexion(true));
     function otrosResp(d, r) { return Object.keys(d.respuestas || {}).filter(x => String(x) !== String(r.id)); }
     // El que pidió confirma con uno de los que respondieron: queda como acuerdo cerrado
     function confirmarAcuerdo(pi, di, r) {
@@ -5886,10 +5943,7 @@
         closePedido();
         aplicarAcuerdos();
         refreshAfterEdit();
-        const batch = fbDb.batch();
-        batch.set(fbDb.collection(PED_COLLECTION).doc(acuId), acu);
-        batch.delete(fbDb.collection(PED_COLLECTION).doc(id));
-        batch.commit().then(() => showShareToast("Cambio de franco confirmado con " + r.name)).catch(errPed);
+        guardarAcuerdo(id, d, acuId, acu, r, "Cambio de franco confirmado con " + r.name);
         return;
       }
       if (!confirm("¿Confirmar el cambio del " + fechaTxt(di) + "?\n\n" + p.name + " pasa a " + recibe + "\n" + r.name + " pasa a " + ofrece + "\n\nSe carga en el celular de los dos. La programación oficial la actualiza el admin.")) return;
@@ -5903,10 +5957,32 @@
       closePedido();
       aplicarAcuerdos();
       refreshAfterEdit();
-      const batch = fbDb.batch();
-      batch.set(fbDb.collection(PED_COLLECTION).doc(acuId), acu);
-      batch.delete(fbDb.collection(PED_COLLECTION).doc(id));
-      batch.commit().then(() => showShareToast("Cambio confirmado con " + r.name)).catch(errPed);
+      guardarAcuerdo(id, d, acuId, acu, r, "Cambio confirmado con " + r.name);
+    }
+    // Guarda el acuerdo solo si en Firebase el pedido sigue en pie y el otro sigue interesado
+    function guardarAcuerdo(id, d, acuId, acu, r, okMsg) {
+      const ref = fbDb.collection(PED_COLLECTION).doc(id);
+      fbDb.runTransaction(tx => tx.get(ref).then(snap => {
+        const f = snap.exists ? snap.data() : null;
+        const e = new Error("ya-no-esta"); e.code = "ya-no-esta"; e.f = f;
+        if (!f || !f.quiere || cerrado(f)) throw e;
+        if (!f.respuestas || !f.respuestas[r.id]) { e.code = "sin-interes"; throw e; }
+        tx.set(fbDb.collection(PED_COLLECTION).doc(acuId), acu);
+        tx.delete(ref);
+      })).then(() => showShareToast(okMsg)).catch(err => {
+        delete pedidosDocs[acuId];
+        if (err && err.code === "sin-interes") {
+          pedidosDocs[id] = err.f;
+          aplicarAcuerdos(); resetPeopleFromOfficial(); refreshAfterEdit(); updatePedidosBar();
+          showShareToast(r.name + " ya no está interesado: no se hizo el cambio.");
+        } else if (err && (err.code === "ya-no-esta" || err.code === "not-found")) {
+          pedidoYaNoEsta(id, err.f || null, d.name);
+        } else {
+          pedidosDocs[id] = d;
+          aplicarAcuerdos(); resetPeopleFromOfficial();
+          errPed(err);
+        }
+      });
     }
     // ========== AVISOS DE CAMBIOS ==========
     // Avisos para quien usa este celular. Se muestran al abrir la app (o en el momento, si está abierta):

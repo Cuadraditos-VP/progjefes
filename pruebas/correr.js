@@ -208,6 +208,18 @@ function chequear(nombre, cond, detalle) {
       const colE = await C.evaluate(([s, t]) => cellMark(t.e, t.d), [s, t]);
       chequear("la fila del otro se ve en azul (no en ámbar)", colE === "pub", colE);
       await C.evaluate(() => cerrarAvisos()); await A.evaluate(() => cerrarAvisos());
+      // Después del acuerdo, el dueño vuelve a su turno de antes (igual a lo oficial): los demás lo tienen que ver
+      await A.evaluate(([s, t]) => { openShiftPicker(s.a, t.d); applyShift(t.x); }, [s, t]);
+      await wait(2500);
+      const vuelto = await C.evaluate(([s, t]) => people[s.a].codes[t.d], [s, t]);
+      chequear("si después del acuerdo el dueño vuelve a su turno de antes, los demás lo ven", vuelto === t.x, { vuelto, esperado: t.x });
+      // Lo mismo con "Restaurar" (volver a lo original)
+      await A.evaluate(([s, t]) => { openShiftPicker(s.a, t.d); applyShift(t.y); }, [s, t]);
+      await wait(2000);
+      await A.evaluate(([s, t]) => { openShiftPicker(s.a, t.d); document.getElementById("restoreShift").click(); }, [s, t]);
+      await wait(2500);
+      const rest = await C.evaluate(([s, t]) => people[s.a].codes[t.d], [s, t]);
+      chequear("y si lo restaura a lo original, también", rest === t.x, { rest, esperado: t.x });
       // Se borra este acuerdo para no mezclarlo con las pruebas que siguen
       const borrado = await A.evaluate(async ([s, t]) => {
         const k = Object.keys(pedidosDocs).find(k => { const a = pedidosDocs[k]; return a && a.estado === "acordado" && String(a.id) === String(people[s.a].id) && a.dia === t.d + 1; });

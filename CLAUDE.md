@@ -74,6 +74,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   queda un acuerdo (`estado: "acordado"`). Cada celular publica solo su propia fila del acuerdo, pero todos
   ven las dos filas apenas se confirma (`aplicarAcuerdosATodos`, dentro de `aplicarPropios`; si después se publicó otra cosa
   en lo oficial, manda lo oficial; lo que el dueño publicó antes del acuerdo no lo tapa).
+  Si después del acuerdo el dueño vuelve a su turno de antes (igual a lo oficial, o con Restaurar), igual se publica
+  en su `propios_*` para tapar el acuerdo (`acuerdoCeldasDe` en `syncPropios`; caso Nemaric/Paz).
   Se ven en el **banco de cambios**: el botón Cambios abre un cuadro (fondo oscuro) con el
   almanaque del mes; cada día muestra cuántas propuestas hay, tu turno, borde verde si alguna te
   sirve y ★ si tenés pedido. Al tocar el día se listan sus propuestas ("Da N · busca/acepta …";

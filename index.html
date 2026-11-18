@@ -7462,7 +7462,7 @@
       try { if (localStorage.getItem(festejoKey())) return; localStorage.setItem(festejoKey(), String(Date.now())); } catch (e) { return; }
       const me = miPersona();
       const nom = String((me && me.p.name) || d.name || "");
-      const pila = (nom.split(",")[1] || "").trim().split(/\s+/)[0] || nom.split(",")[0].trim();
+      const pila = (nom.split(",")[1] || "").trim().split(/\s+/)[0]; // solo el nombre de pila: si no está, sin nombre (no "¡Felicitaciones, Redruello!")
       festejar(pila ? pila.charAt(0).toUpperCase() + pila.slice(1).toLowerCase() : "");
     }
     function festejar(nombre) {

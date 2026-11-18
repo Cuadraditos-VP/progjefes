@@ -8318,5 +8318,50 @@
       try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
     }
   </script>
+  <!-- Firma del autor: Ctrl (o Alt) + 1318 en la PC; en el celular, mantener apretado el logo 3 s y escribir 1318 -->
+  <style>
+    #firmaCod, #firmaAutor { position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center; background: rgba(15,23,42,.6); }
+    #firmaCod.open, #firmaAutor.open { display: flex; }
+    #firmaCod .fc-box { background: #fff; border-radius: 14px; padding: 16px; display: flex; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+    #firmaCod input { width: 120px; font-size: 1.2rem; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; letter-spacing: .3em; -webkit-text-security: disc; }
+    #firmaCod button { font-size: 1rem; padding: 8px 14px; border: 0; border-radius: 8px; background: #0f4c4c; color: #fff; }
+    #firmaAutor { background: #0f172a; color: #fff; flex-direction: column; text-align: center; padding: 24px; cursor: pointer; }
+    #firmaAutor .fa-sub { font-size: clamp(1rem, 3.5vw, 1.5rem); color: #94a3b8; margin-bottom: 12px; }
+    #firmaAutor .fa-nom { font-size: clamp(2.6rem, 12vw, 7rem); font-weight: 800; line-height: 1.05; }
+    #firmaAutor .fa-pie { margin-top: 18px; font-size: clamp(.9rem, 3vw, 1.2rem); color: #cbd5e1; }
+  </style>
+  <div id="firmaCod"><div class="fc-box"><input type="text" inputmode="numeric" autocomplete="off" aria-label="Código"><button type="button">OK</button></div></div>
+  <div id="firmaAutor" role="dialog" aria-modal="true"><div class="fa-sub">Aplicación creada por</div><div class="fa-nom">Guillermo<br>Nemaric</div><div class="fa-pie">© 2026 · Todos los derechos reservados</div></div>
+  <script>
+  (function () {
+    var COD = "1318", aut = document.getElementById("firmaAutor"), cod = document.getElementById("firmaCod");
+    var inp = cod.querySelector("input");
+    function mostrar() { cod.classList.remove("open"); aut.classList.add("open"); }
+    aut.addEventListener("click", function () { aut.classList.remove("open"); });
+    // PC: con Ctrl (o Alt) apretado, escribir 1318
+    var buf = "", ult = 0;
+    document.addEventListener("keydown", function (e) {
+      if (aut.classList.contains("open") && e.key === "Escape") { aut.classList.remove("open"); return; }
+      if (!(e.ctrlKey || e.altKey) || !/^[0-9]$/.test(e.key)) return;
+      e.preventDefault();
+      var ahora = Date.now(); if (ahora - ult > 3000) buf = ""; ult = ahora;
+      buf = (buf + e.key).slice(-COD.length);
+      if (buf === COD) { buf = ""; mostrar(); }
+    }, true);
+    document.addEventListener("keyup", function (e) { if (e.key === "Control" || e.key === "Alt") buf = ""; });
+    // Celular: mantener apretado el logo 3 segundos → cuadrito para el código
+    function revisar() { var ok = inp.value.trim() === COD; inp.value = ""; if (ok) mostrar(); else cod.classList.remove("open"); }
+    cod.querySelector("button").addEventListener("click", revisar);
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") revisar(); });
+    cod.addEventListener("click", function (e) { if (e.target === cod) { inp.value = ""; cod.classList.remove("open"); } });
+    var logo = document.querySelector(".app-logo"), t = null;
+    if (!logo) return;
+    logo.style.webkitTouchCallout = "none"; logo.draggable = false;
+    function soltar() { clearTimeout(t); t = null; }
+    logo.addEventListener("pointerdown", function () { soltar(); t = setTimeout(function () { t = null; cod.classList.add("open"); setTimeout(function () { inp.focus(); }, 50); }, 3000); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(function (ev) { logo.addEventListener(ev, soltar); });
+    logo.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  })();
+  </script>
 </body>
 </html>

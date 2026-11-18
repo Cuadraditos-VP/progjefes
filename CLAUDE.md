@@ -213,7 +213,6 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   abrir Celulares. Ese toque marca el momento: los que abrieron la app desde la vez anterior que miró van **arriba y en verde**
   con "+N usos" (`usosNuevos`; lo ya visto se guarda en `localStorage` `<PROP_PREF>UsoVisto` al tocar 📊 y al cerrar);
   la próxima vez vuelven a su lugar (orden alfabético).
-- **Festejo de los 100 usos** (a pedido de Guillermo): cuando el `ab` de su doc de `yo_*` llega a 100, ese celular muestra una lluvia de estrellas y "¡Felicitaciones, Nombre!" (`revisarFestejo100`, `festejar`, `#festejo`). Una sola vez por legajo en ese celular (`localStorage` `<PROP_PREF>Festejo100:<legajo>`). El admin no.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
   licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
 

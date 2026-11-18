@@ -1666,6 +1666,26 @@
     .mi-btn { background: #0f766e; color: #fff; border-color: #0f766e; }
     /* Banco de cambios: los días sin propuestas quedan limpios */
     .bc-day .bc-cant.cero { visibility: hidden; }
+  /* Festejo de los 100 usos: lluvia de estrellas y felicitación */
+  #festejo { position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center;
+    background: rgba(10, 15, 40, 0.55); overflow: hidden; }
+  #festejo.open { display: flex; }
+  #festejo .estrella { position: absolute; top: -60px; pointer-events: none; line-height: 1;
+    animation: festejoCae linear forwards; text-shadow: 0 0 8px rgba(255, 220, 80, 0.9); }
+  @keyframes festejoCae {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    85% { opacity: 1; }
+    100% { transform: translateY(calc(100vh + 120px)) rotate(var(--giro, 360deg)); opacity: 0; }
+  }
+  #festejo .festejo-card { position: relative; z-index: 2; background: #fff; color: #1f2937; border-radius: 20px;
+    padding: 26px 22px 20px; max-width: 320px; width: calc(100% - 48px); text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35), 0 0 0 4px #FACC15; animation: festejoEntra 0.6s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes festejoEntra { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #festejo .festejo-num { font-size: 56px; font-weight: 800; color: #EAB308; line-height: 1; margin: 6px 0 2px; }
+  #festejo h2 { margin: 6px 0 8px; font-size: 22px; }
+  #festejo p { margin: 0 0 16px; font-size: 15px; line-height: 1.4; color: #374151; }
+  #festejo button { background: #EAB308; color: #fff; border: 0; border-radius: 12px; padding: 11px 26px;
+    font-size: 16px; font-weight: 700; cursor: pointer; }
 </style>
 </head>
 <body class="month-view">
@@ -1704,6 +1724,15 @@
         <input id="importJsonFile" type="file" accept="application/json,.json" hidden>
       </div>
     </header>
+    <div id="festejo" role="dialog" aria-modal="true" aria-labelledby="festejoTit">
+      <div class="festejo-card">
+        <div style="font-size:40px" aria-hidden="true">🎉</div>
+        <div class="festejo-num">100</div>
+        <h2 id="festejoTit"></h2>
+        <p id="festejoTxt"></p>
+        <button type="button" id="festejoOk">¡Gracias!</button>
+      </div>
+    </div>
     <button type="button" id="avisoFijo" aria-live="polite"><span class="af-ico" aria-hidden="true">🔔</span><span id="avisoFijoTxt"></span></button>
     <div class="palette-overlay" id="bancoOverlay">
     <div class="palette-modal person-cal-modal" id="bancoCambios">
@@ -7425,6 +7454,46 @@
     window.addEventListener("pageshow", revisarUso);
     window.addEventListener("focus", revisarUso);
     setInterval(revisarUso, 30 * 1000);
+    // Festejo: cuando alguien llega a los 100 usos de la app (ab), una lluvia de estrellas y lo felicita (una sola vez)
+    const FESTEJO_USOS = 100;
+    function festejoKey() { return PROP_PREF + "Festejo" + FESTEJO_USOS + ":" + miLegajo; }
+    function revisarFestejo100(d) {
+      if (!d || !miLegajo || currentUser === "ADMIN" || (Number(d.ab) || 0) < FESTEJO_USOS) return;
+      try { if (localStorage.getItem(festejoKey())) return; localStorage.setItem(festejoKey(), String(Date.now())); } catch (e) { return; }
+      const me = miPersona();
+      const nom = String((me && me.p.name) || d.name || "");
+      const pila = (nom.split(",")[1] || "").trim().split(/\s+/)[0] || nom.split(",")[0].trim();
+      festejar(pila ? pila.charAt(0).toUpperCase() + pila.slice(1).toLowerCase() : "");
+    }
+    function festejar(nombre) {
+      const ov = document.getElementById("festejo");
+      if (!ov) return;
+      document.getElementById("festejoTit").textContent = "¡Felicitaciones" + (nombre ? ", " + nombre : "") + "!";
+      document.getElementById("festejoTxt").textContent = "Llegaste a los 100 usos de la app. ¡Gracias por usarla!";
+      ov.querySelectorAll(".estrella").forEach(e => e.remove());
+      const pocas = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const figuras = ["⭐", "🌟", "✨", "⭐", "💫"];
+      const cant = pocas ? 15 : 70;
+      for (let i = 0; i < cant; i++) {
+        const e = document.createElement("span");
+        e.className = "estrella";
+        e.textContent = figuras[i % figuras.length];
+        e.style.left = (Math.random() * 100) + "vw";
+        e.style.fontSize = (14 + Math.random() * 26) + "px";
+        e.style.animationDuration = (2.8 + Math.random() * 3) + "s";
+        e.style.animationDelay = (Math.random() * (i < cant / 2 ? 1.5 : 5)) + "s";
+        e.style.setProperty("--giro", (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360) + "deg");
+        e.addEventListener("animationend", () => e.remove());
+        ov.appendChild(e);
+      }
+      ov.classList.add("open");
+      try { if (navigator.vibrate) navigator.vibrate([80, 60, 80, 60, 200]); } catch (e) {}
+    }
+    document.getElementById("festejoOk").addEventListener("click", () => {
+      const ov = document.getElementById("festejo");
+      ov.classList.remove("open");
+      ov.querySelectorAll(".estrella").forEach(e => e.remove());
+    });
     function startYoSync(u) {
       if (!fbReady || !u || u.uid === yoUid) return;
       if (yoUnsub) { yoUnsub(); yoUnsub = null; }
@@ -7433,7 +7502,7 @@
       esperarPaso();
       vigilarPase();
       yoUnsub = fbDb.collection(YO_COLLECTION).doc(yoUid).onSnapshot(d => {
-        if (d.exists) { contarApertura(); return; }
+        if (d.exists) { revisarFestejo100(d.data()); contarApertura(); return; }
         if (miLegajo && paseGuardado()) { paseHecho(); return; } // la app instalada se llevó el registro
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}

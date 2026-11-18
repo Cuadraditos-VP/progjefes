@@ -1289,6 +1289,20 @@ function chequear(nombre, cond, detalle) {
     chequear("si el celular la congeló sin avisar, al volver a los 30 min cuenta (una sola vez)", ab5 === ab4 + 1, { ab4, ab5 });
     await C.evaluate(() => sessionStorage.setItem("recargaAuto", "1")); await C.reload(); await wait(2500);
     chequear("la recarga automática con la app en uso sigue sin contar", abC() === ab5, { ab5, ab6: abC() });
+    if (html.includes("revisarFestejo100")) {
+      // Festejo de los 100 usos: al llegar a 100 se abre la lluvia de estrellas, y una sola vez
+      const festejo = () => C.evaluate(() => ({ abierto: document.getElementById("festejo").classList.contains("open"),
+        estrellas: document.querySelectorAll("#festejo .estrella").length, tit: document.getElementById("festejoTit").textContent }));
+      chequear("con menos de 100 usos no hay festejo", !(await festejo()).abierto);
+      be.st[YOC]["uC"].ab = 99;
+      await C.reload(); await wait(2500);
+      const f1 = await festejo();
+      chequear("al llegar a los 100 usos se abre la lluvia de estrellas y lo felicita", abC() === 100 && f1.abierto && f1.estrellas > 10 && /Felicitaciones/.test(f1.tit), { ab: abC(), f1 });
+      await C.evaluate(() => document.getElementById("festejoOk").click());
+      chequear("el botón lo cierra", !(await festejo()).abierto);
+      await C.reload(); await wait(2500);
+      chequear("y no se repite la próxima vez que abre la app", !(await festejo()).abierto && abC() === 101, { ab: abC() });
+    }
     const usoAd = await AD.evaluate(id => {
       renderCelulares();
       const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));

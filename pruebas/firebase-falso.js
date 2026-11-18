@@ -9,12 +9,17 @@
   }
   window.__fbPush = (coll, id, data) => {
     local[coll] = local[coll] || {};
-    const existed = id in local[coll];
+    const existed = id in local[coll], antes = local[coll][id];
     if (data == null) delete local[coll][id]; else local[coll][id] = data;
     const type = data == null ? "removed" : existed ? "modified" : "added";
     listeners.forEach(l => {
       if (l.coll !== coll) return;
-      if (l.id == null) deliverColl(l, [{ type, doc: { id, data: () => data, exists: data != null } }]);
+      if (l.id == null) {
+        // Consulta con filtro (where): si el doc no entra (o dejó de entrar), para ese oyente es "removed"
+        if (l.f && data == null && !(existed && l.f(antes))) return;
+        if (l.f && data != null && !l.f(data)) { if (existed && l.f(antes)) deliverColl(l, [{ type: "removed", doc: { id, data: () => data, exists: true } }]); return; }
+        deliverColl(l, [{ type, doc: { id, data: () => data, exists: data != null } }]);
+      }
       else if (l.id === id) l.cb({ exists: data != null, id, data: () => data });
     });
   };
@@ -50,23 +55,30 @@
       }
     };
   }
-  const db = {
-    enablePersistence: () => Promise.resolve(),
-    collection: (coll) => ({
-      doc: (id) => docRef(coll, id),
-      get: () => puede(coll, null).then(ok => { if (!ok) throw denegado(); const docs = Object.entries(local[coll] || {}).map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: f => docs.forEach(f), size: docs.length, empty: !docs.length }; }),
+  function consulta(coll, f) {
+    const docsDe = () => Object.entries(local[coll] || {}).filter(([, d]) => !f || f(d));
+    return {
+      get: () => puede(coll, null).then(ok => { if (!ok) throw denegado(); const docs = docsDe().map(([id, d]) => ({ id, data: () => d, exists: true })); return { docs, forEach: fn => docs.forEach(fn), size: docs.length, empty: !docs.length }; }),
       onSnapshot: (cb, errCb) => {
-        const l = { coll, id: null, cb }; let vivo = true;
+        const l = { coll, id: null, cb, f }; let vivo = true;
         // Para probar el orden de carga: localStorage "__demora" = {colección: ms} demora la primera entrega
         let dem = 0; try { dem = (JSON.parse(localStorage.getItem("__demora") || "{}") || {})[coll] || 0; } catch (e) {}
         puede(coll, null).then(ok => new Promise(r => setTimeout(() => r(ok), dem))).then(ok => {
           if (!vivo) return;
           if (!ok) { if (errCb) errCb(denegado()); return; }
           listeners.push(l);
-          deliverColl(l, Object.entries(local[coll] || {}).map(([id, d]) => ({ type: "added", doc: { id, data: () => d, exists: true } })));
+          deliverColl(l, docsDe().map(([id, d]) => ({ type: "added", doc: { id, data: () => d, exists: true } })));
         });
         return () => { vivo = false; const i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); };
       }
+    };
+  }
+  const db = {
+    enablePersistence: () => Promise.resolve(),
+    collection: (coll) => Object.assign(consulta(coll, null), {
+      doc: (id) => docRef(coll, id),
+      // Consultas: where("campo", "in", [..]) o where("campo", "==", valor)
+      where: (campo, op, val) => consulta(coll, d => !!d && (op === "in" ? val.includes(d[campo]) : d[campo] === val))
     }),
     batch: () => { const ops = []; return {
       set: (r, d, o) => ops.push(() => r.set(d, o)), update: (r, d) => ops.push(() => r.update(d)), delete: (r) => ops.push(() => r.delete()),

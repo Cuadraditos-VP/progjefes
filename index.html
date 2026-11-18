@@ -2715,6 +2715,7 @@
     // Deja todo listo para mostrar un mes: fechas, título, encabezado y ediciones locales
     function setMonthGlobals(key) {
       currentMes = key;
+      try { revisarMesesLeidos(); } catch (e) {} // (al arrancar todavía no existe: no hay nada que revisar)
       MES = mesInfo(key);
       DAYS = MES.days;
       DAY_LABELS = [];
@@ -2889,6 +2890,7 @@
     const FULL_RELOAD_MS = 20 * 60 * 1000; // cada 20 minutos
     // Antes de recargar se guarda dónde estaba la grilla, para volver ahí (no a tu grupo)
     function recargaAutomatica() {
+      if (document.hidden) return; // guardada: no se recarga (ahorra lecturas de Firebase); se recarga en la próxima vuelta con la app a la vista
       const openOverlay = document.querySelector(".palette-overlay.open:not(#opOverlay):not(#opNuevaOverlay), #loginOverlay.open");
       if (openOverlay) return;
       try {
@@ -4827,6 +4829,24 @@
     // Nunca modifica la programación oficial.
     const PED_COLLECTION = "pedidos_jefes";
     let pedUnsub = null;
+    // Para gastar menos lecturas de Firebase: pedidos y propios se leen solo de los meses que importan
+    // (el anterior, el de hoy, el siguiente y el que se está mirando), no de todos los meses que pasaron.
+    // Al mirar un mes viejo se vuelve a pedir con ese mes incluido (revisarMesesLeidos).
+    let pedMeses = [], propMeses = [], pedMesesListos = [], propMesesListos = [];
+    function mesClave(y, m0) { const f = new Date(y, m0, 1); return f.getFullYear() + "-" + String(f.getMonth() + 1).padStart(2, "0"); }
+    function mesesALeer() {
+      const h = hoyFecha(), y = h.getFullYear(), m = h.getMonth();
+      const s = [mesClave(y, m - 1), mesClave(y, m), mesClave(y, m + 1)];
+      if (currentMes && !s.includes(currentMes)) s.push(currentMes);
+      return s;
+    }
+    // Lo de ese mes ya llegó de Firebase (pedidos y propios): recién ahí se puede publicar la fila propia de ese mes
+    function mesCargado(mes) { return pedMesesListos.includes(mes) && propMesesListos.includes(mes); }
+    function revisarMesesLeidos() {
+      if (!currentMes) return;
+      if (pedUnsub && !pedMeses.includes(currentMes)) { pedUnsub(); pedUnsub = null; startPedidos(); }
+      if (propUnsub && !propMeses.includes(currentMes)) { propUnsub(); propUnsub = null; startPropios(); }
+    }
     let pedPi = null, pedDi = null, pedDiTocado = null; // pedDiTocado: el día que se tocó (puede ser un franco ofrecido)
 
     function pedDocId(mes, id, di) { return mes + "_" + id + "_" + (di + 1); }
@@ -4990,7 +5010,11 @@
     var pedListo = false;
     function startPedidos() {
       if (pedUnsub || !fbReady || !habilitado()) return;
-      pedUnsub = fbDb.collection(PED_COLLECTION).onSnapshot(qs => {
+      const meses = mesesALeer();
+      let primeraVez = true;
+      pedMeses = meses;
+      pedUnsub = fbDb.collection(PED_COLLECTION).where("mes", "in", meses).onSnapshot(qs => {
+        if (primeraVez) { primeraVez = false; pedMesesListos = meses; if (pedListo) setTimeout(syncTodosPropios, 0); }
         if (!pedListo) { pedListo = true; setTimeout(() => { if (typeof syncTodosPropios === "function") syncTodosPropios(); }, 0); }
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete pedidosDocs[ch.doc.id];
@@ -6339,6 +6363,7 @@
     function syncPropios(mes) {
       if (!fbReady || !fbAuth || !propListo || !miLegajo) return;
       if (!pedListo) return; // sin los acuerdos todavía no se sabe qué hay que publicar (cuando llegan, se vuelve a mandar)
+      if (!mesCargado(mes)) return; // de ese mes no se leyó lo de Firebase: no se sabe si el admin descartó algo (al mirarlo, se lee y se manda)
       const u = fbAuth.currentUser;
       if (!u) return;
       const list = officialPeopleFor(mes);
@@ -6436,12 +6461,17 @@
 
     function startPropios() {
       if (propUnsub || !fbReady || !habilitado()) return;
-      propUnsub = fbDb.collection(PROP_COLLECTION).onSnapshot(qs => {
+      const meses = mesesALeer();
+      let primeraVez = true;
+      propMeses = meses;
+      propUnsub = fbDb.collection(PROP_COLLECTION).where("mes", "in", meses).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete propDocs[ch.doc.id];
           else propDocs[ch.doc.id] = ch.doc.data();
         });
-        const primera = !propListo;
+        const primera = !propListo || primeraVez;
+        primeraVez = false;
+        propMesesListos = meses;
         propListo = true;
         procesarMisPropios();
         if (authListo) migrarAjenos();

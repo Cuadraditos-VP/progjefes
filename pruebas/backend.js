@@ -65,7 +65,7 @@ module.exports = function crearBackend(app, turnosColl) {
       if (prev || !next) return false; // un código existente no se pisa
       const l = legs()[next.id];
       return /^\d{6}$/.test(w.id) && next.uid === w.uid && !!l && l.uid === w.uid &&
-        Object.keys(next).every(k => ["id", "uid", "hasta"].includes(k)) && next.hasta < Date.now() + 20 * 60 * 1000;
+        Object.keys(next).every(k => ["id", "uid", "hasta", "ab"].includes(k)) && (next.ab === undefined || typeof next.ab === "number") && next.hasta < Date.now() + 20 * 60 * 1000;
     }
     // legajos_<app>: cada uno reserva el suyo; para tomar uno ajeno hace falta un pase vigente de su dueño
     if (w.coll === "legajos_" + app) {
@@ -81,6 +81,11 @@ module.exports = function crearBackend(app, turnosColl) {
       if (w.email === ADMIN) return true;
       const l = prev && legs()[prev.id];
       return !!l && l.uid === w.uid && w.id !== w.uid;
+    }
+    // yo_<app>: crear o cambiar, cada celular el suyo; el admin cualquiera (pasar los usos al celular nuevo, corregirlos)
+    if (w.coll === "yo_" + app) {
+      if (w.email === ADMIN) return true;
+      return w.id === w.uid && !!next && next.uid === w.uid;
     }
     // division_<app>: la arma solo el admin (también los usuarios de la PC de la División y sus claves)
     if (w.coll === "division_" + app) return w.email === ADMIN;

@@ -1447,6 +1447,37 @@ function chequear(nombre, cond, detalle) {
       await TT.close();
     }
 
+    if (html.includes("function mesesALeer")) {
+      console.log("\nAhorro de lecturas: pedidos y propios solo de los meses que importan");
+      const VIEJO = be.mesDePrueba(2); // un mes que la app muestra pero que no está entre los que lee al abrir (el anterior, el de hoy y el siguiente)
+      be.st[TURNOS][VIEJO.mes] = VIEJO;
+      const PEDC = "pedidos_" + APP, PROPC = "propios_" + APP;
+      be.st[PEDC] = be.st[PEDC] || {}; be.st[PROPC] = be.st[PROPC] || {};
+      be.st[PEDC]["viejo_" + VIEJO.mes] = { mes: VIEJO.mes, id: s.idb, name: "PRUEBA, VIEJO", dia: 3, quiere: "T", acepta: ["T"], tipo: "turno", francos: [], ofrece: "N", uid: "uB", t: Date.now() };
+      be.st[PROPC][VIEJO.mes + "_" + s.idb] = { mes: VIEJO.mes, id: s.idb, name: "PRUEBA, VIEJO", uid: "uB", edits: { d2: "N" }, t: { d2: Date.now() }, updated: Date.now() };
+      await A.reload(); await wait(2500);
+      const tiene = () => A.evaluate(([pk, rk]) => ({ ped: !!pedidosDocs[pk], prop: !!propDocs[rk], meses: AVAILABLE_MESES.slice() }), ["viejo_" + VIEJO.mes, VIEJO.mes + "_" + s.idb]);
+      const t0 = await tiene();
+      chequear("al abrir no lee los pedidos ni lo publicado de otros meses", t0.meses.includes(VIEJO.mes) && !t0.ped && !t0.prop, t0);
+      await A.evaluate(m => switchMonth(m), VIEJO.mes); await wait(1500);
+      const t1 = await tiene();
+      chequear("al mirar otro mes, los lee en ese momento", t1.ped && t1.prop, t1);
+      await A.evaluate(m => switchMonth(m), M0.mes); await wait(1000);
+      chequear("y al volver al mes actual sigue andando", await A.evaluate(m => currentMes === m && people.length > 0, M0.mes));
+      delete be.st[PEDC]["viejo_" + VIEJO.mes]; delete be.st[PROPC][VIEJO.mes + "_" + s.idb]; delete be.st[TURNOS][VIEJO.mes];
+      // La recarga automática no se hace con la app guardada (no vuelve a leer todo si nadie la mira)
+      const rec = await A.evaluate(() => {
+        window.__sigue = 1;
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+        recargaAutomatica();
+        delete document.hidden;
+        let marca = null; try { marca = sessionStorage.getItem("recargaAuto"); } catch (e) {}
+        return { marca };
+      });
+      await wait(800);
+      chequear("con la app guardada no se recarga sola", !rec.marca && await A.evaluate(() => window.__sigue === 1), rec);
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

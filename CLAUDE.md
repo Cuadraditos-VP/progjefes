@@ -224,6 +224,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   su propio servidor).
 
 ## Detalles técnicos útiles
+- **Ahorro de lecturas de Firebase** (a pedido de Guillermo, la app crece): `pedidos_*` y `propios_*` se leen solo de los meses que importan (`mesesALeer`: el anterior, el de hoy, el siguiente y el que se está mirando; consulta `where("mes", "in", …)`). Al elegir otro mes se vuelve a pedir con ese mes (`revisarMesesLeidos`, desde `setMonthGlobals`); no se publica la fila propia de un mes hasta tener lo suyo de Firebase (`mesCargado` en `syncPropios`). La recarga automática no se hace con la app guardada (`document.hidden`). Todo pedido/propio tiene que llevar `mes`.
 - Firebase: Firestore + Auth (anónimo para los celulares, Google para el admin). Admin =
   guillermo.nemaric@gmail.com. Las reglas viven en la consola de Firebase (no en el repo);
   `REGLAS-FIREBASE-*.md` tiene los bloques que se agregaron.

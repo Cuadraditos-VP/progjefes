@@ -1449,7 +1449,7 @@ function chequear(nombre, cond, detalle) {
 
     if (html.includes("function mesesALeer")) {
       console.log("\nAhorro de lecturas: pedidos y propios solo de los meses que importan");
-      const VIEJO = be.mesDePrueba(-6);
+      const VIEJO = be.mesDePrueba(2); // un mes que la app muestra pero que no está entre los que lee al abrir (el anterior, el de hoy y el siguiente)
       be.st[TURNOS][VIEJO.mes] = VIEJO;
       const PEDC = "pedidos_" + APP, PROPC = "propios_" + APP;
       be.st[PEDC] = be.st[PEDC] || {}; be.st[PROPC] = be.st[PROPC] || {};
@@ -1458,10 +1458,10 @@ function chequear(nombre, cond, detalle) {
       await C.reload(); await wait(2500);
       const tiene = () => C.evaluate(([pk, rk]) => ({ ped: !!pedidosDocs[pk], prop: !!propDocs[rk], meses: AVAILABLE_MESES.slice() }), ["viejo_" + VIEJO.mes, VIEJO.mes + "_" + s.idb]);
       const t0 = await tiene();
-      chequear("al abrir no lee los pedidos ni lo publicado de meses viejos", t0.meses.includes(VIEJO.mes) && !t0.ped && !t0.prop, t0);
+      chequear("al abrir no lee los pedidos ni lo publicado de otros meses", t0.meses.includes(VIEJO.mes) && !t0.ped && !t0.prop, t0);
       await C.evaluate(m => switchMonth(m), VIEJO.mes); await wait(1500);
       const t1 = await tiene();
-      chequear("al mirar un mes viejo, los lee en ese momento", t1.ped && t1.prop, t1);
+      chequear("al mirar otro mes, los lee en ese momento", t1.ped && t1.prop, t1);
       await C.evaluate(m => switchMonth(m), M0.mes); await wait(1000);
       chequear("y al volver al mes actual sigue andando", await C.evaluate(m => currentMes === m && people.length > 0, M0.mes));
       delete be.st[PEDC]["viejo_" + VIEJO.mes]; delete be.st[PROPC][VIEJO.mes + "_" + s.idb]; delete be.st[TURNOS][VIEJO.mes];

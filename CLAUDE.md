@@ -213,6 +213,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   abrir Celulares. Ese toque marca el momento: los que abrieron la app desde la vez anterior que miró van **arriba y en verde**
   con "+N usos" (`usosNuevos`; lo ya visto se guarda en `localStorage` `<PROP_PREF>UsoVisto` al tocar 📊 y al cerrar);
   la próxima vez vuelven a su lugar (orden alfabético).
+  **Los usos viajan** (caso Sanchez, a pedido de Guillermo): al "Pasar a este celular" el admin no borra el pedido sino que le saca
+  `pide` y le suma el `ab` del celular viejo (`pasarLegajo`; los `yo_*` sin `id` ni `pide` no se listan); con "📲 Pasar a la app" van
+  en el código (`pases_*.ab`, `miAb`, `sumarUsosTraidos`). El admin los corrige a mano con ✎ (`cel-ab-edit`). Reglas: `REGLAS-FIREBASE-USOS.md`.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
   licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
 

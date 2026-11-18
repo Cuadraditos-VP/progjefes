@@ -7240,6 +7240,7 @@
       if (ok) registrarYo(false).then(habilitar);
     }
     let yoUid = "", yoUnsub = null;
+    let miAb = 0; // usos de la app de este celular (ab de su yo_*): viajan con el código de Pasar a la app
     // Pedir que el admin pase el legajo a este celular (yo_jefes/{uid} con "pide"; sin "id" no queda
     // registrado). Este celular espera a que se libere la reserva y ahí se reserva solo.
     const PASO_KEY = "jefPidePaso";
@@ -7326,8 +7327,12 @@
         for (let i = 0; i < 8 && !p; i++) {
           const code = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
           const hasta = Date.now() + PASE_MIN * 60 * 1000;
+          const base = { id: String(miLegajo), uid: yoUid, hasta };
+          const ref = fbDb.collection(PASE_COLLECTION).doc(code);
           try {
-            await fbDb.collection(PASE_COLLECTION).doc(code).set({ id: String(miLegajo), uid: yoUid, hasta });
+            // Los usos de la app viajan con el código (así no vuelve a 0 en la app instalada)
+            try { await ref.set(miAb > 0 ? Object.assign({ ab: miAb }, base) : base); }
+            catch (e) { if (!(miAb > 0) || !e || e.code !== "permission-denied") throw e; await ref.set(base); }
             p = { code, id: String(miLegajo), hasta };
           } catch (e) { if (!e || e.code !== "permission-denied") break; } // ocupado: se prueba otro
         }
@@ -7391,9 +7396,19 @@
       }
       fbDb.collection(YO_COLLECTION).doc(d.uid).delete().catch(() => {});
       fbDb.collection(PASE_COLLECTION).doc(code).delete().catch(() => {});
-      if (await elegirYo(id, name, false)) showShareToast("Listo, " + name + ": tu registro pasó de Safari a la app.");
+      if (await elegirYo(id, name, false)) {
+        showShareToast("Listo, " + name + ": tu registro pasó de Safari a la app.");
+        sumarUsosTraidos(d.ab);
+      }
     }
     document.getElementById("btnPasarApp").addEventListener("click", abrirPase);
+    // Usos de la app que trae del registro anterior (Safari → app): se suman a los de este celular
+    function sumarUsosTraidos(n) {
+      n = Math.floor(Number(n) || 0);
+      if (!(n > 0) || !fbReady || !yoUid) return;
+      fbDb.collection(YO_COLLECTION).doc(yoUid).update({ ab: firebase.firestore.FieldValue.increment(n) })
+        .catch(err => console.warn("Usos traídos:", err));
+    }
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
     // Borra del celular las copias guardadas que empiezan con ese prefijo
     function borrarCopiaLocal(pref) {
@@ -7463,7 +7478,7 @@
       esperarPaso();
       vigilarPase();
       yoUnsub = fbDb.collection(YO_COLLECTION).doc(yoUid).onSnapshot(d => {
-        if (d.exists) { contarApertura(); return; }
+        if (d.exists) { miAb = Number(d.data().ab) || 0; contarApertura(); return; }
         if (miLegajo && paseGuardado()) { paseHecho(); return; } // la app instalada se llevó el registro
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
@@ -7504,7 +7519,9 @@
           if (ch.type === "removed") return;
           const d = ch.doc.data();
           // Celular que perdió su registro y pide que le pasen su legajo (todavía no está registrado)
-          if (d && d.pide && !d.id) pasosDocs[ch.doc.id] = d; else celularesDocs[ch.doc.id] = d;
+          if (d && d.pide && !d.id) pasosDocs[ch.doc.id] = d;
+          else if (d && !d.id) { delete pasosDocs[ch.doc.id]; delete celularesDocs[ch.doc.id]; } // ya se lo pasó: espera que abra la app
+          else celularesDocs[ch.doc.id] = d;
         });
         if (celularesOverlay.classList.contains("open")) renderCelulares();
         updateCelularesBtn();
@@ -7629,6 +7646,20 @@
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +
           '<div class="cel-uso" style="font-size:0.72rem;color:#0f766e;font-weight:600">' + usoTxt(d) + '</div>' +
           (dup ? '<div class="ped-note" style="background:#fef3c7;color:#92400e;margin-top:6px">⚠ Este nombre está elegido en ' + cnt[d.id] + ' celulares</div>' : '');
+        // ✎ Corregir los usos a mano (ej. si se perdieron al cambiar de celular antes de que viajaran solos)
+        const bab = document.createElement("button");
+        bab.type = "button"; bab.className = "cel-ab-edit"; bab.textContent = "✎"; bab.title = "Corregir la cantidad de usos";
+        bab.style.cssText = "margin-left:6px;border:none;background:none;color:#0f766e;cursor:pointer;font-size:0.8rem;padding:0 4px";
+        bab.addEventListener("click", () => {
+          const r = prompt("¿Cuántos usos tiene " + d.name + "?", String(Number(d.ab) || 0));
+          if (r === null) return;
+          const n = Math.floor(Number(String(r).trim()));
+          if (String(r).trim() === "" || !(n >= 0)) { alert("Escribí un número."); return; }
+          fbDb.collection(YO_COLLECTION).doc(k).update({ ab: n })
+            .then(() => showShareToast("Listo: " + d.name + " queda con " + n + (n === 1 ? " uso." : " usos.")))
+            .catch(err => showShareToast("No se pudo cambiar: " + (err && err.code === "permission-denied" ? "Firebase no lo deja (faltan las reglas nuevas)." : "revisá la conexión.")));
+        });
+        row.querySelector(".cel-uso").appendChild(bab);
         const b = document.createElement("button");
         b.type = "button"; b.className = "ped-act"; b.textContent = "Liberar";
         b.addEventListener("click", () => {
@@ -7745,7 +7776,18 @@
       try {
         // Primero se borra el pedido (si no, vuelve a aparecer); el celular nuevo espera igual
         // (lo tiene guardado en el celular) y se registra solo al ver libre su legajo.
-        await fbDb.collection(YO_COLLECTION).doc(k).delete();
+        // Los usos de la app del celular viejo pasan al nuevo (si no, vuelve a 0; caso Sanchez):
+        // en vez de borrar el pedido se le saca "pide" y se le suman los usos. Si Firebase no lo deja, se borra como antes.
+        const usos = viejos.filter(u => u !== k).reduce((s, u) => s + (Number((celularesDocs[u] || {}).ab) || 0), 0);
+        let llevo = false;
+        if (usos > 0) {
+          try {
+            await fbDb.collection(YO_COLLECTION).doc(k).update({ pide: firebase.firestore.FieldValue.delete(),
+              antes: firebase.firestore.FieldValue.delete(), ab: firebase.firestore.FieldValue.increment(usos) });
+            llevo = true;
+          } catch (e) { console.warn("Pasar usos:", e); }
+        }
+        if (!llevo) await fbDb.collection(YO_COLLECTION).doc(k).delete();
         delete pasosDocs[k];
         const legRef = fbDb.collection(LEG_COLLECTION).doc(id);
         const x = await legRef.get();

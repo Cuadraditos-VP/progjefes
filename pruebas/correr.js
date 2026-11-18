@@ -1347,6 +1347,8 @@ function chequear(nombre, cond, detalle) {
     chequear("el admin ve el pedido en Celulares (y en el botón)", vePaso.pide && vePaso.boton && vePaso.sinFilaRara, vePaso);
     // Como Faisal: tiene la app cerrada cuando el admin le pasa el legajo
     await NV.goto("about:blank");
+    be.st[YOC].uC.ab = 57; // usos del celular viejo: tienen que pasar al nuevo
+    await AD.evaluate(() => { celularesDocs.uC = Object.assign({}, celularesDocs.uC, { ab: 57 }); });
     await AD.evaluate(() => {
       window.confirm = () => true;
       [...document.querySelectorAll("#pasosList button")].find(b => /Pasar a este celular/.test(b.textContent)).click();
@@ -1356,12 +1358,21 @@ function chequear(nombre, cond, detalle) {
       return { gris: !!box.querySelector(".paso-pend") && /Ya se lo pasaste/.test(box.textContent), pide: /Pide entrar/.test(box.textContent),
         boton: /pide entrar/.test(document.getElementById("btnCelulares").textContent) }; });
     chequear("al pasarlo, el pedido no vuelve y queda en gris \"Ya se lo pasaste\" hasta que abra la app",
-      pend.gris && !pend.pide && !pend.boton && !((be.st[YOC] || {}).uNuevo) && !((be.st[YOC] || {}).uC), pend);
+      pend.gris && !pend.pide && !pend.boton && !((be.st[YOC] || {}).uNuevo || {}).pide && !((be.st[YOC] || {}).uC), pend);
     await NV.goto(URL); await wait(3500);
     const yoNV2 = (be.st[YOC] || {}).uNuevo || {};
     chequear("al abrir la app, el celular nuevo entra solo", (await NV.evaluate(() => miLegajo)) === s.idc && (await veDatos(NV)));
     chequear("el legajo queda reservado al celular nuevo y el viejo se libera",
       ((be.st[LEGC] || {})[s.idc] || {}).uid === "uNuevo" && yoNV2.id === s.idc && !yoNV2.pide, { yoNV2 });
+    chequear("los usos de la app pasan al celular nuevo (no vuelven a 0)", (Number(yoNV2.ab) || 0) >= 57, { ab: yoNV2.ab });
+    const corr = await AD.evaluate(async () => {
+      renderCelulares(); const b = document.querySelector("#celularesList .cel-ab-edit");
+      if (!b) return "sin botón";
+      window.prompt = () => "99"; b.click(); await new Promise(r => setTimeout(r, 1200)); return "ok";
+    });
+    chequear("el admin puede corregir a mano los usos de un celular", corr === "ok" && Object.values(be.st[YOC] || {}).some(d => d && d.ab === 99), corr);
+    const ajeno = await NV.evaluate(() => fbDb.collection(YO_COLLECTION).doc("uOtroX").set({ uid: "uOtroX", ab: 500 }).then(() => "ok", e => e.code));
+    chequear("un celular no puede escribir el registro de otro", ajeno === "permission-denied", ajeno);
     chequear("y desaparece el aviso gris (ya figura en Celulares)", await AD.evaluate(id => { renderCelulares();
       return !document.getElementById("pasosList").children.length &&
         [...document.querySelectorAll("#celularesList .acu-row")].some(r => r.textContent.includes(id)); }, s.idc));
@@ -1388,6 +1399,7 @@ function chequear(nombre, cond, detalle) {
       const SF = await be.celular(browser, URL, "uPaseSF", null, errores, { iphone: "safari" });
       await SF.evaluate(([k, v, s2]) => { localStorage.setItem(k, v); localStorage.setItem(s2, "1"); }, [YOKEY, idSF, YOKEY.replace("Yo", "SoloSafari")]);
       await SF.reload(); await wait(3000);
+      if ((be.st["yo_" + APP] || {}).uPaseSF) { be.st["yo_" + APP].uPaseSF.ab = 33; await SF.reload(); await wait(3000); }
       chequear("en Safari registrado aparece \"📲 Pasar a la app\"", await SF.evaluate(() => { updatePedidosBar(); return document.getElementById("btnPasarApp").style.display !== "none"; }));
       await SF.evaluate(() => document.getElementById("btnPasarApp").click()); await wait(1500);
       const codPase = await SF.evaluate(() => (document.getElementById("paseCodigo") || {}).textContent || "");
@@ -1407,6 +1419,8 @@ function chequear(nombre, cond, detalle) {
       chequear("la reserva pasa a la app, sin pedido al admin, y se borra el registro de Safari",
         ((be.st[LEGC] || {})[idSF] || {}).uid === "uPaseAP" && !!yoS.uPaseAP && yoS.uPaseAP.id === idSF && !yoS.uPaseAP.pide && !yoS.uPaseSF, { ap: yoS.uPaseAP, sf: yoS.uPaseSF });
       chequear("el código se borra (no sirve dos veces)", !(be.st["pases_" + APP] || {})[codPase]);
+      await wait(800);
+      chequear("los usos de Safari pasan a la app", (Number(((be.st["yo_" + APP] || {}).uPaseAP || {}).ab) || 0) >= 33, (be.st["yo_" + APP] || {}).uPaseAP);
       const sf2 = await SF.evaluate(k => ({ leg: miLegajo, ls: localStorage.getItem(k), msg: document.getElementById("paseCuerpo").textContent }), YOKEY);
       chequear("Safari se libera solo y avisa que pasó a la app", !sf2.leg && !sf2.ls && /pasó a la app/.test(sf2.msg), sf2);
       await SF.reload(); await wait(3000);

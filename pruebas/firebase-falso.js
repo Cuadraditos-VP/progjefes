@@ -36,7 +36,7 @@
   // Lecturas: el "servidor" decide si este celular puede leer (reglas de Firebase)
   const denegado = () => { const e = new Error("permission-denied"); e.code = "permission-denied"; return e; };
   // Sin internet se lee la copia guardada en el celular (lo que ya tenía)
-  const puede = (coll, id) => ready.then(() => window.__SIN_RED ? true : window.__fbCanRead(coll, id == null ? null : id));
+  const puede = (coll, id) => ready.then(() => window.__SIN_RED ? true : window.__fbCanRead(coll, id == null ? null : id, window.__UID, window.__EMAIL || null));
   function docRef(coll, id) {
     return {
       id,
@@ -93,13 +93,50 @@
       return res;
     }
   };
-  const user = { uid: window.__UID, isAnonymous: !window.__EMAIL, email: window.__EMAIL || null };
-  const auth = { currentUser: user, onAuthStateChanged: (cb) => { setTimeout(() => cb(user), 50); return () => {}; },
-    signInAnonymously: () => Promise.resolve(), signOut: () => Promise.resolve() };
+  // Sesión: anónima (o Google para el admin). Con window.__CUENTAS también la clave personal (legajo + clave):
+  // linkWithCredential le pega la cuenta a la llave anónima (mismo uid) y signInWithEmailAndPassword entra
+  // en otro aparato con el uid de la cuenta. La sesión con clave queda guardada en el celular (como en Firebase).
+  const oyentes = [];
+  const errAuth = c => { const e = new Error(c); e.code = c; return e; };
+  const CU = window.__CUENTAS;
+  let anonN = 0;
+  function crearUsuario(uid, mail, anon) {
+    const u = { uid, isAnonymous: anon, email: mail || null };
+    if (CU && anon) u.linkWithCredential = cred => window.__fbAuth(JSON.stringify({ op: "link", mail: cred.mail, pw: cred.pw, uid }))
+      .then(r => {
+        if (r !== "ok") throw errAuth(r);
+        u.isAnonymous = false; u.email = cred.mail; delete u.linkWithCredential; window.__EMAIL = cred.mail;
+        try { localStorage.setItem("__fbCuenta", JSON.stringify({ uid, mail: cred.mail })); } catch (e) {}
+        return { user: u };
+      });
+    return u;
+  }
+  function cambiar(u) {
+    auth.currentUser = u; window.__UID = u ? u.uid : null; window.__EMAIL = u && !u.isAnonymous ? u.email : null;
+    oyentes.forEach(cb => setTimeout(() => cb(u), 0));
+  }
+  let guardada = null;
+  try { guardada = CU ? JSON.parse(localStorage.getItem("__fbCuenta") || "null") : null; } catch (e) {}
+  const uidAnon = window.__UID;
+  if (guardada) { window.__UID = guardada.uid; window.__EMAIL = guardada.mail; }
+  const user = guardada ? crearUsuario(guardada.uid, guardada.mail, false) : crearUsuario(window.__UID, window.__EMAIL, !window.__EMAIL);
+  const auth = { currentUser: user,
+    onAuthStateChanged: (cb) => { oyentes.push(cb); setTimeout(() => cb(auth.currentUser), 50); return () => {}; },
+    signInAnonymously: () => { if (CU && !auth.currentUser) cambiar(crearUsuario(uidAnon + "-" + (++anonN), null, true)); return Promise.resolve(); },
+    signOut: () => { if (CU) { try { localStorage.removeItem("__fbCuenta"); } catch (e) {} cambiar(null); } return Promise.resolve(); },
+    signInWithEmailAndPassword: (mail, pw) => !CU ? Promise.reject(errAuth("auth/operation-not-allowed"))
+      : window.__fbAuth(JSON.stringify({ op: "entrar", mail, pw })).then(r => {
+        if (!/^ok:/.test(r)) throw errAuth(r);
+        const u = crearUsuario(r.slice(3), mail, false);
+        try { localStorage.setItem("__fbCuenta", JSON.stringify({ uid: u.uid, mail })); } catch (e) {}
+        cambiar(u);
+        return { user: u };
+      }) };
   const firestore = () => db;
   firestore.FieldValue = { delete: () => DEL, serverTimestamp: () => Date.now(), increment: n => ({ __inc: n }) };
   firestore.FieldPath = function () {};
   const authFn = () => auth;
   authFn.GoogleAuthProvider = function () { this.setCustomParameters = () => {}; };
+  authFn.EmailAuthProvider = { credential: (mail, pw) => ({ mail, pw }) };
   window.firebase = { initializeApp: () => {}, firestore, auth: authFn };
 })();

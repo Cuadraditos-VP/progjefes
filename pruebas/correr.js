@@ -1492,6 +1492,71 @@ function chequear(nombre, cond, detalle) {
       chequear("con la app guardada no se recarga sola", !rec.marca && await A.evaluate(() => window.__sigue === 1), rec);
     }
 
+    if (html.includes("function entrarConClave")) {
+      console.log("\nClave personal: legajo + clave en todos los aparatos");
+      const LEGK = "legajos_" + APP, CUC = "cuentas_" + APP;
+      const yoDe = u => (be.st[YOC] || {})[u] || {};
+      const legK = DE_PRUEBA.find(id => !(be.st[LEGK] || {})[id] && !Object.values(be.st[YOC] || {}).some(y => y && (y.id === id || y.pide === id)));
+      const K1 = await be.celular(browser, URL, "uK1", null, errores, { cuentas: true });
+      await K1.fill("#yoLegajo", legK); await K1.click("#yoLegajoBtn"); await wait(800);
+      await K1.click("#yoLegajoSi"); await wait(2500);
+      const pide = await K1.evaluate(() => ({ leg: miLegajo, abierto: !!document.querySelector("#claveOverlay.open"),
+        txt: (document.getElementById("claveIntro") || {}).textContent || "", cancelar: !!document.querySelector("#claveOverlay .btn-clear, #claveOverlay .close-btn") }));
+      chequear("al registrarse le pide elegir su clave (sin poder cancelar)", pide.leg === legK && pide.abierto && /4 números/.test(pide.txt) && !pide.cancelar, pide);
+      await K1.fill("#clave1", "12"); await K1.fill("#clave2", "12"); await K1.click("#claveOk"); await wait(300);
+      chequear("una clave que no es de 4 números no la acepta", /4 números/.test(await K1.textContent("#claveMsg")));
+      await K1.fill("#clave1", "4821"); await K1.fill("#clave2", "4812"); await K1.click("#claveOk"); await wait(300);
+      chequear("si las dos no son iguales avisa", /no son iguales/.test(await K1.textContent("#claveMsg")));
+      await K1.fill("#clave1", "4821"); await K1.fill("#clave2", "4821"); await K1.click("#claveOk"); await wait(1500);
+      const k1 = await K1.evaluate(() => ({ cerrado: !document.querySelector("#claveOverlay.open"), clave: tengoClave(), uid: yoUid }));
+      chequear("la guarda y sigue con el mismo registro", k1.cerrado && k1.clave && k1.uid === "uK1" &&
+        ((be.st[CUC] || {})[legK] || {}).uid === "uK1" && !!yoDe("uK1").clave, { k1, cu: (be.st[CUC] || {})[legK] });
+      await K1.reload(); await wait(2500);
+      chequear("al volver a abrir no se la pide de nuevo", (await K1.evaluate(() => miLegajo)) === legK &&
+        !(await K1.evaluate(() => !!document.querySelector("#claveOverlay.open"))));
+      // Otro aparato: entra con legajo + clave, sin pedírselo al admin
+      const K2 = await be.celular(browser, URL, "uK2", null, errores, { cuentas: true });
+      await K2.fill("#yoLegajo", legK); await K2.click("#yoLegajoBtn"); await wait(800);
+      chequear("en otro aparato, con ese legajo le pide la clave", (await K2.isVisible("#yoClave")) && /Entrar/.test(await K2.textContent("#yoLegajoSi")));
+      await K2.fill("#yoClave", "1111"); await K2.click("#yoLegajoSi"); await wait(800);
+      chequear("con una clave equivocada no entra", /no es esa/.test(await K2.textContent("#yoLegajoMsg")) && !(await K2.evaluate(() => miLegajo)));
+      await K2.fill("#yoClave", "4821"); await K2.click("#yoLegajoSi"); await wait(2500);
+      const k2 = await K2.evaluate(() => ({ leg: miLegajo, uid: yoUid, pideClave: !!document.querySelector("#claveOverlay.open") }));
+      chequear("con la clave buena entra y ve la programación", k2.leg === legK && k2.uid === "uK1" && !k2.pideClave && (await veDatos(K2)) && !yoDe("uK2").pide, k2);
+      await K2.reload(); await wait(2500);
+      chequear("y al volver a abrir sigue adentro", (await K2.evaluate(() => miLegajo)) === legK && (await veDatos(K2)));
+      await K1.reload(); await wait(2500);
+      chequear("el primer aparato también sigue adentro (los dos a la vez)", (await K1.evaluate(() => miLegajo)) === legK && (await veDatos(K1)));
+      // Se olvidó la clave: le pide al admin que le pase el legajo, como siempre
+      const K3 = await be.celular(browser, URL, "uK3", null, errores, { cuentas: true });
+      await K3.fill("#yoLegajo", legK); await K3.click("#yoLegajoBtn"); await wait(800);
+      await K3.click("#yoOlvide"); await wait(800);
+      chequear("\"Me olvidé la clave\" le pide al admin que le pase el legajo", yoDe("uK3").pide === legK && /avisamos al administrador/.test(await K3.textContent("#yoLegajoMsg")));
+      await AD.evaluate(id => {
+        window.confirm = () => true; renderCelulares();
+        const row = [...document.querySelectorAll("#pasosList .acu-row")].find(r => r.textContent.includes(id) && /Pide entrar/.test(r.textContent));
+        [...row.querySelectorAll("button")].find(b => /Pasar a este celular/.test(b.textContent)).click();
+      }, legK);
+      await wait(3500);
+      const k3 = await K3.evaluate(() => ({ leg: miLegajo, abierto: !!document.querySelector("#claveOverlay.open") }));
+      chequear("cuando el admin se lo pasa, entra y elige una clave nueva", k3.leg === legK && k3.abierto, k3);
+      await K3.fill("#clave1", "7777"); await K3.fill("#clave2", "7777"); await K3.click("#claveOk"); await wait(1500);
+      chequear("la clave nueva queda (cuenta nueva)", (await K3.evaluate(() => tengoClave())) && ((be.st[CUC] || {})[legK] || {}).uid === "uK3" && ((be.st[CUC] || {})[legK] || {}).v === 1,
+        (be.st[CUC] || {})[legK]);
+      // (como al liberar: al volver a abrir ya no le llegan los turnos)
+      const fuera = await K1.evaluate(() => ({ leg: miLegajo, clave: tengoClave() }));
+      await K1.reload(); await wait(2500);
+      fuera.reabre = await veDatos(K1);
+      chequear("los aparatos con la clave vieja quedan afuera", !fuera.leg && !fuera.clave && !fuera.reabre, fuera);
+      await K1.evaluate(() => openYo());
+      await K1.fill("#yoLegajo", legK); await K1.click("#yoLegajoBtn"); await wait(800);
+      await K1.fill("#yoClave", "4821"); await K1.click("#yoLegajoSi"); await wait(1500);
+      chequear("con la clave vieja ya no entra", !(await K1.evaluate(() => miLegajo)));
+      await K1.fill("#yoClave", "7777"); await K1.click("#yoLegajoSi"); await wait(2500);
+      chequear("con la nueva sí", (await K1.evaluate(() => miLegajo)) === legK && (await veDatos(K1)));
+      await Promise.all([K1.close(), K2.close(), K3.close()]);
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

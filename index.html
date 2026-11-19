@@ -1649,6 +1649,15 @@
     #yoLegajoBotones button { flex: 1; border: 0; border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
     #yoLegajoSi { background: #0f766e; color: #fff; }
     #yoLegajoNo { background: #e2e8f0; color: #334155; }
+    #yoClave { display: none; width: 100%; margin-top: 10px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px; font-size: 16px; letter-spacing: 4px; }
+    #yoLegajoConf.con-clave #yoClave { display: block; }
+    #yoClave:placeholder-shown { letter-spacing: normal; }
+    #yoOlvide { display: none; margin-top: 8px; font-size: 0.75rem; color: #0f766e; font-weight: 700; }
+    #yoLegajoConf.con-clave #yoOlvide { display: inline-block; }
+    #claveOverlay { z-index: 3100; background: rgba(15, 23, 42, 0.88); }
+    #claveOverlay .op-intro b { color: #0f172a; }
+    #claveMsg { min-height: 1.1em; margin: 6px 0 2px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
+    #claveOk { width: 100%; }
     #sinDatos { display: none; margin: 24px auto; max-width: 420px; padding: 18px 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 0.9rem; font-weight: 600; }
     #sinDatos.show { display: block; }
     body.sin-datos .group, body.sin-datos #groupCards, body.sin-datos .day-split { display: none !important; }
@@ -2035,6 +2044,8 @@
         <div id="yoLegajoMsg"></div>
         <div id="yoLegajoConf">
           <div id="yoLegajoPregunta"></div>
+          <input id="yoClave" type="password" inputmode="numeric" maxlength="4" placeholder="Tu clave (4 números)" autocomplete="off">
+          <a href="#" id="yoOlvide">Me olvidé la clave</a>
           <div id="yoLegajoBotones">
             <button type="button" id="yoLegajoSi">Sí, soy yo</button>
             <button type="button" id="yoLegajoNo">No</button>
@@ -2943,7 +2954,7 @@
     })();
     document.getElementById("btnUser").addEventListener("click", () => {
       if (fbReady) {
-        if (fbAuth.currentUser && !fbAuth.currentUser.isAnonymous) {
+        if (fbAuth.currentUser && !esCelular(fbAuth.currentUser)) {
           if (confirm("¿Cerrar sesión de " + (fbAuth.currentUser.email || "Google") + "?")) fbAuth.signOut();
           return;
         }
@@ -3235,9 +3246,10 @@
           // Sin sesión: entra como anónimo (invisible para el usuario) para poder mandar sus cambios
           fbAuth.signInAnonymously().catch(() => {});
         }
-        const email = u && !u.isAnonymous && u.email ? u.email.toLowerCase() : "";
+        // Celular = anónimo o con su clave personal (cuenta legajo + clave); cualquier otra cuenta es Google
+        const email = u && !esCelular(u) && u.email ? u.email.toLowerCase() : "";
         const isAdmin = !!email && !!ADMIN_EMAIL && email === ADMIN_EMAIL.toLowerCase();
-        if (u && !u.isAnonymous && !isAdmin) {
+        if (u && !esCelular(u) && !isAdmin) {
           alert("La cuenta " + email + " no tiene permiso para publicar.");
           fbAuth.signOut();
         }
@@ -3250,7 +3262,7 @@
         if (u) startYoSync(u);
         if (u) startProtegidos();
         if (u) propTrasAuth();
-        if (u && u.isAnonymous) AVAILABLE_MESES.forEach(k => syncCj(k));
+        if (esCelular(u)) AVAILABLE_MESES.forEach(k => syncCj(k));
       });
     }
 
@@ -3275,7 +3287,7 @@
     function syncCj(key) {
       if (!fbReady || !fbAuth || currentUser === "ADMIN") return;
       const u = fbAuth.currentUser;
-      if (!u || !u.isAnonymous) return;
+      if (!esCelular(u)) return;
       let em = {};
       try { em = JSON.parse(localStorage.getItem(editsKey(key)) || "{}"); } catch (e) { em = {}; }
       const times = loadEditTimes(key);
@@ -5300,7 +5312,7 @@
       revisarAvisos();
       syncTodosPropios();
       actualizarSinDatos();
-      registrarYo(true).then(listo => { if (listo) { registroOk = true; startProtegidos(); } });
+      registrarYo(true).then(listo => { if (listo) { registroOk = true; startProtegidos(); revisarClave(); } });
       return true;
     }
     // ¿Quién sos? por legajo: el celular no ve la lista de nombres (los datos son privados).
@@ -5347,11 +5359,19 @@
       btn.disabled = false;
       btn.textContent = "Buscar";
       if (!name) { msg.textContent = "No encontramos el legajo " + id + ". Revisalo; si está bien, avisale al administrador."; return; }
+      // Si ese legajo ya tiene clave (la eligió en otro aparato), se entra con la clave
+      const cuenta = await cuentaDeLegajo(id);
       // La confirmación va dentro del cuadro (en iPhone las ventanitas del sistema a veces no aparecen)
-      legajoElegido = { id, name };
+      legajoElegido = { id, name, cuenta };
+      const conf = document.getElementById("yoLegajoConf");
+      conf.classList.toggle("con-clave", !!cuenta);
+      document.getElementById("yoClave").value = "";
+      document.getElementById("yoLegajoSi").textContent = cuenta ? "Entrar" : "Sí, soy yo";
       document.getElementById("yoLegajoPregunta").innerHTML = "¿Sos " + String(name).replace(/</g, "&lt;") + " (" + id + ")?" +
-        "<small>Queda guardado en este celular y después solo lo puede cambiar el administrador.</small>";
-      document.getElementById("yoLegajoConf").classList.add("show");
+        (cuenta ? "<small>Escribí tu clave para entrar.</small>"
+          : "<small>Queda guardado en este celular y después solo lo puede cambiar el administrador.</small>");
+      conf.classList.add("show");
+      if (cuenta) setTimeout(() => document.getElementById("yoClave").focus(), 30);
     }
     let legajoElegido = null;
     // Invitados: en vez del legajo pueden escribir el código de su invitación
@@ -5394,7 +5414,7 @@
         "<li>Abrí la app desde el ícono nuevo y registrate ahí" +
         (code ? ": tocá \"Tengo un código de invitación\" y escribí este código:</li></ol><div class=\"ios-codigo\">" + code + "</div>"
               : " con tu número de legajo.</li></ol>") +
-        "<small>Safari y la app instalada no comparten el registro: si te registrás acá, después la app te va a decir que tu nombre ya está en uso.</small>" +
+        "<small>Safari y la app instalada son como dos aparatos distintos: si te registrás acá, después en la app vas a tener que entrar con tu legajo y tu clave.</small>" +
         "<button type=\"button\" id=\"yoIosSafari\">Prefiero usarla solo en Safari</button>";
       document.getElementById("yoIosSafari").addEventListener("click", () => {
         try { localStorage.setItem("jefSoloSafari", "1"); } catch (e) {}
@@ -5404,6 +5424,7 @@
     }
     async function confirmarLegajo() {
       if (!legajoElegido) return;
+      if (legajoElegido.cuenta) { entrarConClave(); return; }
       const si = document.getElementById("yoLegajoSi");
       si.disabled = true;
       si.textContent = "Guardando…";
@@ -5442,6 +5463,16 @@
       document.getElementById("yoLegajo").focus();
     });
     document.getElementById("yoLegajo").addEventListener("keydown", e => { if (e.key === "Enter") buscarLegajo(); });
+    document.getElementById("yoClave").addEventListener("keydown", e => { if (e.key === "Enter") entrarConClave(); });
+    // Se olvidó la clave (o alguien se registró a su nombre): se le pide al admin que le pase el legajo, como siempre
+    document.getElementById("yoOlvide").addEventListener("click", e => {
+      e.preventDefault();
+      if (!legajoElegido) return;
+      pedirPaso(legajoElegido.id, legajoElegido.name);
+      document.getElementById("yoLegajoMsg").textContent = "Le avisamos al administrador. Cuando te pase el legajo a este aparato entrás solo (dejá la app abierta o volvé a abrirla en un rato) y elegís una clave nueva.";
+      legajoElegido = null;
+      document.getElementById("yoLegajoConf").classList.remove("show");
+    });
     document.getElementById("sinDatosYo").addEventListener("click", () => openYo());
     document.getElementById("yoSearch").addEventListener("input", renderYoList);
     document.getElementById("btnYo").addEventListener("click", openYo);
@@ -7237,7 +7268,7 @@
         if (currentUser !== "ADMIN") openYo();
         return;
       }
-      if (ok) registrarYo(false).then(habilitar);
+      if (ok) registrarYo(false).then(listo => { habilitar(listo); if (listo) revisarClave(); });
     }
     let yoUid = "", yoUnsub = null;
     let miAb = 0; // usos de la app de este celular (ab de su yo_*): viajan con el código de Pasar a la app
@@ -7318,6 +7349,14 @@
     async function abrirPase() {
       if (!fbReady || !yoUid || !miLegajo || soyExterno() || currentUser === "ADMIN") return;
       const ov = paseOverlay(), cuerpo = ov.querySelector("#paseCuerpo");
+      if (tengoClave()) { // con clave no hace falta el código: entra con legajo y clave (y puede seguir en Safari)
+        cuerpo.innerHTML = "Como ya tenés tu clave, no hace falta ningún código." +
+          '<ol style="margin:8px 0;padding-left:20px"><li>Abrí la app desde el ícono de la pantalla de inicio.</li>' +
+          "<li>En \"¿Quién sos?\" escribí tu legajo y después tu clave.</li></ol>" +
+          '<small style="color:#64748b">Podés seguir usándola también acá en Safari.</small>';
+        ov.classList.add("open");
+        return;
+      }
       cuerpo.textContent = "Preparando el código…";
       ov.classList.add("open");
       let p = paseGuardado();
@@ -7409,6 +7448,150 @@
       fbDb.collection(YO_COLLECTION).doc(yoUid).update({ ab: firebase.firestore.FieldValue.increment(n) })
         .catch(err => console.warn("Usos traídos:", err));
     }
+    // ========== CLAVE PERSONAL (legajo + clave, en todos los aparatos que quiera) ==========
+    // Cada uno elige una clave de 4 números. Por dentro es una cuenta de Firebase (correo inventado
+    // "l<legajo>@…", nunca se manda nada) que se le pega a la llave anónima de este celular: el uid no
+    // cambia, así que su registro sigue igual. En otro aparato (o si el teléfono borró los datos) entra
+    // con legajo + clave y Firebase le da ese mismo uid: ya está registrado. Firebase frena a quien prueba
+    // muchas claves. cuentas_jefes/{legajo} = { uid, v } dice que ese legajo tiene clave (v: si el admin
+    // le pasó el legajo a otro aparato, la cuenta vieja queda y la nueva usa el número siguiente).
+    const CUENTA_COLLECTION = "cuentas_jefes";
+    const CUENTA_DOM = "@jefes.example.com";
+    function cuentaEmail(leg, v) { return "l" + leg + (v > 0 ? "-" + v : "") + CUENTA_DOM; }
+    function cuentaPw(leg, pin) { return "vp" + pin + "-" + leg; } // Firebase pide 6 letras como mínimo
+    function cuentaV(u) { const m = String((u && u.email) || "").match(/-(\d+)@/); return m ? Number(m[1]) : 0; }
+    function esCuentaClave(u) { return !!u && !u.isAnonymous && String(u.email || "").toLowerCase().endsWith(CUENTA_DOM); }
+    function esCelular(u) { return !!u && (u.isAnonymous || esCuentaClave(u)); }
+    function tengoClave() { return !!fbAuth && esCuentaClave(fbAuth.currentUser); }
+    // ¿Ese legajo tiene clave? (y la tiene quien lo tiene reservado) → { v } o null
+    async function cuentaDeLegajo(id) {
+      if (!fbReady) return null;
+      try {
+        const [r, c] = await Promise.all([fbDb.collection(LEG_COLLECTION).doc(String(id)).get(), fbDb.collection(CUENTA_COLLECTION).doc(String(id)).get()]);
+        const ru = r.exists && r.data() ? r.data().uid : "", cd = c.exists ? c.data() : null;
+        if (ru && ru !== yoUid && cd && cd.uid === ru) return { v: Number(cd.v) || 0 };
+      } catch (e) {}
+      return null;
+    }
+    // Con clave: deja anotado en cuentas_* que ese legajo tiene clave (por si no se pudo al elegirla)
+    function asegurarCuenta() {
+      if (!tengoClave() || !miLegajo || soyExterno()) return;
+      const u = fbAuth.currentUser, ref = fbDb.collection(CUENTA_COLLECTION).doc(String(miLegajo));
+      ref.get().then(d => {
+        if (d.exists && d.data() && d.data().uid === u.uid) return;
+        return ref.set({ uid: u.uid, v: cuentaV(u), t: Date.now() });
+      }).catch(() => {});
+    }
+    let claveSaltear = false; // Firebase todavía no tiene activadas las claves: no se insiste hasta la próxima vez
+    function revisarClave() {
+      if (tengoClave()) { asegurarCuenta(); return; }
+      if (!fbReady || claveSaltear || currentUser === "ADMIN" || !registroOk) return;
+      const u = fbAuth.currentUser;
+      if (!u || !u.isAnonymous || typeof u.linkWithCredential !== "function") return;
+      if (!miLegajo || soyExterno() || !/^\d+$/.test(String(miLegajo))) return;
+      abrirClave();
+    }
+    function claveOverlay() {
+      let ov = document.getElementById("claveOverlay");
+      if (ov) return ov;
+      ov = document.createElement("div");
+      ov.className = "palette-overlay"; ov.id = "claveOverlay";
+      ov.innerHTML = '<div class="palette-modal"><div class="palette-header"><h3>Elegí tu clave</h3></div>' +
+        '<p class="op-intro" id="claveIntro"></p>' +
+        '<input id="clave1" class="ops-in" type="password" inputmode="numeric" maxlength="4" placeholder="Tu clave (4 números)" autocomplete="off">' +
+        '<input id="clave2" class="ops-in" type="password" inputmode="numeric" maxlength="4" placeholder="Repetila" autocomplete="off">' +
+        '<div id="claveMsg"></div><div class="palette-actions"><button class="btn btn-done" id="claveOk">Guardar mi clave</button></div></div>';
+      document.body.appendChild(ov);
+      ov.querySelector("#claveOk").addEventListener("click", guardarClave);
+      ov.querySelector("#clave2").addEventListener("keydown", e => { if (e.key === "Enter") guardarClave(); });
+      return ov;
+    }
+    function abrirClave() {
+      const ov = claveOverlay();
+      if (ov.classList.contains("open")) return;
+      const me = miPersona();
+      let nom = "";
+      try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
+      const ape = String((me && me.p.name) || nom || "").split(",")[0].trim();
+      const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      ov.querySelector("#claveIntro").innerHTML = (ape ? "Hola, <b>" + esc(ape.charAt(0) + ape.slice(1).toLowerCase()) + "</b>. " : "") +
+        "Desde ahora la app usa una clave para que puedas entrar desde cualquier celular o la PC.<br><br>" +
+        "Elegí una de <b>4 números</b> que solo sepas vos. Te la pedimos una sola vez en este celular.<br><br>" +
+        "La vas a necesitar si entrás desde otro aparato o si el teléfono te borra los datos: ponés tu legajo y esta clave, y listo.";
+      ["clave1", "clave2"].forEach(x => { ov.querySelector("#" + x).value = ""; });
+      ov.querySelector("#claveMsg").textContent = "";
+      ov.querySelector("#claveOk").disabled = false;
+      ov.classList.add("open");
+    }
+    async function guardarClave() {
+      const ov = claveOverlay(), msg = ov.querySelector("#claveMsg"), ok = ov.querySelector("#claveOk");
+      const n1 = ov.querySelector("#clave1").value.trim(), n2 = ov.querySelector("#clave2").value.trim();
+      if (!/^\d{4}$/.test(n1)) { msg.textContent = "La clave tiene que ser de 4 números."; return; }
+      if (n1 !== n2) { msg.textContent = "Las dos claves no son iguales."; ov.querySelector("#clave2").value = ""; return; }
+      const u = fbAuth.currentUser, leg = String(miLegajo || "");
+      if (!u || !leg) { ov.classList.remove("open"); return; }
+      if (!u.isAnonymous) { ov.classList.remove("open"); revisarClave(); return; }
+      ok.disabled = true; msg.textContent = "";
+      // Número de cuenta: si el legajo tuvo clave en otro aparato (el admin se lo pasó a este), va la siguiente
+      let v = 0;
+      try { const c = await fbDb.collection(CUENTA_COLLECTION).doc(leg).get(); if (c.exists && c.data()) v = (Number(c.data().v) || 0) + (c.data().uid === u.uid ? 0 : 1); } catch (e) {}
+      let listo = false;
+      for (let i = 0; i < 15 && !listo; i++) {
+        try {
+          await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(cuentaEmail(leg, v), cuentaPw(leg, n1)));
+          listo = true;
+        } catch (err) {
+          const code = (err && err.code) || "";
+          if (code === "auth/email-already-in-use" || code === "auth/credential-already-in-use") { v++; continue; }
+          if (code === "auth/operation-not-allowed" || code === "auth/admin-restricted-operation") {
+            // Firebase todavía no tiene activadas las claves: no se traba la app
+            console.warn("Clave:", code);
+            claveSaltear = true; ov.classList.remove("open"); return;
+          }
+          msg.textContent = code === "auth/too-many-requests" ? "Probaste muchas veces. Esperá unos minutos y probá de nuevo."
+            : "No se pudo guardar. Revisá la conexión y probá de nuevo.";
+          ok.disabled = false;
+          return;
+        }
+      }
+      if (!listo) { msg.textContent = "No se pudo guardar. Avisale al administrador."; ok.disabled = false; return; }
+      fbDb.collection(CUENTA_COLLECTION).doc(leg).set({ uid: u.uid, v, t: Date.now() }).catch(err => console.warn("Cuenta:", err));
+      fbDb.collection(YO_COLLECTION).doc(u.uid).update({ clave: true }).catch(() => {});
+      ov.classList.remove("open");
+      showShareToast("Listo, tu clave quedó guardada.");
+    }
+    // Otro aparato (o el mismo, después de que se borraron los datos): entra con legajo + clave
+    async function entrarConClave() {
+      const sel = legajoElegido;
+      if (!sel || !sel.cuenta) return;
+      const msg = document.getElementById("yoLegajoMsg"), si = document.getElementById("yoLegajoSi");
+      const pin = document.getElementById("yoClave").value.trim();
+      if (!/^\d{4}$/.test(pin)) { msg.textContent = "Escribí tu clave de 4 números."; return; }
+      if (!fbReady || !fbAuth) { msg.textContent = "Esperá unos segundos a que cargue y probá de nuevo."; return; }
+      si.disabled = true; si.textContent = "Entrando…"; msg.textContent = "";
+      cancelarPaso(); // si había pedido que le pasen el legajo, ya no hace falta
+      let u = null;
+      try {
+        const r = await fbAuth.signInWithEmailAndPassword(cuentaEmail(sel.id, sel.cuenta.v), cuentaPw(sel.id, pin));
+        u = (r && r.user) || fbAuth.currentUser;
+      } catch (err) {
+        const code = (err && err.code) || "";
+        msg.textContent = code === "auth/too-many-requests" ? "Probaste muchas veces. Esperá unos minutos y probá de nuevo."
+          : code === "auth/network-request-failed" ? "No hay conexión. Probá de nuevo en un rato."
+          : "La clave no es esa. Probá de nuevo.";
+        document.getElementById("yoClave").value = "";
+        si.disabled = false; si.textContent = "Entrar";
+        return;
+      }
+      startYoSync(u); // ya es el uid de su cuenta
+      const ok = await elegirYo(sel.id, sel.name, false);
+      si.disabled = false; si.textContent = "Entrar";
+      if (ok) {
+        legajoElegido = null;
+        document.getElementById("yoLegajoConf").classList.remove("show");
+        showShareToast("Hola, " + String(sel.name).split(",")[0] + ". Entraste con tu clave.");
+      }
+    }
     function yoRegKey(uid) { return "jefYoReg:" + uid; }
     // Borra del celular las copias guardadas que empiezan con ese prefijo
     function borrarCopiaLocal(pref) {
@@ -7430,6 +7613,7 @@
       try { nom = localStorage.getItem("jefYoNombre") || ""; } catch (e) {}
       const data = { uid: yoUid, id: String(miLegajo), name: me ? me.p.name : ex ? ex.name : (nom || String(miLegajo)), disp: dispositivo(), t: Date.now(),
         pide: firebase.firestore.FieldValue.delete(), antes: firebase.firestore.FieldValue.delete() };
+      if (tengoClave()) data.clave = true;
       return fbDb.collection(YO_COLLECTION).doc(yoUid).set(data, { merge: true })
         .then(() => { try { localStorage.setItem(yoRegKey(yoUid), String(miLegajo)); } catch (e) {} return true; })
         .catch(err => { console.warn("yo_jefes:", err); return false; });
@@ -7495,6 +7679,7 @@
         resetPeopleFromOfficial();
         refreshAfterEdit();
         showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos.");
+        if (tengoClave()) fbAuth.signOut().catch(() => {}); // sale de la cuenta con clave: vuelve como anónimo
         if (currentUser !== "ADMIN") openYo();
       }, err => console.warn("yo_jefes:", err));
     }
@@ -7640,7 +7825,7 @@
         const dup = cnt[d.id] > 1;
         const f = d.t ? new Date(d.t) : null;
         const fecha = f ? f.getDate() + "/" + (f.getMonth() + 1) + " " + String(f.getHours()).padStart(2, "0") + ":" + String(f.getMinutes()).padStart(2, "0") : "";
-        row.innerHTML = '<div class="acu-top"><span>' + d.name + (esInvitado(d.id) ? ' · invitado' : externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
+        row.innerHTML = '<div class="acu-top"><span>' + d.name + (d.clave ? ' <span title="Tiene clave">🔑</span>' : '') + (esInvitado(d.id) ? ' · invitado' : externoDe(d.id) ? '' : ' · ' + d.id) + '</span>' +
           (esNuevoCel(d, celVistosAntes) ? '<span style="color:#059669;font-weight:700">nuevo</span>' : '') +
           (usoN ? '<span class="uso-nuevo-n" style="color:#047857;font-weight:700;white-space:nowrap">+' + usoN + (usoN === 1 ? ' uso' : ' usos') + '</span>' : '') + '</div>' +
           '<div style="font-size:0.72rem;color:#64748b">Elegido ' + fecha + (d.disp ? ' · ' + d.disp : '') + (k === yoUid ? ' · este celular' : '') + '</div>' +

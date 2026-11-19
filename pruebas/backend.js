@@ -49,6 +49,20 @@ module.exports = function crearBackend(app, turnosColl) {
     return true;
   }
   const pages = new Set();
+  // Cuentas con clave personal (como Firebase Auth): correo inventado → { pw, uid }
+  const cuentas = {};
+  function auth(json) {
+    const a = JSON.parse(json);
+    if (a.op === "link") {
+      if (cuentas[a.mail]) return "auth/email-already-in-use";
+      if (String(a.pw || "").length < 6) return "auth/weak-password";
+      cuentas[a.mail] = { pw: a.pw, uid: a.uid };
+      return "ok";
+    }
+    const c = cuentas[a.mail];
+    if (!c || c.pw !== a.pw) return "auth/invalid-credential";
+    return "ok:" + c.uid;
+  }
   const clone = x => JSON.parse(JSON.stringify(x));
   const stripDel = o => { if (o && typeof o === "object") for (const k of Object.keys(o)) { if (o[k] && o[k].__del) delete o[k]; else stripDel(o[k]); } return o; };
   function permitido(w, next, prev) {
@@ -86,6 +100,12 @@ module.exports = function crearBackend(app, turnosColl) {
     if (w.coll === "yo_" + app) {
       if (w.email === ADMIN) return true;
       return w.id === w.uid && !!next && next.uid === w.uid;
+    }
+    // cuentas_<app>: "este legajo tiene clave" (uid de la cuenta). La escribe quien tiene reservado ese legajo; el admin todo
+    if (w.coll === "cuentas_" + app) {
+      if (w.email === ADMIN) return true;
+      const l = legs()[w.id];
+      return w.op === "set" && !!next && next.uid === w.uid && !!l && l.uid === w.uid;
     }
     // division_<app>: la arma solo el admin (también los usuarios de la PC de la División y sus claves)
     if (w.coll === "division_" + app) return w.email === ADMIN;
@@ -163,8 +183,9 @@ module.exports = function crearBackend(app, turnosColl) {
     pages.add(pg);
     await pg.exposeBinding("__fbWrite", (_, j) => write(j));
     await pg.exposeBinding("__fbState", () => JSON.stringify(st));
-    await pg.exposeBinding("__fbCanRead", (_, coll, id) => puedeLeer(coll, id, uid, email || null));
-    await pg.addInitScript(([u, e]) => { window.__UID = u; window.__EMAIL = e; }, [uid, email || null]);
+    await pg.exposeBinding("__fbCanRead", (_, coll, id, u, e) => puedeLeer(coll, id, u || uid, u ? e : (email || null)));
+    await pg.exposeBinding("__fbAuth", (_, j) => auth(j));
+    await pg.addInitScript(([u, e, c]) => { window.__UID = u; window.__EMAIL = e; if (c) window.__CUENTAS = true; }, [uid, email || null, !!o.cuentas]);
     // "Hoy" fijo antes del mes de prueba, así los pedidos no quedan vencidos según la fecha real
     const h = new Date(); await pg.addInitScript(t => { window.__HOY = t; }, new Date(h.getFullYear(), h.getMonth(), 0, 12).getTime()); // "hoy" = el día antes del mes de prueba (todo el mes se puede cambiar)
     await pg.addInitScript({ path: path.join(__dirname, "firebase-falso.js") });
@@ -174,5 +195,5 @@ module.exports = function crearBackend(app, turnosColl) {
     await pg.waitForTimeout(1500);
     return pg;
   }
-  return { st, celular, mesDePrueba };
+  return { st, celular, mesDePrueba, cuentas };
 };

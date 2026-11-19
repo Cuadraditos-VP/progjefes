@@ -1511,6 +1511,8 @@ function chequear(nombre, cond, detalle) {
       const k1 = await K1.evaluate(() => ({ cerrado: !document.querySelector("#claveOverlay.open"), clave: tengoClave(), uid: yoUid }));
       chequear("la guarda y sigue con el mismo registro", k1.cerrado && k1.clave && k1.uid === "uK1" &&
         ((be.st[CUC] || {})[legK] || {}).uid === "uK1" && !!yoDe("uK1").clave, { k1, cu: (be.st[CUC] || {})[legK] });
+      const resumenClave = await AD.evaluate(() => { renderCelulares(); return document.getElementById("celularesClave").textContent; });
+      chequear("en Celulares el admin ve cuántos ya tienen clave", /🔑 [1-9]\d* de \d+ ya tienen clave/.test(resumenClave), resumenClave);
       await K1.reload(); await wait(2500);
       chequear("al volver a abrir no se la pide de nuevo", (await K1.evaluate(() => miLegajo)) === legK &&
         !(await K1.evaluate(() => !!document.querySelector("#claveOverlay.open"))));

@@ -59,7 +59,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   tiene clave pide la clave (`cuentaDeLegajo`, `entrarConClave`, `signInWithEmailAndPassword`); "Me olvidé la clave" manda el pedido de
   pasar el legajo de siempre. Si el admin libera o pasa el legajo, los aparatos con la cuenta vieja salen (`signOut`) y el nuevo elige
   otra clave (cuenta nueva con `v` + 1). Si Firebase no tiene activado correo/contraseña, no la pide (`claveSaltear`).
-  En Celulares, 🔑 = tiene clave (`clave` en su `yo_*`). Cada persona = una línea (mismo uid en todos sus aparatos).
+  En Celulares, 🔑 = tiene clave (`clave` en su `yo_*`) y arriba "🔑 N de M ya tienen clave" (`celularesClave`, sin invitados). Cada persona = una línea (mismo uid en todos sus aparatos).
   Reglas y paso en la consola: `REGLAS-FIREBASE-CLAVE.md`. Pruebas: `__CUENTAS` en el Firebase falso.
 - **iPhone**: Safari y la app instalada en el inicio no comparten nada (para Firebase son dos
   celulares). En Safari de iPhone "¿Quién sos?" explica que primero instalen la app (o "Prefiero

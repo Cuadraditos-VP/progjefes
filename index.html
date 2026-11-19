@@ -1951,6 +1951,7 @@
       <div id="invitacionesList"></div>
       <button type="button" class="ped-act sec" id="btnVerUso" style="width:100%;margin:0 0 6px">📊 Ver uso de la app</button>
       <button type="button" class="ped-act sec" id="btnHistorial" style="width:100%;margin:0 0 6px">📜 Historial de la División</button>
+      <div id="celularesClave" style="margin:0 0 8px;font-size:0.82rem;font-weight:700;color:#334155"></div>
       <div id="celularesUso" class="ped-note info" style="margin-bottom:8px"></div>
       <div id="celularesList"></div>
     </div>
@@ -7812,6 +7813,12 @@
       const list = document.getElementById("celularesList");
       const ru = document.getElementById("celularesUso");
       if (ru) ru.textContent = resumenUso();
+      // Cuántos registrados con legajo ya eligieron su clave (los invitados no tienen)
+      const rc = document.getElementById("celularesClave");
+      if (rc) {
+        const conLeg = Object.values(celularesDocs).filter(d => d && d.id && !esInvitado(d.id) && !externoDe(d.id));
+        rc.textContent = conLeg.length ? "🔑 " + conLeg.filter(d => d.clave).length + " de " + conLeg.length + " ya tienen clave" : "";
+      }
       const cnt = repetidos();
       const items = Object.keys(celularesDocs).map(k => ({ k, d: celularesDocs[k] })).filter(x => x.d)
         .sort((a, b) => (cnt[b.d.id] > 1) - (cnt[a.d.id] > 1) ||

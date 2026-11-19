@@ -7730,6 +7730,17 @@
         let reg = null;
         try { reg = localStorage.getItem(yoRegKey(yoUid)); } catch (e) {}
         if (!reg || !miLegajo) return; // nunca se registró: no es una liberación
+        // Antes de darlo por liberado se pregunta al servidor: al abrir la app sin conexión, o con la
+        // conexión dormida (iPhone), Firebase puede decir por un instante que el registro no existe
+        // y el celular se salía solo y tenía que volver a poner la clave (caso Nemaric).
+        const uidVisto = yoUid, legVisto = String(miLegajo);
+        fbDb.collection(YO_COLLECTION).doc(uidVisto).get({ source: "server" }).then(s => {
+          if (s.exists || yoUid !== uidVisto || String(miLegajo) !== legVisto) return;
+          liberadoPorAdmin();
+        }).catch(() => {}); // sin respuesta del servidor: no se hace nada
+      }, err => console.warn("yo_jefes:", err));
+    }
+    function liberadoPorAdmin() {
         try { localStorage.setItem(LIBERADO_KEY, String(miLegajo)); } catch (e) {}
         // El admin liberó este celular: también se borra la copia de los turnos
         try { localStorage.removeItem("jefYo"); localStorage.removeItem(yoRegKey(yoUid)); } catch (e) {}
@@ -7744,7 +7755,6 @@
         showShareToast("El administrador liberó tu nombre. Volvé a elegir quién sos.");
         if (tengoClave()) fbAuth.signOut().catch(() => {}); // sale de la cuenta con clave: vuelve como anónimo
         if (currentUser !== "ADMIN") openYo();
-      }, err => console.warn("yo_jefes:", err));
     }
 
     const celularesDocs = {};

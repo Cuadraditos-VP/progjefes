@@ -71,6 +71,23 @@ function chequear(nombre, cond, detalle) {
     chequear("con \"Sí, soy yo\" queda registrado", (await P.evaluate(() => miLegajo)) === idP);
     chequear("sin ventanitas del sistema (no andan bien en iPhone)", dialogos === 0, dialogos);
     chequear("registrado ve la programación protegida", await veDatos(P));
+    console.log("Compartir almanaque");
+    const comp = await P.evaluate(async () => {
+      const mio = people.findIndex(p => String(p.id) === String(miLegajo));
+      const otro = people.findIndex((p, i) => i !== mio);
+      const btn = document.getElementById("btnShareCal");
+      openPersonCalendar(otro); const vOtro = btn.style.display !== "none";
+      openPersonCalendar(mio); const vMio = btn.style.display !== "none";
+      btn.click();
+      await new Promise(r => setTimeout(r, 1500));
+      const ov = document.getElementById("compartirOverlay");
+      const menu = !!ov && ov.classList.contains("open") ? [...ov.querySelectorAll("[data-med]")].map(b => b.dataset.med) : [];
+      if (ov) ov.classList.remove("open");
+      document.getElementById("personOverlay").classList.remove("open");
+      return { vMio, vOtro, menu };
+    });
+    chequear("el botón Compartir aparece solo en el almanaque propio", comp.vMio && !comp.vOtro, comp);
+    chequear("en la compu deja elegir por dónde compartir", ["whatsapp", "correo", "copiar", "descargar"].every(m => comp.menu.includes(m)), comp.menu);
     // Busca tres personas y un día donde A y B trabajan con turnos distintos
     const s = await P.evaluate(ids => {
       const ok = i => ids.includes(String(people[i].id)) && String(people[i].id) !== String(miLegajo);

@@ -50,6 +50,17 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   "Pasar a este celular" borra la reserva y el registro viejo, y el celular nuevo se reserva solo (`pasarLegajo`);
   "No" borra el pedido. Al pasarlo se borra también el pedido (si no, reaparecía) y el admin lo ve en gris
   "Ya se lo pasaste" (`localStorage` `<PROP_PREF>Pasados`) hasta que ese celular abre la app y se registra. Además la app le pide al navegador que no borre sus datos (`navigator.storage.persist`).
+- **Clave personal** (a pedido de Guillermo): cada usuario con legajo elige una clave de **4 números** y con legajo + clave
+  entra en todos los aparatos que quiera, a la vez. Por dentro es una cuenta de Firebase Auth (correo/contraseña, correo inventado
+  `l<legajo>[-v]@jefes.example.com`, contraseña `vp<clave>-<legajo>`) que se le pega a la llave anónima con `linkWithCredential`:
+  el uid no cambia, así que las reglas y el registro siguen iguales (`esCelular`, `esCuentaClave`, `tengoClave`).
+  Los registrados la eligen una sola vez, obligatoria, al abrir (`revisarClave` → `abrirClave`/`guardarClave`, cuadro `claveOverlay`
+  sin Cancelar). `cuentas_jefes/{legajo} = {uid, v}` dice que ese legajo tiene clave. En otro aparato, "¿Quién sos?" con un legajo que
+  tiene clave pide la clave (`cuentaDeLegajo`, `entrarConClave`, `signInWithEmailAndPassword`); "Me olvidé la clave" manda el pedido de
+  pasar el legajo de siempre. Si el admin libera o pasa el legajo, los aparatos con la cuenta vieja salen (`signOut`) y el nuevo elige
+  otra clave (cuenta nueva con `v` + 1). Si Firebase no tiene activado correo/contraseña, no la pide (`claveSaltear`).
+  En Celulares, 🔑 = tiene clave (`clave` en su `yo_*`). Cada persona = una línea (mismo uid en todos sus aparatos).
+  Reglas y paso en la consola: `REGLAS-FIREBASE-CLAVE.md`. Pruebas: `__CUENTAS` en el Firebase falso.
 - **iPhone**: Safari y la app instalada en el inicio no comparten nada (para Firebase son dos
   celulares). En Safari de iPhone "¿Quién sos?" explica que primero instalen la app (o "Prefiero
   usarla solo en Safari"); un link de invitación abierto en Safari no se gasta y muestra el código,

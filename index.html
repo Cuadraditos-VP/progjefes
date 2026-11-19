@@ -375,13 +375,24 @@
       pointer-events: none;
       z-index: 4;
     }
-    .wa-share-btn {
-      background: #25D366; color: #fff;
+    .share-btn {
+      background: #2563eb; color: #fff;
       display: inline-flex; align-items: center; justify-content: center;
     }
-    .wa-share-btn:hover { background: #1ebe5a; color: #fff; }
-    .wa-share-btn svg { width: 18px; height: 18px; fill: currentColor; }
-    .wa-share-btn:disabled { opacity: 0.6; cursor: wait; }
+    .share-btn:hover { background: #1d4ed8; color: #fff; }
+    .share-btn svg { width: 17px; height: 17px; }
+    .share-btn:disabled, .share-btn.busy { opacity: 0.6; pointer-events: none; }
+    #compartirOverlay { z-index: 1600; }
+    .compartir-modal { max-width: 320px; }
+    .compartir-lista { display: flex; flex-direction: column; gap: 8px; }
+    .compartir-op {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      padding: 11px 14px; border: 1px solid #e2e8f0; border-radius: 10px;
+      background: #f8fafc; color: #1e293b; font: inherit; font-weight: 600; font-size: 0.92rem;
+      cursor: pointer; text-align: left;
+    }
+    .compartir-op:hover { background: #eff6ff; border-color: #93c5fd; }
+    .compartir-op span { font-size: 1.15rem; width: 1.4em; text-align: center; }
     .cal-day-h.has-comment .comment-dot {
       position: absolute;
       right: 3px;
@@ -2063,9 +2074,7 @@
       <div class="palette-header">
         <h3 id="personCalTitle">—</h3>
         <div style="display:flex; gap:6px;">
-          <button type="button" class="close-btn wa-share-btn" id="btnShareCal" title="Compartir por WhatsApp" aria-label="Compartir por WhatsApp">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.9 9.9 0 0 0-8.5 14.98L2 22l5.16-1.5A9.9 9.9 0 1 0 12.04 2zm0 18.06a8.1 8.1 0 0 1-4.15-1.14l-.3-.18-3.06.89.9-2.98-.2-.31a8.15 8.15 0 1 1 6.81 3.72zm4.46-6.1c-.24-.12-1.45-.72-1.68-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.78.97-.14.16-.29.18-.53.06a6.66 6.66 0 0 1-3.3-2.89c-.25-.43.25-.4.71-1.33.08-.16.04-.3-.02-.42-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.41-.55-.42h-.47a.9.9 0 0 0-.65.3 2.74 2.74 0 0 0-.85 2.03 4.76 4.76 0 0 0 1 2.52 10.9 10.9 0 0 0 4.17 3.69c1.55.67 2.16.73 2.94.61.47-.07 1.45-.59 1.66-1.17.2-.57.2-1.06.14-1.17-.06-.1-.22-.16-.46-.28z"/></svg>
-          </button>
+          <button type="button" class="close-btn share-btn" id="btnShareCal" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 13.3l7.4 4.4M15.7 6.3l-7.4 4.4"/></svg></button>
           <button type="button" class="close-btn" id="btnToggleCalView" title="Ver horizontal">↔</button>
           <button class="close-btn" id="closePersonCal" title="Cerrar">×</button>
         </div>
@@ -4581,6 +4590,7 @@
       btnToggleCalView.title = isRow ? "Ver como almanaque" : "Ver horizontal";
     }
 
+    const btnShareCal = document.getElementById("btnShareCal");
     function openPersonCalendar(pi) {
       // Hoy titila solo al abrir el almanaque (no cada vez que se redibuja)
       const hoyCls = personOverlay.classList.contains("open") ? " hoy-cal" : " hoy-cal hoy-titila";
@@ -4588,6 +4598,8 @@
       const person = people[pi];
       const codesArr = calModoPedir ? (person.codes || []) : codesFor(pi);
       personCalTitle.textContent = calModoPedir ? "Tocá el día que querés cambiar" : person.name + " · " + person.id;
+      // Solo se comparte el almanaque propio (el admin, cualquiera)
+      btnShareCal.style.display = (!calModoPedir && (currentUser === "ADMIN" || esMiFila(person))) ? "" : "none";
 
       // Vista almanaque (grilla de 7 columnas)
       let gridHtml = WEEKDAY_ABBR.map(d => `<div class="cal-wd">${d}</div>`).join("");
@@ -4755,9 +4767,94 @@
       return canvas;
     }
 
-    const btnShareCal = document.getElementById("btnShareCal");
+    // ========== COMPARTIR (elegir por qué medio) ==========
+    // Celular: abre el panel de compartir del teléfono (ahí se elige WhatsApp, Telegram, correo, etc.).
+    // Computadora: muestra un menú propio (el panel de Windows se queda colgado).
+    function esCelularAparato() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+    function avisoCompartir(msg) {
+      if (typeof showShareToast === "function") showShareToast(msg); else alert(msg);
+    }
+    function compartirMenu() {
+      let ov = document.getElementById("compartirOverlay");
+      if (ov) return ov;
+      ov = document.createElement("div");
+      ov.className = "palette-overlay"; ov.id = "compartirOverlay";
+      ov.innerHTML = '<div class="palette-modal compartir-modal"><div class="palette-header"><h3>Compartir por…</h3>' +
+        '<button type="button" class="close-btn" data-med="cerrar" title="Cerrar">×</button></div>' +
+        '<div class="compartir-lista">' +
+        '<button type="button" class="compartir-op" data-med="whatsapp"><span>💬</span>WhatsApp Web</button>' +
+        '<button type="button" class="compartir-op" data-med="correo"><span>✉️</span>Correo</button>' +
+        '<button type="button" class="compartir-op" data-med="copiar"><span>📋</span>Copiar imagen</button>' +
+        '<button type="button" class="compartir-op" data-med="descargar"><span>⬇️</span>Descargar imagen</button>' +
+        '</div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener("click", e => {
+        if (e.target === ov) { ov.classList.remove("open"); return; }
+        const b = e.target.closest("[data-med]");
+        if (!b) return;
+        ov.classList.remove("open");
+        const med = b.dataset.med;
+        if (med !== "cerrar" && ov._datos) compartirPor(med, ov._datos);
+      });
+      return ov;
+    }
+    function copiarImagen(blob) {
+      if (!navigator.clipboard || !window.ClipboardItem) return Promise.resolve(false);
+      try {
+        return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => true, () => false);
+      } catch (e) { return Promise.resolve(false); }
+    }
+    function descargarImagen(blob, fname) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }
+    function compartirPor(med, d) {
+      if (med === "whatsapp") {
+        // Primero se copia y se abre la pestaña en el mismo toque (si no, el navegador la bloquea)
+        const p = copiarImagen(d.blob);
+        window.open("https://web.whatsapp.com/", "_blank", "noopener");
+        p.then(ok => {
+          if (!ok) descargarImagen(d.blob, d.fname);
+          avisoCompartir(ok ? "Imagen copiada. En WhatsApp abrí el chat y pegala con Ctrl+V."
+                            : "Imagen descargada. Adjuntala en el chat de WhatsApp.");
+        });
+      } else if (med === "correo") {
+        descargarImagen(d.blob, d.fname);
+        location.href = "mailto:?subject=" + encodeURIComponent(d.titulo);
+        avisoCompartir("Imagen descargada. Adjuntala en el correo.");
+      } else if (med === "copiar") {
+        copiarImagen(d.blob).then(ok => avisoCompartir(ok
+          ? "Imagen copiada. Pegala donde quieras con Ctrl+V."
+          : "Este navegador no deja copiar imágenes. Usá Descargar."));
+      } else if (med === "descargar") {
+        descargarImagen(d.blob, d.fname);
+        avisoCompartir("Imagen descargada.");
+      }
+    }
+    async function compartirImagen(blob, fname, titulo) {
+      if (esCelularAparato()) {
+        let file = null;
+        try { file = new File([blob], fname, { type: "image/png" }); } catch (e) {}
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: titulo }); return; }
+          catch (err) { if (err && err.name === "AbortError") return; }
+        }
+      }
+      const ov = compartirMenu();
+      ov._datos = { blob, fname, titulo };
+      ov.classList.add("open");
+    }
     btnShareCal.addEventListener("click", async () => {
       if (currentCalPi == null) return;
+      if (currentUser !== "ADMIN" && !esMiFila(people[currentCalPi] || {})) return; // solo el propio
       btnShareCal.disabled = true;
       try {
         const person = people[currentCalPi];
@@ -4767,42 +4864,7 @@
         const slug = person.name.normalize("NFD").replace(/[̀-ͯ]/g, "")
           .replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
         const fname = "turnos-" + slug + "-" + MES.nombre.toLowerCase() + "-" + MES.y + ".png";
-        let file = null;
-        try { file = new File([blob], fname, { type: "image/png" }); } catch (e) {}
-
-        // Celular: abre el panel de compartir, donde se elige WhatsApp.
-        // En la compu NO se usa (el panel de Windows se queda colgado).
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-        if (isMobile && file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file] });
-            return;
-          } catch (err) {
-            if (err && err.name === "AbortError") return;
-          }
-        }
-
-        // Computadora: copia la imagen al portapapeles (para pegar con Ctrl+V en WhatsApp Web)
-        let copied = false;
-        if (!isMobile && navigator.clipboard && window.ClipboardItem) {
-          try {
-            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-            copied = true;
-          } catch (e) {}
-        }
-
-        // y además la descarga
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = fname;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-        alert(copied
-          ? "Imagen copiada. En WhatsApp abrí el chat y pegala con Ctrl+V.\n(También quedó descargada.)"
-          : "Se descargó la imagen del almanaque. Adjuntala en WhatsApp.");
+        await compartirImagen(blob, fname, "Turnos " + person.name);
       } catch (e) {
         alert("No se pudo generar la imagen.");
       } finally {

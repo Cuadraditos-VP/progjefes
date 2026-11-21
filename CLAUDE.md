@@ -244,5 +244,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   `REGLAS-FIREBASE-*.md` tiene los bloques que se agregaron.
 - `sw.js`: primero intenta internet y si no hay, usa la copia guardada (no hace falta cambiar
   la versión de la caché para publicar).
+  La página se guarda con una sola llave (`…/index.html`, entre por `/` o `/index.html`) y se pide sin la copia del navegador
+  (`cache: "no-cache"`): antes, con mala señal, el iPhone abría una copia vieja (caso "no tiene permiso para publicar" con la clave).
+  Ese cartel solo sale si recién se tocó entrar con Google (`sessionStorage` `probandoGoogle`).
 - Al escribir en Firestore, actualizar solo los campos propios (ej. `respuestas.<legajo>`)
   para que dos celulares que escriben a la vez no se pisen.

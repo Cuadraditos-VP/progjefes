@@ -2968,6 +2968,7 @@
         }
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
+        try { sessionStorage.setItem("probandoGoogle", "1"); } catch (e) {}
         fbAuth.signInWithPopup(provider).catch(err => {
           const code = err && err.code || "";
           if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
@@ -3258,9 +3259,11 @@
         const email = u && !esCelular(u) && u.email ? u.email.toLowerCase() : "";
         const isAdmin = !!email && !!ADMIN_EMAIL && email === ADMIN_EMAIL.toLowerCase();
         if (u && !esCelular(u) && !isAdmin) {
-          alert("La cuenta " + email + " no tiene permiso para publicar.");
+          // El cartel solo si recién se probó entrar con Google desde acá (nunca al abrir la app)
+          if (sessionStorage.getItem("probandoGoogle")) alert("La cuenta " + email + " no tiene permiso para publicar.");
           fbAuth.signOut();
         }
+        if (u && !u.isAnonymous) sessionStorage.removeItem("probandoGoogle");
         currentUser = isAdmin ? "ADMIN" : "";
         if (!isAdmin) leaveInicialView();
         setAdminUI();

@@ -7,15 +7,24 @@
 // - Firebase y la tipografía (vienen de Google): se guardan una vez y se reusan.
 // - Los datos en vivo de Firebase no pasan por acá (Firebase tiene su propia copia).
 //
-// Para forzar que todos los celulares borren la copia vieja, cambiar CACHE (ej. "jefes-v3").
-const CACHE = "jefes-v2";
-const CORE = ["./", "./index.html"];
+// Para forzar que todos los celulares borren la copia vieja, cambiar CACHE (ej. "jefes-v4").
+const CACHE = "jefes-v3";
+const CORE = ["./index.html"];
+// La página se guarda con UNA sola llave ("…/index.html"), entre por "/" o por "/index.html".
+// Antes eran dos copias y, sin internet, a veces se abría la más vieja (caso "no tiene permiso").
+function llave(url) {
+  const u = new URL(url);
+  return u.origin + (u.pathname.endsWith("/") ? u.pathname + "index.html" : u.pathname);
+}
 const EXTERNOS = ["https://www.gstatic.com/firebasejs/", "https://fonts.googleapis.com/", "https://fonts.gstatic.com/"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((c) => Promise.all(CORE.map((u) => c.add(u).catch(() => {}))))
+      .then((c) => Promise.all(CORE.map((u) => {
+        const url = new URL(u, self.location).href;
+        return fetch(url, { cache: "no-cache" }).then((res) => { if (res && res.ok) return c.put(llave(url), res); }).catch(() => {});
+      })))
       .then(() => self.skipWaiting())
   );
 });
@@ -34,9 +43,13 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    const key = url.origin + url.pathname; // sin "?t=..."
+    const key = llave(req.url); // sin "?t=..."
+    const esPagina = req.mode === "navigate" || key.endsWith(".html");
+    // La página siempre se pide fresca (no la copia del navegador), así no corre una versión vieja
     e.respondWith(
-      fetch(req)
+      (esPagina
+        ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }).then((r) => (r.redirected ? fetch(req) : r))
+        : fetch(req))
         .then((res) => {
           if (res && res.ok) {
             const copy = res.clone();
@@ -48,8 +61,7 @@ self.addEventListener("fetch", (e) => {
           caches.match(key).then((hit) => {
             if (hit) return hit;
             if (req.mode === "navigate") {
-              return caches.match(new URL("./index.html", self.location).href)
-                .then((h) => h || caches.match(new URL("./", self.location).href));
+              return caches.match(llave(new URL("./index.html", self.location).href));
             }
             return Response.error();
           })

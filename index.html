@@ -6663,7 +6663,8 @@
     }));
 
     // ---- Quién puede cambiar cada celda ----
-    function esLicencia(pi, di) { return oficialDe(pi, di) === "LIC" || actualDe(pi, di) === "LIC"; }
+    // Traba solo la licencia oficial: si el usuario se puso LIC sin querer, la puede sacar (caso Sanchez)
+    function esLicencia(pi, di) { return oficialDe(pi, di) === "LIC"; }
     function puedeEditar(pi, di) {
       const p = people[pi];
       if (!p) return false;

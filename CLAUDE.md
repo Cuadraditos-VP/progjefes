@@ -228,7 +228,8 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   `pide` y le suma el `ab` del celular viejo (`pasarLegajo`; los `yo_*` sin `id` ni `pide` no se listan); con "📲 Pasar a la app" van
   en el código (`pases_*.ab`, `miAb`, `sumarUsosTraidos`). El admin los corrige a mano con ✎ (`cel-ab-edit`). Reglas: `REGLAS-FIREBASE-USOS.md`.
 - **Licencia (LIC)**: no lleva texto (solo el color; el selector de turnos sí dice LIC). Los días de
-  licencia no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
+  licencia **oficial** no se pueden cambiar ni pedir (`esLicencia` en `puedeEditar`): solo el admin los puede corregir.
+  Si el usuario se puso LIC él mismo (no viene de lo oficial), la puede sacar (caso Sanchez, que se la puso sin querer y quedó trabada).
 
 ## Diferencias con la gemela (cajeros)
 - En jefes el admin **sí** publica turnos con ⬆ Publicar (colección `jefes`, un doc por mes

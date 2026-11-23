@@ -1626,6 +1626,7 @@
       z-index: 900; width: min(92vw, 440px); box-sizing: border-box; padding: 14px 16px; border: 0; border-radius: 14px;
       background: #ea580c; color: #fff; font: inherit; font-size: 1rem; font-weight: 600; text-align: left; line-height: 1.35;
       cursor: pointer; animation: avisoLatido 1.6s ease-in-out infinite; }
+    #pasarOverlay .pasar-item { margin: 0 0 10px; font-size: 0.95rem; line-height: 1.4; color: #334155; }
     #avisoFijo.show { display: flex; align-items: center; gap: 12px; }
     #avisoFijo b { font-weight: 800; }
     #avisoFijo .af-ico { font-size: 1.8rem; line-height: 1; animation: avisoCampana 1.6s ease-in-out infinite; }
@@ -6283,6 +6284,7 @@
     function revisarAvisos() {
       revisarAvisosVentana();
       try { actualizarAvisoFijo(); } catch (e) {}
+      try { revisarCartelPasar(); } catch (e) {}
     }
     function revisarAvisosVentana() {
       const bp = document.getElementById("btnPedidos");
@@ -7669,9 +7671,10 @@
     if (!document.hidden) marcarEnUso();
     function revisarUso() {
       if (document.hidden) return;
-      if (volvioTrasPausa()) { aperturaContada = false; centrarAlVolver(); }
+      if (volvioTrasPausa()) { aperturaContada = false; cartelPasarPend = true; centrarAlVolver(); }
       marcarEnUso();
       contarApertura();
+      revisarCartelPasar();
     }
     function contarApertura() {
       if (aperturaContada || document.hidden || !fbReady || !yoUid || !miLegajo || currentUser === "ADMIN") return;
@@ -7684,6 +7687,67 @@
     window.addEventListener("pageshow", revisarUso);
     window.addEventListener("focus", revisarUso);
     setInterval(revisarUso, 30 * 1000);
+    // Cambio acordado sin pasar a lo oficial (a pedido de Guillermo): desde 2 días antes de la fecha, cada vez que
+    // los dos empleados abren la app (o vuelven tras 30 min sin usarla; la recarga automática no cuenta) les sale
+    // un cartel que les recuerda que todavía falta pasarlo. Deja de salir cuando se pasa, se rechaza o pasa el día.
+    const DIAS_AVISO_PASAR = 2;
+    var cartelPasarPend = !aperturaContada;
+    function acuerdoEnOficial(d) {
+      const ofi = officialPeopleFor(d.mes);
+      if (!ofi.length) return false;
+      const di = Number(d.dia) - 1, d2 = Number(d.dia2) - 1;
+      const celdas = d.tipo === "franco"
+        ? [[d.id, di, "F"], [d.id, d2, d.cubre], [d.con.id, di, d.ofrece], [d.con.id, d2, "F"]]
+        : [[d.id, di, d.quiere], [d.con.id, di, d.con.recibe]];
+      return celdas.every(([id, x, code]) => {
+        const p = ofi.find(q => String(q.id) === String(id));
+        return !!p && !!code && String((p.codes || [])[x] || "").toUpperCase() === String(code).toUpperCase();
+      });
+    }
+    function acuerdosSinPasar() {
+      const yo = String(miLegajo || "");
+      if (!yo || currentUser === "ADMIN" || soyExterno()) return [];
+      const h = hoyFecha(), hoy = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+      return Object.values(pedidosDocs).filter(d => {
+        if (!d || d.estado !== "acordado" || d.pasado || d.palabra || !d.con) return false;
+        if (String(d.id) !== yo && String(d.con.id) !== yo) return false;
+        const m = /^(\d{4})-(\d{2})$/.exec(String(d.mes || ""));
+        if (!m || !d.dia) return false;
+        const dias = [Number(d.dia)];
+        if (d.tipo === "franco" && d.dia2) dias.push(Number(d.dia2));
+        const ini = new Date(+m[1], +m[2] - 1, Math.min(...dias)), fin = new Date(+m[1], +m[2] - 1, Math.max(...dias));
+        if (fin < hoy || Math.round((ini - hoy) / 86400000) > DIAS_AVISO_PASAR) return false;
+        return !acuerdoEnOficial(d);
+      }).sort((a, b) => (String(a.mes) + String(a.dia).padStart(2, "0")).localeCompare(String(b.mes) + String(b.dia).padStart(2, "0")));
+    }
+    function cartelPasarOverlay() {
+      let ov = document.getElementById("pasarOverlay");
+      if (ov) return ov;
+      ov = document.createElement("div");
+      ov.className = "palette-overlay"; ov.id = "pasarOverlay";
+      ov.innerHTML = '<div class="palette-modal"><div class="palette-header"><h3>⚠️ Falta pasar tu cambio</h3></div>' +
+        '<div id="pasarLista"></div>' +
+        '<div class="palette-actions"><button class="btn btn-done" id="pasarOk">Entendido</button></div></div>';
+      document.body.appendChild(ov);
+      ov.querySelector("#pasarOk").addEventListener("click", () => ov.classList.remove("open"));
+      return ov;
+    }
+    function revisarCartelPasar() {
+      if (!cartelPasarPend || document.hidden) return;
+      if (currentUser === "ADMIN") { cartelPasarPend = false; return; }
+      if (!fbReady || !pedListo || !registroOk || !miLegajo || !people.length) return; // todavía no están los datos
+      if (document.querySelector(".palette-overlay.open, #loginOverlay.open, .festejo.open, #festejo.open")) return; // espera a que cierre lo que haya abierto
+      const lista = acuerdosSinPasar();
+      cartelPasarPend = false;
+      if (!lista.length) return;
+      const yo = String(miLegajo), ov = cartelPasarOverlay();
+      ov.querySelector("#pasarLista").innerHTML = lista.map(d => {
+        const otro = String(d.id) === yo ? d.con.name : d.name;
+        return '<p class="pasar-item">Tu cambio del <b>' + escH(fechaAviso(d.mes, Number(d.dia))) + "</b> con <b>" + escH(otro) +
+          "</b> todavía no se pasó a la programación oficial.</p>";
+      }).join("") + '<p class="pasar-item">Acordate de pasarlo por la División.</p>';
+      ov.classList.add("open");
+    }
     function startYoSync(u) {
       if (!fbReady || !u || u.uid === yoUid) return;
       if (yoUnsub) { yoUnsub(); yoUnsub = null; }

@@ -286,6 +286,7 @@ function chequear(nombre, cond, detalle) {
       const volver = (pg, ventana) => pg.evaluate(async ventana => {
         const h = window.__HOY; window.__HOY = new Date(MES.y, MES.m - 1, 20, 12).getTime();
         const w = document.getElementById("scheduleWrap"); w.scrollLeft = 0;
+        const pas = document.getElementById("pasarOverlay"); if (pas) pas.classList.remove("open"); // el cartel de "falta pasar" (si quedó de otra prueba)
         if (ventana) { await new Promise(r => setTimeout(r, 1800)); const me = miPersona(); openShiftPicker(me.pi, [...Array(DAYS).keys()].find(x => puedeEditar(me.pi, x))); }
         localStorage.setItem(EN_USO_KEY, String(Date.now() - 31 * 60 * 1000));
         document.dispatchEvent(new Event("visibilitychange"));
@@ -879,6 +880,23 @@ function chequear(nombre, cond, detalle) {
         await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));
       chequear("en D se ve el acuerdo de A y B cargado", JSON.stringify(await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s])) === JSON.stringify([s.y, s.x]),
         await D.evaluate(([s]) => [codesFor(s.a)[s.d], codesFor(s.b)[s.d]], [s]));
+      // Cartel "falta pasar tu cambio": desde 2 días antes, al abrir la app, a los dos del acuerdo (no a otros)
+      const cartelPasar = (pg, dia) => pg.evaluate(([s, dia]) => {
+        const h = window.__HOY; window.__HOY = new Date(MES.y, MES.m - 1, dia, 12).getTime();
+        const ov = document.getElementById("pasarOverlay"); if (ov) ov.classList.remove("open");
+        cartelPasarPend = true; revisarCartelPasar();
+        const o = document.getElementById("pasarOverlay"), r = { abierto: !!o && o.classList.contains("open"), txt: o ? o.textContent : "" };
+        if (o) document.getElementById("pasarOk").click();
+        r.cerro = !o || !o.classList.contains("open");
+        window.__HOY = h; return r;
+      }, [s, dia]);
+      const nomA = await A.evaluate(s => people[s.a].name, s), nomB = await B.evaluate(s => people[s.b].name, s);
+      const cpA = await cartelPasar(A, s.d - 1), cpB = await cartelPasar(B, s.d + 1);
+      chequear("2 días antes, al abrir la app le sale el cartel de que falta pasar el cambio (con quién)", cpA.abierto && cpA.txt.includes(nomB) && /Falta pasar/.test(cpA.txt) && cpA.cerro, cpA);
+      chequear("al otro del acuerdo también (el mismo día)", cpB.abierto && cpB.txt.includes(nomA), cpB);
+      chequear("3 días antes todavía no sale", !(await cartelPasar(A, s.d - 2)).abierto);
+      chequear("pasado el día ya no sale", !(await cartelPasar(A, s.d + 2)).abierto);
+      chequear("a alguien que no es del acuerdo no le sale", !(await cartelPasar(C, s.d)).abierto);
       // Fuera de los acuerdos, D es lo oficial (la inicial más lo publicado): no se ve lo que cada uno cambió por su cuenta
       const soloIni = await D.evaluate(() => { let distintas = 0, propiasFuera = 0;
         people.forEach((p, pi) => (ORIGINAL_CODES[pi] || []).forEach((c, di) => { if (D_KEYS[pi + ":" + di]) return;
@@ -985,6 +1003,7 @@ function chequear(nombre, cond, detalle) {
       chequear("el acuerdo queda en lo oficial (las dos filas)", codDe(s.ida, s.d) === s.y && codDe(s.idb, s.d) === s.x, [codDe(s.ida, s.d), codDe(s.idb, s.d)]);
       const acu = Object.values(be.st["pedidos_" + APP] || {}).find(x => x.estado === "acordado" && x.id === s.ida && x.dia === s.d + 1);
       chequear("el acuerdo queda como pasado por la División", !!acu && acu.pasado === true && acu.pasadoPor === nomD, acu);
+      chequear("ya pasado a lo oficial, no sale el cartel de que falta pasarlo", !(await cartelPasar(A, s.d)).abierto);
       chequear("en D, el acuerdo pasado a lo oficial pasa a avalado (en otro color)",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.davalado").length > 0], [s])).join() === "daval,daval,true",
         await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d)], [s]));

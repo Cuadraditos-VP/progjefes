@@ -112,6 +112,10 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cerrado con otro, admin lo pasó a lo oficial, admin descartó tu cambio.
   Si alguien respondió "Me sirve" a tu pedido y falta confirmar, queda un cartel naranja fijo abajo (`avisoFijo`,
   `actualizarAvisoFijo`) que abre el pedido (`abrirMiPedido`); en Android vibra. Notificaciones push: Guillermo no las quiere.
+  **Falta pasar el cambio** (a pedido de Guillermo): si un acuerdo no se pasó a lo oficial (`pasado`, o lo oficial ya igual al acuerdo),
+  desde 2 días antes de la fecha (`DIAS_AVISO_PASAR`) hasta ese día, a los dos del acuerdo les sale un cartel "⚠️ Falta pasar tu cambio"
+  cada vez que abren la app o vuelven tras 30 min (como `contarApertura`; la recarga automática no cuenta). `acuerdosSinPasar`,
+  `revisarCartelPasar`, `pasarOverlay`. No a los de palabra, rechazados ni al admin.
 - **CJ** (vista del admin): los cambios que manda cada celular (colección `cj`), incluidos
   los de filas ajenas. También suma lo publicado en `propios_*` (aunque ese celular no haya
   mandado nada). Un celular no manda a CJ hasta tener los turnos del mes (si no, lo borraría).

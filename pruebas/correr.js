@@ -905,6 +905,42 @@ function chequear(nombre, cond, detalle) {
           if (p.codes.some((c, di) => String(c || "") !== String(d[di] || ""))) conPropios++; });
         return { dist, conPropios }; });
       if (otD) chequear("en D, las horas extra usan lo mismo que muestra la grilla D (no lo que cada uno cambió en su fila)", otD.dist === 0 && otD.conPropios > 0, otD);
+      // Borrador compartido: lo que un aparato de la División cambia y no publicó lo ven los demás de la División
+      const BORR = "borrador_" + APP;
+      const idD2 = DE_PRUEBA.find(id => ![s.ida, s.idb, s.idc, idP, libre, libre2, DE_PRUEBA[14], idD].includes(id) && id !== DE_PRUEBA[DE_PRUEBA.length - 2]);
+      const D2 = await cel("uDv2", idD2);
+      await D2.evaluate(() => { if (typeof D_OCULTAR_VIEJO !== "undefined") Object.keys(D_OCULTAR_VIEJO).forEach(k => delete D_OCULTAR_VIEJO[k]); });
+      await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+        row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, idD2);
+      await wait(2500);
+      const idBor = DE_PRUEBA[DE_PRUEBA.length - 2], dBor = (s.d + 13) % 28;
+      const nuevoBor = await D.evaluate(([id, di]) => { const pi = people.findIndex(p => String(p.id) === String(id));
+        const ofi = ORIGINAL_CODES[pi][di]; const code = ALL_SHIFT_CODES.find(c => c && c !== ofi && c !== "LIC" && trabaja(c));
+        openShiftPicker(pi, di); applyShift(code); return code; }, [idBor, dBor]);
+      await wait(2000);
+      const borr = ((be.st[BORR] || {})[s.mes] || {}).e || {};
+      chequear("el cambio a mano de la División queda en el borrador compartido, con quién lo hizo", !!borr[idBor + "_" + dBor] && borr[idBor + "_" + dBor].c === nuevoBor && !!borr[idBor + "_" + dBor].n, borr);
+      const ve2 = await D2.evaluate(([id, di]) => { const pi = people.findIndex(p => String(p.id) === String(id));
+        openShiftPicker(pi, di); const q = document.getElementById("shiftBorr");
+        const r = { code: codesFor(pi)[di], marca: cellMark(pi, di), quien: getComputedStyle(q).display !== "none" && /Lo cambió/.test(q.textContent) };
+        closeShiftPicker(); return r; }, [idBor, dBor]);
+      chequear("otro aparato de la División lo ve en ámbar y sabe quién lo cambió", ve2.code === nuevoBor && ve2.marca === "own" && ve2.quien, ve2);
+      chequear("un usuario común no puede leer el borrador de la División",
+        (await B.evaluate(([c, m]) => fbDb.collection(c).doc(m).get().then(() => "ok", e => e.code), [BORR, s.mes])) === "permission-denied");
+      const borrFer = await D.evaluate(() => typeof saveFeriados === "function" && !!document.getElementById("btnFeriadosDiv"));
+      if (borrFer) {
+        const dFer = await D.evaluate(() => { const d = [...Array(DAYS).keys()].find(x => !isFeriado(x)); feriados.push(d); feriados.sort((a, b) => a - b); saveFeriados(); return d; });
+        await wait(2000);
+        chequear("un feriado que marca la División lo ve el otro aparato", await D2.evaluate(d => isFeriado(d), dFer));
+      }
+      // Publica: pasa a lo oficial y el borrador queda limpio para todos
+      await D.evaluate(() => { window.confirm = () => true; updateDivPublishBtn(); document.getElementById("btnPublicarDiv").click(); });
+      await wait(3500);
+      const bDoc = (be.st[BORR] || {})[s.mes] || {};
+      chequear("al publicar, el turno pasa a lo oficial y sale del borrador", codDe(idBor, dBor) === nuevoBor && !(bDoc.e || {})[idBor + "_" + dBor] && !bDoc.fer, bDoc);
+      const ve3 = await D2.evaluate(([id, di]) => { const pi = people.findIndex(p => String(p.id) === String(id)); return { code: codesFor(pi)[di], marca: cellMark(pi, di) }; }, [idBor, dBor]);
+      chequear("y en el otro aparato ya no está en ámbar: está en lo oficial", ve3.code === nuevoBor && ve3.marca !== "own", ve3);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",

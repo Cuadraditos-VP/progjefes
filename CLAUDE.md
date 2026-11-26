@@ -218,6 +218,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Feriados y Colores, **sin ⬆ Publicar** (queda solo en esa PC) y sin Cambios (ni banco, ni rayitas de pedidos, ni acuerdos sin
   avalar en D; tocar una celda la cambia a mano). 2: + ⬆ Publicar y Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). 3: + 🖨 Ticket. Solo esconde
   cosas en la PC de la División (`etapaDiv`, `divSinCambios`, `divSinTicket`, clase `div-sin-cambios`); admin y usuarios ven todo.
+  **Borrador compartido** (a pedido de Guillermo): lo que la División cambia y no publicó (turnos en ámbar y colores) no queda solo en la PC:
+  va a `borrador_jefes/{mes}` (`e["<legajo>_<día>"] = {c, n, t}`, `col`) y lo ven al instante todos los de la División en
+  cualquier aparato (`startBorrador`, `aplicarBorrador`, `borrTurno`, `borrColores`; enganchado en `saveEdit`/`removeEdit`/`saveColorOverrides`).
+  En el cuadro del turno dice "✎ Lo cambió Nombre (fecha)" (`shiftBorr`, `borrQuien`). ⬆ Publicar lo saca del borrador (`borrSacar`).
+  Lo que una PC tenía sin publicar de antes se sube la primera vez. El admin no lo usa. Reglas: `REGLAS-FIREBASE-BORRADOR.md`.
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.
 - **Uso de la app** (en Celulares, solo el admin): cada celular registrado suma 1 en su doc de `yo_*` (`ab`, y `ult` =

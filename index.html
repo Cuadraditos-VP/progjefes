@@ -1798,6 +1798,7 @@
         <button class="close-btn" id="closeShift" title="Cerrar">×</button>
       </div>
       <div id="shiftAlcance"></div>
+      <div id="shiftBorr" class="ped-note info" style="display:none;margin:0 0 8px"></div>
       <button type="button" class="bd-pedir" id="shiftPedir" style="display:none;margin:0 0 10px">⇄ Pedir cambio</button>
       <div class="shift-grid" id="shiftGrid"></div>
       <div id="shiftCommentWrap">
@@ -2414,6 +2415,7 @@
     try { colorOverrides = JSON.parse(localStorage.getItem("ctColorOverrides") || "{}"); } catch (e) { colorOverrides = {}; }
     function saveColorOverrides() {
       try { localStorage.setItem("ctColorOverrides", JSON.stringify(colorOverrides)); } catch (e) {}
+      try { borrColores(); } catch (e) {}
     }
     function applyColorOverrides() {
       Object.keys(colorOverrides).forEach(k => { colorMap[k] = colorOverrides[k]; });
@@ -2762,6 +2764,7 @@
       loadEdits();
     loadComments();
       renderDayHead();
+      try { if (typeof startBorrador === "function" && borrUnsub) startBorrador(); } catch (e) {}
     }
 
     // Programación inicial del mes (la del PDF), alineada por legajo con la lista actual.
@@ -3631,6 +3634,139 @@
     }
     function divSinCambios() { return soyDivision() && etapaDiv() < 2; }
     function divSinTicket() { return soyDivision() && etapaDiv() < 3; }
+    // ===== Borrador compartido de la División (a pedido de Guillermo) =====
+    // Lo que la División cambia y todavía no publicó (turnos en ámbar y colores) no queda solo en la PC:
+    // va a borrador_<app>/{mes} y lo ven al instante todos los de la División, en cualquier aparato.
+    //   e: { "<legajo>_<día>": { c: código, n: quién, t: cuándo } }   col: { código: color } (colores sin publicar)
+    // ⬆ Publicar lo pasa a lo oficial y lo saca del borrador. El admin no lo usa (sus cambios siguen siendo suyos).
+    const BORR_COLLECTION = DIV_COLLECTION.replace("division_", "borrador_");
+    let borrUnsub = null, borrMes = "", borrDoc = null, borrAplicando = false;
+    const borrSubido = {}, borrPend = {};
+    function usaBorrador() { return soyDivision() && fbReady && !!fbDb; }
+    function borrKey(id, di) { return String(id) + "_" + di; }
+    function borrCampo(k) { return "e." + k; }
+    function startBorrador() {
+      if (!usaBorrador()) { stopBorrador(); return; }
+      if (borrUnsub && borrMes === currentMes) return;
+      stopBorrador();
+      const mes = currentMes;
+      borrMes = mes;
+      borrUnsub = fbDb.collection(BORR_COLLECTION).doc(mes).onSnapshot(d => {
+        if (borrMes !== mes) return;
+        borrDoc = d.exists ? (d.data() || {}) : {};
+        aplicarBorrador(mes);
+      }, err => { console.warn("Borrador de la División:", err); borrUnsub = null; borrMes = ""; });
+    }
+    function stopBorrador() {
+      if (borrUnsub) { borrUnsub(); borrUnsub = null; }
+      borrMes = ""; borrDoc = null;
+    }
+    // Escribe campos del borrador del mes (si el doc todavía no existe, lo crea)
+    async function borrEscribir(mes, campos) {
+      const ref = fbDb.collection(BORR_COLLECTION).doc(mes);
+      try { await ref.update(campos); }
+      catch (e) {
+        if (!e || e.code !== "not-found") throw e;
+        await ref.set({ mes }, { merge: true });
+        await ref.update(campos);
+      }
+    }
+    function borrAviso(err) {
+      console.warn("Borrador de la División:", err);
+      showShareToast(err && err.code === "permission-denied"
+        ? "No se pudo compartir el cambio con la División: faltan las reglas de Firebase del borrador."
+        : "No se pudo compartir el cambio con la División. Revisá la conexión.");
+    }
+    // Un turno cambiado (o vuelto a lo oficial) en esta PC
+    function borrTurno(pi, di, code) {
+      if (!usaBorrador() || borrAplicando) return;
+      const p = people[pi];
+      if (!p || p.id == null) return;
+      const mes = currentMes, k = borrKey(p.id, di);
+      const igual = code == null || String(code || "") === String((ORIGINAL_CODES[pi] || [])[di] || "");
+      const val = igual ? firebase.firestore.FieldValue.delete() : { c: String(code || ""), n: nombreAutorizante(), t: Date.now() };
+      borrPend[k] = igual ? null : val;
+      borrEscribir(mes, { [borrCampo(k)]: val })
+        .then(() => { if (borrPend[k] === (igual ? null : val)) delete borrPend[k]; })
+        .catch(err => { delete borrPend[k]; borrAviso(err); });
+    }
+    function borrColores() {
+      if (!usaBorrador() || borrAplicando) return;
+      const del = firebase.firestore.FieldValue.delete();
+      borrEscribir(currentMes, {
+        col: Object.keys(colorOverrides).length ? Object.assign({}, colorOverrides) : del
+      }).catch(borrAviso);
+    }
+    // Llegó el borrador (de esta PC o de otra): esta PC muestra exactamente eso
+    function aplicarBorrador(mes) {
+      if (mes !== currentMes || !borrDoc || !people.length) return;
+      const b = borrDoc, e = b.e || {};
+      // La primera vez, lo que esta PC tenía sin publicar (de antes del borrador) se suma al borrador
+      if (!borrSubido[mes]) {
+        borrSubido[mes] = true;
+        const campos = {};
+        Object.keys(editsMap).forEach(key => {
+          const [pi, di] = key.split(":").map(Number);
+          const p = people[pi];
+          if (!p || p.id == null) return;
+          const k = borrKey(p.id, di), c = String(editsMap[key] || "");
+          if (k in e || c === String((ORIGINAL_CODES[pi] || [])[di] || "")) return;
+          campos[borrCampo(k)] = { c, n: nombreAutorizante(), t: Date.now() };
+        });
+        if (!b.col && Object.keys(colorOverrides).length) campos.col = Object.assign({}, colorOverrides);
+        if (Object.keys(campos).length) { borrEscribir(mes, campos).catch(borrAviso); return; }  // vuelve con el borrador completo
+      }
+      borrAplicando = true;
+      try {
+        // Turnos
+        const nuevo = {}, times = loadEditTimes(mes);
+        const pos = {};
+        people.forEach((p, pi) => { if (p && p.id != null) pos[String(p.id)] = pi; });
+        Object.keys(e).forEach(k => {
+          const cut = k.lastIndexOf("_"), id = k.slice(0, cut), di = Number(k.slice(cut + 1));
+          const pi = pos[id], v = e[k];
+          if (pi == null || !(di >= 0 && di < DAYS) || !v) return;
+          nuevo[pi + ":" + di] = String(v.c || "");
+          times[id + ":" + di] = Number(v.t) || Date.now();
+        });
+        // Lo que esta PC acaba de mandar y todavía no volvió confirmado
+        Object.keys(borrPend).forEach(k => {
+          const cut = k.lastIndexOf("_"), pi = pos[k.slice(0, cut)], di = Number(k.slice(cut + 1));
+          if (pi == null) return;
+          if (borrPend[k] == null) delete nuevo[pi + ":" + di]; else nuevo[pi + ":" + di] = borrPend[k].c;
+        });
+        editsMap = nuevo;
+        try {
+          localStorage.setItem(editsKey(mes), JSON.stringify(editsMap));
+          localStorage.setItem(editTimesKey(mes), JSON.stringify(times));
+        } catch (er) {}
+        resetPeopleFromOfficial();
+        // Colores: lo que se sacó del borrador vuelve a lo publicado
+        const col = b.col || {};
+        Object.keys(colorOverrides).forEach(k => { if (!(k in col)) { const bc = baseColor(k); if (bc) colorMap[k] = bc; } });
+        colorOverrides = Object.assign({}, col); saveColorOverrides();
+        applyColorOverrides();
+      } finally { borrAplicando = false; }
+      if (vistaD) rebuildDMarks();
+      try { refreshColorsEverywhere(); } catch (er) {}
+      refreshAfterEdit();
+      updateDivPublishBtn();
+    }
+    // Quién cambió ese turno en el borrador (para el cuadro del turno)
+    function borrQuien(pi, di) {
+      if (!usaBorrador() || !borrDoc || !people[pi]) return null;
+      const v = (borrDoc.e || {})[borrKey(people[pi].id, di)];
+      return v && v.n ? v : null;
+    }
+    // Después de publicar: lo publicado sale del borrador
+    function borrSacar(mes, cambios, coloresYFeriados) {
+      if (!usaBorrador()) return;
+      const del = firebase.firestore.FieldValue.delete(), campos = {};
+      (cambios || []).forEach(c => { campos[borrCampo(borrKey(c.id, c.di))] = del; });
+      if (coloresYFeriados) campos.col = del;
+      if (Object.keys(campos).length) borrEscribir(mes, campos).catch(err => console.warn("Borrador:", err));
+    }
+
     function nombreAutorizante() {
       if (currentUser === "ADMIN") return "el administrador";
       if (soyDivision() && opActual) return opActual.name;
@@ -3655,6 +3791,7 @@
     }
     function setDivisionUI() {
       document.body.classList.toggle("is-division", soyDivision());
+      try { startBorrador(); } catch (e) { console.warn(e); }
       // Si cambia la etapa, la vista D se vuelve a armar (en la 1 no muestra los acuerdos sin avalar)
       const etapaAntes = document.body.classList.contains("div-sin-cambios");
       document.body.classList.toggle("div-sin-cambios", divSinCambios());
@@ -4101,12 +4238,14 @@
       try {
         if (cambios.length) {
           await publicarCeldas(cambios, false);
+          borrSacar(currentMes, cambios, false);
           regDiv("publica", "Publicó a mano: " + lineas.map(x => x.replace(/^• /, "")).join("; "));
           choques.forEach(x => descartarPropio(currentMes, x.id, x.di));
         }
         if (cols.length) {
           await fbDb.collection(TURNOS_COLLECTION).doc(currentMes).update({ colores: Object.assign({}, colorMap), version: Date.now() });
           colorOverrides = {}; saveColorOverrides();
+          borrSacar(currentMes, [], true);
           regDiv("colores", "Cambió " + txtCols.charAt(0).toLowerCase() + txtCols.slice(1));
         }
         b.disabled = false; b.textContent = "✓ Publicado"; b.classList.remove("pending");
@@ -4303,6 +4442,13 @@
       if (ta) ta.value = commentsMap[pi + ":" + di] || "";
       document.body.classList.add("shift-open");
       // En su propia fila: botón para pedir cambio de ese día (o ver el pedido que ya tiene)
+      // División: quién de la División probó este cambio (borrador compartido)
+      const bq = document.getElementById("shiftBorr"), qv = borrQuien(pi, di);
+      if (bq) {
+        bq.style.display = qv ? "" : "none";
+        bq.textContent = qv ? "✎ Lo cambió " + qv.n + " (" + new Date(Number(qv.t) || Date.now()).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
+          "). Lo ven todos los de la División; " + (divSinCambios() ? "no está publicado." : "falta ⬆ Publicar.") : "";
+      }
       const bpS = document.getElementById("shiftPedir");
       const meS = miPersona();
       const pideS = !!meS && meS.pi === pi && !diaPasado(di) && actualDe(pi, di) !== "LIC" && !divSinCambios();
@@ -4385,6 +4531,7 @@
       try { localStorage.setItem(editTimesKey(currentMes), JSON.stringify(t)); } catch (e) {}
     }
     function saveEdit(pi, di, code) {
+      borrTurno(pi, di, code);
       editsMap[pi + ":" + di] = code;
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
       stampEdit(pi, di, true);
@@ -4392,6 +4539,7 @@
       schedulePropSync(currentMes);
     }
     function removeEdit(pi, di) {
+      borrTurno(pi, di, null);
       delete editsMap[pi + ":" + di];
       try { localStorage.setItem(editsKey(currentMes), JSON.stringify(editsMap)); } catch (e) {}
       stampEdit(pi, di, false);
@@ -6754,7 +6902,9 @@
       if (me && me.pi === pi) return { cls: "pub", txt: "Tu fila: este cambio lo ven todos." };
       if (currentUser === "ADMIN") return { cls: "pub", txt: "Lo ven todos cuando toques ⬆ Publicar." };
       if (soyExterno()) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
-      if (soyDivision()) return { cls: "priv", txt: "División: lo ven todos cuando toques ⬆ Publicar." };
+      if (soyDivision()) return { cls: "priv", txt: divSinCambios()
+        ? "División (práctica): lo ven solo los de la División, en cualquier PC. No se publica."
+        : "División: ya lo ven los de la División; para todos, tocá ⬆ Publicar." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }

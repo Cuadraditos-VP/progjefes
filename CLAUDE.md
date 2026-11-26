@@ -262,3 +262,11 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   Ese cartel solo sale si recién se tocó entrar con Google (`sessionStorage` `probandoGoogle`).
 - Al escribir en Firestore, actualizar solo los campos propios (ej. `respuestas.<legajo>`)
   para que dos celulares que escriben a la vez no se pisen.
+
+## Placas para Instagram (anuncios de la app)
+- Guillermo las quiere **cortas**: una sola placa con un mensaje directo (ej. "¡Ya está el cartón de diciembre! ¿Necesitás
+  cambiar un turno? Pedilo en el BANCO DE CAMBIOS"), no carruseles largos de tutorial (la gente no los lee).
+- Colores: **no tanto azul y amarillo**. Fondo claro (#f4f6f9), letras oscuras, naranja de la app (#ea580c) y verde del
+  botón con el apellido (#0f766e).
+- Tono del texto: corto y rioplatense ("Pedí con tiempo, ¡no te duermas!").
+- Capturas: con la app real y el Firebase falso de `pruebas/` (gente inventada, nunca datos reales). Las placas no se suben al repo.

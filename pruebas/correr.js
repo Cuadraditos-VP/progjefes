@@ -1644,6 +1644,44 @@ function chequear(nombre, cond, detalle) {
       await Promise.all([K1.close(), K2.close(), K3.close()]);
     }
 
+    if (html.includes('id="btnAgregarLeg"')) {
+      console.log("\nLegajo sin programación (ej. alguien de la División)");
+      const LEGX = "99001", PADC = "padron_" + APP;
+      await AD.evaluate(() => { const r = ["99001", "pérez, división"]; window.prompt = () => r.shift(); document.getElementById("btnCelulares").click();
+        document.getElementById("btnAgregarLeg").click(); });
+      await wait(2000);
+      const px = (be.st[PADC] || {})[LEGX];
+      chequear("el admin lo agrega al padrón, marcado como sin programación", !!px && px.name === "PÉREZ, DIVISIÓN" && px.extra === true, px);
+      const lx = await AD.evaluate(() => document.getElementById("extrasList").innerText);
+      chequear("y lo ve en Celulares", /PÉREZ, DIVISIÓN · 99001/.test(lx) && /todavía no entró/.test(lx), lx);
+      await AD.evaluate(() => document.getElementById("closeCelulares").click());
+      const X1 = await be.celular(browser, URL, "uX1", null, errores, { cuentas: true });
+      await X1.fill("#yoLegajo", LEGX); await X1.click("#yoLegajoBtn"); await wait(800);
+      chequear("entra con su legajo como cualquiera", /¿Sos PÉREZ, DIVISIÓN/.test(await X1.textContent("#yoLegajoPregunta")));
+      await X1.click("#yoLegajoSi"); await wait(2500);
+      chequear("le pide elegir su clave", (await X1.evaluate(() => miLegajo)) === LEGX && (await X1.evaluate(() => !!document.querySelector("#claveOverlay.open"))));
+      await X1.fill("#clave1", "5151"); await X1.fill("#clave2", "5151"); await X1.click("#claveOk"); await wait(1500);
+      const x1 = await X1.evaluate(() => ({ clave: tengoClave(), fila: !!miPersona(), filas: people.some(p => String(p.id) === "99001") }));
+      chequear("ve la programación y no tiene fila en la grilla", x1.clave && !x1.fila && !x1.filas && (await veDatos(X1)), x1);
+      await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+        row.querySelector(".btn-div").click(); document.getElementById("closeCelulares").click(); }, LEGX);
+      await wait(2500);
+      chequear("el admin lo hace División", !!(be.st["division_" + APP] || {})[LEGX] &&
+        (await X1.evaluate(() => document.body.classList.contains("is-division"))));
+      const X2 = await be.celular(browser, URL, "uX2", null, errores, { cuentas: true });
+      await X2.fill("#yoLegajo", LEGX); await X2.click("#yoLegajoBtn"); await wait(800);
+      await X2.fill("#yoClave", "5151"); await X2.click("#yoLegajoSi"); await wait(3000);
+      chequear("desde otro aparato (otro usuario de Windows) entra con legajo y clave y ya es División",
+        (await X2.evaluate(() => miLegajo === "99001" && document.body.classList.contains("is-division"))));
+      await AD.evaluate(() => { window.confirm = () => true; document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#extrasList .acu-row")].find(r => r.textContent.includes("99001"));
+        row.querySelector("button").click(); document.getElementById("closeCelulares").click(); });
+      await wait(1500);
+      chequear("el admin lo puede quitar del padrón", !(be.st[PADC] || {})[LEGX]);
+      await Promise.all([X1.close(), X2.close()]);
+    }
+
     console.log("\nVista por turno: pasar de día y salir");
     {
       const sacar = pg => pg.evaluate(() => document.querySelectorAll('[id$="Overlay"].open, [id$="overlay"].open').forEach(o => o.classList.remove("open")));

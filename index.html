@@ -1968,6 +1968,8 @@
       <div id="pasosList"></div>
       <button type="button" class="ped-act" id="btnInvitar" style="width:100%;margin:2px 0 6px">＋ Invitar a alguien externo</button>
       <div id="invitacionesList"></div>
+      <button type="button" class="ped-act sec" id="btnAgregarLeg" style="width:100%;margin:0 0 6px">＋ Agregar legajo (sin programación)</button>
+      <div id="extrasList"></div>
       <button type="button" class="ped-act sec" id="btnVerUso" style="width:100%;margin:0 0 6px">📊 Ver uso de la app</button>
       <button type="button" class="ped-act sec" id="btnHistorial" style="width:100%;margin:0 0 6px">📜 Historial de la División</button>
       <div id="celularesClave" style="margin:0 0 8px;font-size:0.82rem;font-weight:700;color:#334155"></div>
@@ -7944,6 +7946,7 @@
     function startCelularesListener() {
       if (celUnsub || !fbReady) return;
       startInvitaciones();
+      startExtras();
       if (!divListUnsub) divListUnsub = fbDb.collection(DIV_COLLECTION).onSnapshot(qs => {
         qs.docChanges().forEach(ch => {
           if (ch.type === "removed") delete divisionDocs[ch.doc.id];
@@ -7972,6 +7975,8 @@
       Object.keys(divisionDocs).forEach(k => delete divisionDocs[k]);
       if (invUnsub) { invUnsub(); invUnsub = null; }
       Object.keys(invitacionesDocs).forEach(k => delete invitacionesDocs[k]);
+      if (extrasUnsub) { extrasUnsub(); extrasUnsub = null; }
+      Object.keys(extrasDocs).forEach(k => delete extrasDocs[k]);
       if (celUnsub) { celUnsub(); celUnsub = null; }
       Object.keys(celularesDocs).forEach(k => delete celularesDocs[k]);
       Object.keys(pasosDocs).forEach(k => delete pasosDocs[k]);
@@ -8298,7 +8303,7 @@
       celVistos = Math.max(Date.now(), ...Object.values(celularesDocs).map(d => (d && d.t) || 0));
       try { localStorage.setItem(CEL_VISTOS_KEY, String(celVistos)); } catch (e) {}
       aplicarVerUso(false); usoAntes = null;
-      renderCelulares(); renderInvitaciones(); updateCelularesBtn();
+      renderCelulares(); renderInvitaciones(); renderExtras(); updateCelularesBtn();
       celularesOverlay.classList.add("open");
     });
     document.getElementById("btnCelTop").addEventListener("click", () => document.getElementById("btnCelulares").click());
@@ -8485,6 +8490,73 @@
         alert(err && err.code === "permission-denied"
           ? "Firebase no deja crear la invitación (faltan las reglas de " + INV_COLLECTION + ")."
           : "No se pudo crear la invitación. Revisá la conexión.");
+      }
+    });
+
+    // ========== LEGAJOS SIN PROGRAMACIÓN (a pedido de Guillermo) ==========
+    // Gente con legajo que no está en la programación (ej. los empleados de la División): el admin los
+    // agrega al padrón con "extra: true" y entran con su legajo y su clave como cualquiera, sin fila en la grilla.
+    const extrasDocs = {};
+    let extrasUnsub = null;
+    function startExtras() {
+      if (extrasUnsub || !fbReady) return;
+      extrasUnsub = fbDb.collection(PADRON_COLLECTION).where("extra", "==", true).onSnapshot(qs => {
+        qs.docChanges().forEach(ch => {
+          if (ch.type === "removed") delete extrasDocs[ch.doc.id];
+          else extrasDocs[ch.doc.id] = ch.doc.data();
+        });
+        if (celularesOverlay.classList.contains("open")) renderExtras();
+      }, err => console.warn("Legajos sin programación:", err));
+    }
+    function renderExtras() {
+      const list = document.getElementById("extrasList");
+      if (!list) return;
+      list.innerHTML = "";
+      Object.keys(extrasDocs).filter(k => extrasDocs[k])
+        .sort((a, b) => String(extrasDocs[a].name || "").localeCompare(String(extrasDocs[b].name || "")))
+        .forEach(k => {
+          const d = extrasDocs[k];
+          const entro = Object.values(celularesDocs).some(c => c && String(c.id) === k);
+          const row = document.createElement("div");
+          row.className = "acu-row extra-row";
+          row.innerHTML = '<div class="acu-top"><span>' + escH(d.name || k) + ' · ' + escH(k) + '</span></div>' +
+            '<div style="font-size:0.72rem;color:#64748b">Sin programación · ' +
+            (entro ? 'ya entró (está más abajo en la lista)' : 'todavía no entró: que abra la app y escriba su legajo') + '</div>';
+          const bq = document.createElement("button");
+          bq.type = "button"; bq.className = "ped-act sec"; bq.textContent = "Quitar";
+          bq.addEventListener("click", () => {
+            if (!confirm("¿Quitar el legajo " + k + " (" + (d.name || k) + ")?\n\nYa no va a poder entrar con su legajo. " +
+              (entro ? "Si ya entró, liberalo también más abajo." : ""))) return;
+            const prev = extrasDocs[k];
+            delete extrasDocs[k]; renderExtras();
+            // Si está en la programación de algún mes, se le saca solo la marca (el nombre sigue en el padrón)
+            const enGrilla = people.some(p => String(p.id) === k);
+            const ref = fbDb.collection(PADRON_COLLECTION).doc(k);
+            (enGrilla ? ref.update({ extra: firebase.firestore.FieldValue.delete() }) : ref.delete())
+              .catch(() => { extrasDocs[k] = prev; renderExtras(); alert("No se pudo quitar. Revisá la conexión."); });
+          });
+          row.querySelector(".acu-top").appendChild(bq);
+          list.appendChild(row);
+        });
+    }
+    document.getElementById("btnAgregarLeg").addEventListener("click", async () => {
+      if (currentUser !== "ADMIN") return;
+      const leg = String(prompt("Legajo de la persona (sin programación, ej. alguien de la División):") || "").replace(/\D/g, "");
+      if (!leg) return;
+      const ref = fbDb.collection(PADRON_COLLECTION).doc(leg);
+      try {
+        const x = await ref.get();
+        if (x.exists && x.data() && x.data().name) { showShareToast("El legajo " + leg + " ya está: " + x.data().name + ". Puede entrar con su legajo."); return; }
+      } catch (e) {}
+      const nombre = String(prompt("Nombre (ej. PÉREZ, JUAN):") || "").trim().toUpperCase();
+      if (!nombre) return;
+      try {
+        await ref.set({ name: nombre, t: Date.now(), extra: true });
+        extrasDocs[leg] = { name: nombre, t: Date.now(), extra: true };
+        renderExtras();
+        showShareToast("Listo: " + nombre + " ya puede entrar con el legajo " + leg + ". Después lo hacés División con 👑.");
+      } catch (err) {
+        showShareToast(err && err.code === "permission-denied" ? "Firebase no lo dejó (permiso)." : "No se pudo agregar. Revisá la conexión.");
       }
     });
 

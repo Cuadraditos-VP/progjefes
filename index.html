@@ -4499,6 +4499,41 @@
         }, 300);
       }, true);
     })();
+    // Vista "por turno": deslizar el dedo a los costados (en el celular) o las flechas ← → (en la PC)
+    // pasan al día siguiente o al anterior. Para volver al mes: doble toque, Escape o "Ver mes".
+    function irADia(d) {
+      if (selectedDay === null || !Number.isFinite(d)) return;
+      const nd = Math.max(0, Math.min(DAYS - 1, d));
+      if (nd === selectedDay) return;
+      selectedDay = nd;
+      refreshAfterEdit();
+    }
+    (function () {
+      const area = document.getElementById("daySplit");
+      let sx = null, sy = null, st = 0;
+      area.addEventListener("touchstart", (e) => {
+        if (selectedDay === null || e.touches.length !== 1) { sx = null; return; }
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+      }, { passive: true });
+      area.addEventListener("touchend", (e) => {
+        if (sx === null || selectedDay === null) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - sx, dy = t.clientY - sy;
+        sx = null;
+        if (document.querySelector(".palette-overlay.open")) return;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - st < 900) irADia(selectedDay + (dx < 0 ? 1 : -1));
+      }, { passive: true });
+      document.addEventListener("keydown", (e) => {
+        if (selectedDay === null || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Escape") return;
+        const t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+        if (document.querySelector('.palette-overlay.open, [id$="Overlay"].open, [id$="overlay"].open, .overlay.open')) return;
+        e.preventDefault();
+        if (e.key === "Escape") document.getElementById("btnClearDay").click();
+        else irADia(selectedDay + (e.key === "ArrowRight" ? 1 : -1));
+      });
+    })();
     document.getElementById("btnClearDay").addEventListener("click", () => {
       selectedDay = null;
       daySortByShift = false;

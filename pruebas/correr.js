@@ -1576,6 +1576,41 @@ function chequear(nombre, cond, detalle) {
       await Promise.all([K1.close(), K2.close(), K3.close()]);
     }
 
+    console.log("\nVista por turno: pasar de día y salir");
+    {
+      const sacar = pg => pg.evaluate(() => document.querySelectorAll('[id$="Overlay"].open, [id$="overlay"].open').forEach(o => o.classList.remove("open")));
+      const PC = await be.celular(browser, URL, "uDiaPC", "guillermo.nemaric@gmail.com", errores);
+      await PC.setViewportSize({ width: 1400, height: 800 }); await wait(2500); await sacar(PC);
+      if (await PC.evaluate(() => people.length > 0 && DAYS > 7)) {
+        const sd = () => PC.evaluate(() => selectedDay);
+        await PC.evaluate(() => toggleDayFilter(4)); await wait(300);
+        await PC.keyboard.press("ArrowRight"); await wait(200); const d1 = await sd();
+        await PC.keyboard.press("ArrowLeft"); await PC.keyboard.press("ArrowLeft"); await wait(200); const d2 = await sd();
+        chequear("en la PC las flechas ← → pasan de día", d1 === 5 && d2 === 3, { d1, d2 });
+        await PC.keyboard.press("Escape"); await wait(200);
+        chequear("con Escape vuelve al mes", (await sd()) === null);
+      }
+      await PC.close();
+      const C = await be.celular(browser, URL, "uDiaCel", "guillermo.nemaric@gmail.com", errores, { tactil: true });
+      await wait(2500); await sacar(C);
+      if (await C.evaluate(() => people.length > 0 && DAYS > 7)) {
+        const sd = () => C.evaluate(() => selectedDay);
+        const dedo = dx => C.evaluate(dx => { const a = document.getElementById("daySplit"), t = x => new Touch({ identifier: 1, target: a, clientX: x, clientY: 300 });
+          a.dispatchEvent(new TouchEvent("touchstart", { touches: [t(200)], changedTouches: [t(200)], bubbles: true }));
+          a.dispatchEvent(new TouchEvent("touchend", { touches: [], changedTouches: [t(200 + dx)], bubbles: true })); }, dx);
+        await C.evaluate(() => toggleDayFilter(4)); await wait(300);
+        await dedo(-120); await wait(200); const d1 = await sd();
+        await dedo(120); await dedo(120); await wait(200); const d2 = await sd();
+        chequear("en el celular deslizar el dedo pasa de día (y ya no cierra)", d1 === 5 && d2 === 3, { d1, d2 });
+        const bx = await C.locator("#daySplit td[data-pi]").first().boundingBox();
+        await C.touchscreen.tap(bx.x + bx.width / 2, bx.y + bx.height / 2); await wait(80);
+        await C.touchscreen.tap(bx.x + bx.width / 2, bx.y + bx.height / 2); await wait(500);
+        chequear("con doble toque vuelve al mes (sin abrir nada)", (await sd()) === null &&
+          !(await C.evaluate(() => document.querySelector(".palette-overlay.open"))));
+      }
+      await C.close();
+    }
+
     console.log("");
     chequear("sin errores de JavaScript en las páginas", !errores.length, errores);
   } catch (e) {

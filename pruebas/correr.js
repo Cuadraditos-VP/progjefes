@@ -896,6 +896,15 @@ function chequear(nombre, cond, detalle) {
       await ponerEtapa();
       const e3 = await verEtapa();
       chequear("etapa 3: todo, con 🖨 Ticket", e3.cambios && e3.lista && e3.ticket, e3);
+      // Horas extra en D (solo cajeros): "con cambios" sale de lo que muestra la grilla D, no de lo que cada uno cambió en su fila
+      const otD = await D.evaluate(() => { if (typeof renderOtSummary !== "function" || viewMode !== "division") return null;
+        let dist = 0, conPropios = 0;
+        people.forEach((p, pi) => { if (!p.id) return;
+          const ot = codesInMonth(currentMes, p.id, "division"), d = codesFor(pi);
+          if (ot.some((c, di) => c !== String(d[di] || "").trim().toUpperCase())) dist++;
+          if (p.codes.some((c, di) => String(c || "") !== String(d[di] || ""))) conPropios++; });
+        return { dist, conPropios }; });
+      if (otD) chequear("en D, las horas extra usan lo mismo que muestra la grilla D (no lo que cada uno cambió en su fila)", otD.dist === 0 && otD.conPropios > 0, otD);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",

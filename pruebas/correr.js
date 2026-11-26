@@ -161,6 +161,12 @@ function chequear(nombre, cond, detalle) {
     const mi = await A.evaluate(() => { const b = document.getElementById("btnMiAlmanaque"); const vis = getComputedStyle(b).display !== "none";
       b.click(); const r = { vis, txt: b.textContent, abierto: document.getElementById("personOverlay").classList.contains("open"), pi: currentCalPi }; closePersonCalendar(); return r; });
     chequear("arriba aparece su nombre y abre su almanaque", mi.vis && /PRUEBA/.test(mi.txt) && mi.abierto && mi.pi === s.a, mi);
+    // Horas extra: cada uno ve solo las suyas en el almanaque
+    const otVe = async (pg, pi) => pg.evaluate(pi => { openPersonCalendar(pi); const el = document.getElementById("personOtSummary");
+      const r = getComputedStyle(el).display !== "none" && /Horas extras/.test(el.textContent); closePersonCalendar(); return r; }, pi);
+    const otOtro = await A.evaluate(a => people.findIndex((p, i) => i !== a), s.a);
+    chequear("en su almanaque ve sus horas extra", await otVe(A, s.a));
+    chequear("en el almanaque de otro no ve sus horas extra", !(await otVe(A, otOtro)));
     await A.evaluate(s => { pedTengoSel = actualDe(s.a, s.d); guardarPedido(s.a, s.d, [s.y, s.z]); closePedido(); }, s);
     await wait(800);
     const ped = be.st["pedidos_" + APP] && be.st["pedidos_" + APP][s.mes + "_" + s.ida + "_" + (s.d + 1)];
@@ -370,6 +376,8 @@ function chequear(nombre, cond, detalle) {
         const r = { login: window.__login, cambios: pedidosMode }; if (pedidosMode) setPedidosMode(false); return r; });
       chequear("un toque normal sigue abriendo Cambios", !corto.login && corto.cambios, corto);
     }
+    if (await AD.evaluate(() => people.length > 0)) chequear("el admin ve las horas extra de cualquiera", await AD.evaluate(() => { openPersonCalendar(0);
+      const el = document.getElementById("personOtSummary"); const r = getComputedStyle(el).display !== "none" && /Horas extras/.test(el.textContent); closePersonCalendar(); return r; }));
     chequear("al admin no le aparece el botón de nombre", await AD.evaluate(() => getComputedStyle(document.getElementById("btnMiAlmanaque")).display === "none"));
     chequear("al admin no le pregunta \"¿Quién sos?\"", !(await AD.evaluate(() => document.getElementById("yoOverlay").classList.contains("open"))));
     if (typeof probarLicAdmin === "function") {
@@ -926,6 +934,7 @@ function chequear(nombre, cond, detalle) {
         r.mano = !!document.querySelector("#pedidoBody .ped-mano"); closePedido(); return r; }, [s, d6]);
       chequear("los demás ven la propuesta en la grilla y al tocarla se abre el pedido (con \"Cambiar a mano\")",
         enBPed.cls && enBPed.cuadro && !enBPed.picker && enBPed.mano, enBPed);
+      if (typeof otVe === "function") chequear("la División ve las horas extra de cualquiera", await otVe(D, s.a));
       const caja = await D.evaluate(([s, d6]) => { openPedido(s.a, d6); const b = document.querySelector("#pedidoBody .ped-div button");
         return b ? b.textContent : ""; }, [s, d6]);
       chequear("en el pedido de A la División ve \"Autorizar\"", /Autorizar/.test(caja) && caja.indexOf(quiere) >= 0, caja);
@@ -1306,6 +1315,39 @@ function chequear(nombre, cond, detalle) {
     chequear("si el celular la congeló sin avisar, al volver a los 30 min cuenta (una sola vez)", ab5 === ab4 + 1, { ab4, ab5 });
     await C.evaluate(() => sessionStorage.setItem("recargaAuto", "1")); await C.reload(); await wait(2500);
     chequear("la recarga automática con la app en uso sigue sin contar", abC() === ab5, { ab5, ab6: abC() });
+    if (html.includes("revisarFestejo100")) {
+      // Festejo de los 100 usos: al llegar a 100 se abre la lluvia de estrellas, y una sola vez
+      const festejo = () => C.evaluate(() => ({ abierto: document.getElementById("festejo").classList.contains("open"),
+        estrellas: document.querySelectorAll("#festejo .estrella").length, tit: document.getElementById("festejoTit").textContent }));
+      chequear("con menos de 100 usos no hay festejo", !(await festejo()).abierto);
+      be.st[YOC]["uC"].ab = 99;
+      await C.reload(); await wait(2500);
+      const f1 = await festejo();
+      chequear("al llegar a los 100 usos se abre la lluvia de estrellas y lo felicita", abC() === 100 && f1.abierto && f1.estrellas > 10 && /Felicitaciones/.test(f1.tit), { ab: abC(), f1 });
+      await C.evaluate(() => document.getElementById("festejoOk").click());
+      chequear("el botón lo cierra", !(await festejo()).abierto);
+      await C.reload(); await wait(2500);
+      chequear("y no se repite la próxima vez que abre la app", !(await festejo()).abierto && abC() === 101, { ab: abC() });
+      // Si el admin le corrige los usos a menos de 100 (✎), al llegar de nuevo vuelve a festejar (caso Sanchez)
+      be.st[YOC]["uC"].ab = 99; be.st[YOC]["uC"].festOtra = true;
+      await C.reload(); await wait(2500);
+      chequear("si el admin le corrige los usos, al llegar a 100 vuelve a festejar", (await festejo()).abierto && abC() === 100, { ab: abC() });
+      // Si se recarga antes de tocar el botón (no la vio), vuelve a salir
+      await C.reload(); await wait(2500);
+      chequear("si se recargó antes de tocar el botón, la felicitación vuelve a salir", (await festejo()).abierto, { ab: abC() });
+      await C.evaluate(() => document.getElementById("festejoOk").click()); await wait(800);
+      chequear("al tocar el botón se borra la marca del admin", !be.st[YOC]["uC"].festOtra, be.st[YOC]["uC"]);
+      // 🎉 del admin: le sale la próxima vez que abre la app, aunque ya haya pasado los 100
+      be.st[YOC]["uC"].festPend = true;
+      await C.reload(); await wait(2500);
+      chequear("con 🎉 del admin le sale la felicitación al abrir la app", (await festejo()).abierto, be.st[YOC]["uC"]);
+      const txtAdm = await C.evaluate(() => ({ txt: document.getElementById("festejoTxt").textContent,
+        num: getComputedStyle(document.querySelector("#festejo .festejo-num")).display }));
+      chequear("y dice \"Gracias por tus colaboraciones\" (sin hablar de los 100 usos)", txtAdm.txt === "Gracias por tus colaboraciones" && txtAdm.num === "none", txtAdm);
+      await C.evaluate(() => document.getElementById("festejoOk").click()); await wait(800);
+      await C.reload(); await wait(2500);
+      chequear("y después de verla no se repite", !(await festejo()).abierto && !be.st[YOC]["uC"].festPend, be.st[YOC]["uC"]);
+    }
     const usoAd = await AD.evaluate(id => {
       renderCelulares();
       const fila = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
@@ -1574,6 +1616,37 @@ function chequear(nombre, cond, detalle) {
       await K1.fill("#yoClave", "7777"); await K1.click("#yoLegajoSi"); await wait(2500);
       chequear("con la nueva sí", (await K1.evaluate(() => miLegajo)) === legK && (await veDatos(K1)));
       await Promise.all([K1.close(), K2.close(), K3.close()]);
+    }
+
+    console.log("\nRuedita del mouse en la PC: salta de grupo en grupo");
+    {
+      const PC = await be.celular(browser, URL, "uRueda", "guillermo.nemaric@gmail.com", errores);
+      await PC.setViewportSize({ width: 1400, height: 800 }); await wait(2500);
+      await PC.evaluate(() => document.querySelectorAll('[id$="Overlay"].open, [id$="overlay"].open').forEach(o => o.classList.remove("open")));
+      const datos = () => PC.evaluate(() => {
+        const w = document.getElementById("scheduleWrap"), base = w.getBoundingClientRect().top - w.scrollTop;
+        return { y: Math.round(w.scrollTop), max: w.scrollHeight - w.clientHeight, alto: w.clientHeight,
+          gs: [...w.querySelectorAll(".grp-card")].filter(c => c.offsetParent).map(c => { const r = c.getBoundingClientRect(); return { top: Math.round(r.top - base - 6), bot: Math.round(r.bottom - base) }; }) };
+      });
+      const d0 = await datos();
+      if (d0.gs.length < 2 || d0.max < 20) chequear("(sin grupos suficientes para probar la ruedita)", true);
+      else {
+        const box = await PC.locator("#scheduleWrap").boundingBox();
+        await PC.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        const pos = [];
+        for (let i = 0; i < d0.gs.length + 1; i++) { await PC.mouse.wheel(0, 100); await wait(700); pos.push((await datos()).y); }
+        const valido = y => y === d0.max || y === 0 || d0.gs.some(g => Math.abs(g.top - y) <= 1 || (g.bot - g.top > d0.alto && y > g.top && y < g.bot));
+        chequear("cada ruedita para al principio de un grupo (no en filas sueltas)", pos.every(valido) && Math.abs(pos[0] - Math.min(d0.max, d0.gs[1].top)) <= 1 || d0.gs[0].bot - d0.gs[0].top > d0.alto, { pos, d0 });
+        chequear("bajando llega al final", pos[pos.length - 1] >= d0.max - 1, pos);
+        for (let i = 0; i < d0.gs.length + 1; i++) { await PC.mouse.wheel(0, -100); await wait(700); }
+        chequear("subiendo vuelve al principio", (await datos()).y === 0);
+        await PC.keyboard.press("ArrowDown"); await wait(700);
+        const yk = (await datos()).y;
+        chequear("con la flecha ↓ también salta al grupo siguiente", Math.abs(yk - Math.min(d0.max, d0.gs[1].top)) <= 1 || (d0.gs[0].bot - d0.gs[0].top > d0.alto && yk > 0), yk);
+        await PC.keyboard.press("ArrowUp"); await wait(700);
+        chequear("y con la flecha ↑ vuelve", (await datos()).y === 0);
+      }
+      await PC.close();
     }
 
     console.log("");

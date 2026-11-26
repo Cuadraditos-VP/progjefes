@@ -8468,7 +8468,7 @@
       let anim = null, ultimaRueda = 0, bloqueoHasta = 0;
       function topes() {
         const base = wrap.getBoundingClientRect().top - wrap.scrollTop;
-        return [...document.querySelectorAll("#groupCards .grp-card")]
+        return [...wrap.querySelectorAll(".grp-card")].filter(c => c.offsetParent)
           .map(c => { const r = c.getBoundingClientRect(); return { top: Math.round(r.top - base - 6), bot: Math.round(r.bottom - base) }; });
       }
       function irA(y) {

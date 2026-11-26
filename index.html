@@ -8459,6 +8459,77 @@
         if (b && IDS.includes(b.id) && !QUEDA_ABIERTO.includes(b.id)) cerrar();
       });
     })();
+    // En la PC (no en el celular), la ruedita del mouse y las flechas ↑ ↓ saltan de grupo en grupo, sin parar en filas intermedias.
+    // Si un grupo no entra entero en la pantalla, primero se recorre hasta su final y después salta.
+    (function () {
+      const wrap = document.getElementById("scheduleWrap");
+      if (!wrap) return;
+      const esPC = () => window.matchMedia("(min-width: 1001px) and (pointer: fine)").matches;
+      let anim = null, ultimaRueda = 0, bloqueoHasta = 0;
+      function topes() {
+        const base = wrap.getBoundingClientRect().top - wrap.scrollTop;
+        return [...document.querySelectorAll("#groupCards .grp-card")]
+          .map(c => { const r = c.getBoundingClientRect(); return { top: Math.round(r.top - base - 6), bot: Math.round(r.bottom - base) }; });
+      }
+      function irA(y) {
+        const max = wrap.scrollHeight - wrap.clientHeight;
+        y = Math.max(0, Math.min(max, y));
+        const desde = wrap.scrollTop, dist = y - desde;
+        if (Math.abs(dist) < 1) return;
+        if (anim) cancelAnimationFrame(anim);
+        const t0 = performance.now(), dur = 320;
+        const paso = (t) => {
+          const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+          wrap.scrollTop = desde + dist * e;
+          if (k < 1) anim = requestAnimationFrame(paso); else { anim = null; bloqueoHasta = performance.now(); }
+        };
+        bloqueoHasta = Infinity;
+        anim = requestAnimationFrame(paso);
+      }
+      // Salta al grupo siguiente (baja) o al anterior
+      function saltar(gs, baja) {
+        const y = wrap.scrollTop, alto = wrap.clientHeight;
+        const actual = gs.reduce((a, g, i) => (g.top <= y + 2 ? i : a), 0);
+        const g = gs[actual];
+        if (baja) {
+          if (g.bot > y + alto + 2 && (actual === gs.length - 1 || gs[actual + 1].top > y + alto)) irA(Math.min(g.bot - alto + 12, y + alto * 0.8));
+          else if (actual < gs.length - 1) irA(gs[actual + 1].top);
+          else irA(wrap.scrollHeight);
+        } else {
+          if (y > g.top + 2) irA(Math.max(g.top, y - alto * 0.8));
+          else if (actual > 0) { const p = gs[actual - 1]; irA(p.bot - p.top > alto ? p.bot - alto + 12 : p.top); }
+          else irA(0);
+        }
+      }
+      wrap.addEventListener("wheel", (e) => {
+        if (!esPC() || e.ctrlKey || e.shiftKey || selectedDay !== null) return;
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return;
+        const gs = topes();
+        if (gs.length < 2) return;
+        e.preventDefault();
+        const ahora = performance.now(), quieto = ahora - ultimaRueda > 180;
+        ultimaRueda = ahora;
+        // Mientras salta, y mientras siga llegando el envión del touchpad, no se cuenta otro salto
+        if (anim || (ahora - bloqueoHasta < 400 && !quieto)) return;
+        saltar(gs, e.deltaY > 0);
+      }, { passive: false });
+      // Lo mismo con las flechas ↑ ↓ y Re Pág / Av Pág (no mientras se escribe o hay una ventana abierta)
+      document.addEventListener("keydown", (e) => {
+        const k = e.key;
+        if (k !== "ArrowDown" && k !== "ArrowUp" && k !== "PageDown" && k !== "PageUp") return;
+        if (!esPC() || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || selectedDay !== null || e.defaultPrevented) return;
+        const t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+        if (document.querySelector('[id$="Overlay"].open, [id$="overlay"].open, .overlay.open')) return;
+        if (!wrap.offsetParent) return;
+        const gs = topes();
+        if (gs.length < 2) return;
+        e.preventDefault();
+        if (anim) return;
+        saltar(gs, k === "ArrowDown" || k === "PageDown");
+      });
+    })();
+
     document.getElementById("closeDl").addEventListener("click", closeDl);
     dlOverlay.addEventListener("click", e => { if (e.target === dlOverlay) closeDl(); });
 

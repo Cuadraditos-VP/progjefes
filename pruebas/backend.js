@@ -45,6 +45,7 @@ module.exports = function crearBackend(app, turnosColl) {
     if (coll === "padron_" + app) return id != null;  // de a un legajo, nunca la lista
     if (coll === "historial_" + app) return false; // el historial de la División: solo el admin
     if (coll === "claves_" + app) return esDivision(uid); // las claves que eligió cada usuario de la PC de la División
+    if (coll === "borrador_" + app) return esDivision(uid); // el borrador compartido de la División (y el admin)
     if (coll === turnosColl || coll === "pedidos_" + app || coll === "propios_" + app || coll === "division_" + app) return registrado(uid);
     return true;
   }
@@ -115,6 +116,11 @@ module.exports = function crearBackend(app, turnosColl) {
       const yo = (st["yo_" + app] || {})[w.uid];
       return w.op === "set" && esDivision(w.uid) && !!next && next.uid === w.uid && w.id === yo.id + "_" + next.k &&
         Object.keys(next).every(k => ["h", "k", "v", "uid", "t"].includes(k));
+    }
+    // borrador_<app>/{mes}: lo que la División cambió y no publicó (turnos, feriados, colores). La División y el admin
+    if (w.coll === "borrador_" + app) {
+      if (w.email !== ADMIN && !esDivision(w.uid)) return false;
+      return !next || Object.keys(next).every(k => ["mes", "e", "fer", "col", "let"].includes(k));
     }
     // historial_<app>: la División solo agrega (con su uid); lo lee y lo borra el admin
     if (w.coll === "historial_" + app) {

@@ -873,6 +873,29 @@ function chequear(nombre, cond, detalle) {
       const ciclo = await D.evaluate(() => { const b = document.getElementById("btnOriginalView"); const r = [];
         for (let i = 0; i < 2; i++) { b.click(); r.push(b.textContent); } return r.join(""); });
       chequear("la División ve solo D → I (sin la A)", ciclo === "ID", ciclo);
+      // Etapas de la División (el admin las elige en Celulares): 1 = sin Cambios, 2 = sin Ticket, 3 = todo
+      const ponerEtapa = async () => { await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
+        const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
+        row.querySelector(".btn-etapa").click(); document.getElementById("closeCelulares").click(); }, idD); await wait(2000); };
+      const verEtapa = () => D.evaluate(([s]) => { const vis = id => { const el = document.getElementById(id); return !!el && getComputedStyle(el).display !== "none"; };
+        const r = { cambios: vis("btnPedidos"), pub: vis("btnPublicarDiv"), menu: vis("btnDivMenu"), marca: cellMark(s.a, s.d) };
+        document.querySelector('td[data-pi="' + s.a + '"][data-di="' + s.d + '"]').click();
+        const ov = document.getElementById("shiftOverlay"), lst = document.getElementById("acuerdosOverlay");
+        r.picker = ov.classList.contains("open"); r.lista = lst.classList.contains("open");
+        r.ticket = [...document.querySelectorAll("#acuerdosList button")].some(b => /Ticket/.test(b.textContent));
+        ov.classList.remove("open"); document.body.classList.remove("shift-open"); lst.classList.remove("open");
+        return r; }, [s]);
+      await ponerEtapa();
+      chequear("el admin pasa a la División a la etapa 1", ((be.st[DIVC] || {})[idD] || {}).etapa === 1, (be.st[DIVC] || {})[idD]);
+      const e1 = await verEtapa();
+      chequear("etapa 1: sin Cambios, con ⬆ Publicar y ☰ (feriados y colores)", !e1.cambios && e1.pub && e1.menu, e1);
+      chequear("etapa 1: en D no se ve el acuerdo sin avalar y tocar la celda la cambia a mano", e1.marca !== "dacu" && e1.picker && !e1.lista, e1);
+      await ponerEtapa();
+      const e2 = await verEtapa();
+      chequear("etapa 2: vuelve Cambios y el acuerdo, sin 🖨 Ticket", e2.cambios && e2.marca === "dacu" && e2.lista && !e2.ticket, e2);
+      await ponerEtapa();
+      const e3 = await verEtapa();
+      chequear("etapa 3: todo, con 🖨 Ticket", e3.cambios && e3.lista && e3.ticket, e3);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",

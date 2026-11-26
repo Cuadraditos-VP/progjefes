@@ -820,6 +820,8 @@
     /* División: rol intermedio (autoriza pedidos, pasa acordados a lo oficial y publica turnos) */
     body:not(.is-division) .division-only { display: none !important; }
     body.is-division:not(.is-admin) #btnAcuerdos.admin-only { display: inline-block !important; }
+    /* División en etapa 1: sin el botón Cambios (banco, pedidos, acordados) */
+    body.div-sin-cambios:not(.is-admin) #btnPedidos { display: none !important; }
     .div-pub-btn { background: #7c3aed; white-space: nowrap; }
     .div-pub-btn.pending { background: #dc2626; }
     .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
@@ -3614,6 +3616,19 @@
     // publicadoPor["legajo:día"] = { n: nombre, t: cuándo, a: 1 autorización / 2 acuerdo }.
     function soyDivision() { return !!divisionDoc && currentUser !== "ADMIN"; }
     function puedeAutorizar() { return soyDivision() || currentUser === "ADMIN"; }
+    // Etapas de la División (a pedido de Guillermo, para arrancar de a poco). La elige el admin en Celulares
+    // (botón "Etapa N" en la fila de la División; campo "etapa" en division_*). Sin el campo = 3 (todo).
+    //   1: vista D e I, cambiar a mano, ⬆ Publicar, Feriados y Colores (sin Cambios ni banco)
+    //   2: + Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra)
+    //   3: + Ticket
+    // Solo esconde cosas en la PC de la División; el admin y los cajeros ven todo como siempre.
+    function etapaDiv() {
+      if (!soyDivision()) return 3;
+      const e = Number(divisionDoc && divisionDoc.etapa);
+      return e === 1 || e === 2 ? e : 3;
+    }
+    function divSinCambios() { return soyDivision() && etapaDiv() < 2; }
+    function divSinTicket() { return soyDivision() && etapaDiv() < 3; }
     function nombreAutorizante() {
       if (currentUser === "ADMIN") return "el administrador";
       if (soyDivision() && opActual) return opActual.name;
@@ -3638,6 +3653,13 @@
     }
     function setDivisionUI() {
       document.body.classList.toggle("is-division", soyDivision());
+      // Si cambia la etapa, la vista D se vuelve a armar (en la 1 no muestra los acuerdos sin avalar)
+      const etapaAntes = document.body.classList.contains("div-sin-cambios");
+      document.body.classList.toggle("div-sin-cambios", divSinCambios());
+      if (etapaAntes !== divSinCambios() && vistaD) { try { rebuildDMarks(); refreshAfterEdit(); } catch (e) {} }
+      if (divSinCambios()) ["bancoOverlay", "pedidoOverlay", "acuerdosOverlay", "palabraOverlay"].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.remove("open");
+      });
       revisarOperador();
       updateDivPublishBtn();
       try { ajustarVistaDivision(); } catch (e) {}
@@ -4281,7 +4303,7 @@
       // En su propia fila: botón para pedir cambio de ese día (o ver el pedido que ya tiene)
       const bpS = document.getElementById("shiftPedir");
       const meS = miPersona();
-      const pideS = !!meS && meS.pi === pi && !diaPasado(di) && actualDe(pi, di) !== "LIC";
+      const pideS = !!meS && meS.pi === pi && !diaPasado(di) && actualDe(pi, di) !== "LIC" && !divSinCambios();
       bpS.style.display = pideS ? "" : "none";
       if (pideS) bpS.textContent = pedidoDe(person.id, di) ? "⇄ Ver mi pedido de cambio del " + (di + 1) : "⇄ Pedir cambio el " + (di + 1);
       shiftOverlay.classList.add("open");
@@ -5164,7 +5186,7 @@
     }
     // En la grilla (A y D): "prop-sirve" (verde), "prop" (gris) o "prop-mio" (★ en tu pedido). Hoy y lo pasado, nada.
     function propClase(pi, di) {
-      if ((viewMode !== "actual" && viewMode !== "division") || !veCambiosAjenos() || diaPasado(di)) return "";
+      if ((viewMode !== "actual" && viewMode !== "division") || !veCambiosAjenos() || diaPasado(di) || divSinCambios()) return "";
       const x = propuestaEn(pi, di, viewMode === "actual" ? miPersona() : null);
       return !x ? "" : x.mio ? "prop-mio" : x.sirve ? "prop-sirve" : "prop";
     }
@@ -5547,6 +5569,7 @@
     function openPedido(pi, di) {
       const p = people[pi];
       if (!p) return;
+      if (divSinCambios()) { openShiftPicker(pi, di); return; }   // División en etapa 1: sin pedidos
       if (!veCambiosAjenos()) { openYo(); return; }
       const diTocado = di;
       if (!pedidoDe(p.id, di) && refDia(pi, di) != null) di = refDia(pi, di);
@@ -6825,6 +6848,7 @@
         .forEach(k => {
           const a = pedidosDocs[k];
           const m = esAvalado(a) ? "daval" : "dacu";
+          if (m === "dacu" && divSinCambios()) return;   // etapa 1: los acordados sin avalar no se muestran
           celdasDeCerrado(a).forEach(c => cambiosD.push({ t: a.t || 0, id: c.id, di: c.di, code: c.code, m, k }));
         });
       // Todo lo oficial que quedó distinto de la inicial (lo publicó la División, el admin o se volvió a subir el mes):
@@ -6871,6 +6895,7 @@
     let acuFiltro = null;
     function abrirCeldaD(pi, di) {
       const ks = D_KEYS[pi + ":" + di];
+      if (divSinCambios()) { openShiftPicker(pi, di); return; }
       if (!ks || !ks.length) {
         // Un pedido sin acordar abre el pedido (para verlo o autorizarlo); si no, se cambia a mano
         if (people[pi] && propClase(pi, di)) openPedido(pi, di); else openShiftPicker(pi, di);
@@ -7188,6 +7213,8 @@
     }
     window.addEventListener("afterprint", () => document.body.classList.remove("imprimiendo-ticket"));
     function botonTicket(k, a) {
+      // Etapa 1 y 2 de la División: sin ticket (un span vacío, para no romper los appendChild)
+      if (divSinTicket()) return document.createElement("span");
       const b = document.createElement("button");
       b.type = "button"; b.className = "ped-act sec"; b.textContent = "🖨 Ticket";
       b.title = "Imprimir el ticket para que lo firmen los dos";
@@ -7965,6 +7992,15 @@
           bu.setAttribute("aria-label", bu.title);
           bu.addEventListener("click", () => abrirOps(String(d.id)));
           btns.appendChild(bu);
+          const et = Number((divisionDocs[String(d.id)] || {}).etapa);
+          const etapa = et === 1 || et === 2 ? et : 3;
+          const be = document.createElement("button");
+          be.type = "button"; be.className = "ped-act sec btn-etapa";
+          be.textContent = "Etapa " + etapa;
+          be.title = "Qué ve la División: 1 = turnos a mano, publicar, feriados y colores · 2 = + Cambios · 3 = + Ticket";
+          be.setAttribute("aria-label", be.title);
+          be.addEventListener("click", () => cambiarEtapa(String(d.id), etapa));
+          btns.appendChild(be);
         }
         btns.appendChild(bd); btns.appendChild(b);
         row.querySelector(".acu-top").appendChild(btns);
@@ -8070,6 +8106,22 @@
         showShareToast(txt);
         if (row) { const e = document.createElement("div"); e.style.cssText = "font-size:0.75rem;color:#b91c1c;font-weight:700;margin-top:4px"; e.textContent = txt; row.appendChild(e); }
       }
+    }
+    const ETAPA_TXT = {
+      1: "Etapa 1: ve la vista D y la I, cambia turnos a mano, ⬆ Publicar, Feriados y Colores. No ve Cambios (banco, pedidos, acordados).",
+      2: "Etapa 2: todo lo de la 1 más Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). Sin Ticket.",
+      3: "Etapa 3: todo, también el 🖨 Ticket."
+    };
+    function cambiarEtapa(id, actual) {
+      const nueva = actual % 3 + 1;
+      if (!confirm("¿Pasar a la División a la etapa " + nueva + "?\n\n" + ETAPA_TXT[nueva])) return;
+      const doc = divisionDocs[id];
+      if (!doc) return;
+      const prev = doc.etapa;
+      doc.etapa = nueva; renderCelulares();
+      fbDb.collection(DIV_COLLECTION).doc(id).update({ etapa: nueva })
+        .then(() => showShareToast("Listo: la División está en la etapa " + nueva + "."))
+        .catch(err => { if (prev == null) delete doc.etapa; else doc.etapa = prev; renderCelulares(); errDivision(err, "guardar"); });
     }
     function toggleDivision(d, esDiv) {
       const id = String(d.id);

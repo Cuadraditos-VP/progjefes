@@ -268,5 +268,5 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   cambiar un turno? Pedilo en el BANCO DE CAMBIOS"), no carruseles largos de tutorial (la gente no los lee).
 - Colores: **no tanto azul y amarillo**. Fondo claro (#f4f6f9), letras oscuras, naranja de la app (#ea580c) y verde del
   botón con el apellido (#0f766e).
-- Tono del texto: corto y rioplatense ("Pedí con tiempo, ¡no te duermas!").
+- Tono del texto: corto y rioplatense ("Pedí con tiempo, ¡no duermas!", así, tal cual lo dice él).
 - Capturas: con la app real y el Firebase falso de `pruebas/` (gente inventada, nunca datos reales). Las placas no se suben al repo.

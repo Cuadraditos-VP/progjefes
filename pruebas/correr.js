@@ -888,11 +888,11 @@ function chequear(nombre, cond, detalle) {
       await ponerEtapa();
       chequear("el admin pasa a la División a la etapa 1", ((be.st[DIVC] || {})[idD] || {}).etapa === 1, (be.st[DIVC] || {})[idD]);
       const e1 = await verEtapa();
-      chequear("etapa 1: sin Cambios, con ⬆ Publicar y ☰ (feriados y colores)", !e1.cambios && e1.pub && e1.menu, e1);
+      chequear("etapa 1 (de práctica): sin Cambios ni ⬆ Publicar, con ☰ (feriados y colores)", !e1.cambios && !e1.pub && e1.menu, e1);
       chequear("etapa 1: en D no se ve el acuerdo sin avalar y tocar la celda la cambia a mano", e1.marca !== "dacu" && e1.picker && !e1.lista, e1);
       await ponerEtapa();
       const e2 = await verEtapa();
-      chequear("etapa 2: vuelve Cambios y el acuerdo, sin 🖨 Ticket", e2.cambios && e2.marca === "dacu" && e2.lista && !e2.ticket, e2);
+      chequear("etapa 2: vuelven ⬆ Publicar, Cambios y el acuerdo, sin 🖨 Ticket", e2.cambios && e2.pub && e2.marca === "dacu" && e2.lista && !e2.ticket, e2);
       await ponerEtapa();
       const e3 = await verEtapa();
       chequear("etapa 3: todo, con 🖨 Ticket", e3.cambios && e3.lista && e3.ticket, e3);

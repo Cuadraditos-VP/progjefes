@@ -214,9 +214,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   banco, Acordados y ticket, les dice solo "la División" (`nomDivVisible`, `laDivision`, `textoAutorizado`, `textoRechazo`).
   El nombre igual se guarda en Firebase (`por`, `pasadoPor`, `rechazo.por`, `publicadoPor`, historial).
   **Etapas** (a pedido de Guillermo, para arrancar de a poco): el admin elige en Celulares, en la fila de la División, el botón
-  "Etapa N" (cada toque avanza 1 → 2 → 3; campo `etapa` en `division_*`, sin campo = 3). 1: D e I, cambiar a mano, ⬆ Publicar,
-  Feriados y Colores (sin Cambios: ni banco, ni rayitas de pedidos, ni acuerdos sin avalar en D; tocar una celda la cambia a mano).
-  2: + Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). 3: + 🖨 Ticket. Solo esconde
+  "Etapa N" (cada toque avanza 1 → 2 → 3; campo `etapa` en `division_*`, sin campo = 3). 1 (de práctica): D e I, cambiar a mano,
+  Feriados y Colores, **sin ⬆ Publicar** (queda solo en esa PC) y sin Cambios (ni banco, ni rayitas de pedidos, ni acuerdos sin
+  avalar en D; tocar una celda la cambia a mano). 2: + ⬆ Publicar y Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). 3: + 🖨 Ticket. Solo esconde
   cosas en la PC de la División (`etapaDiv`, `divSinCambios`, `divSinTicket`, clase `div-sin-cambios`); admin y usuarios ven todo.
   **Lo avalado NO queda trabado** (a pedido de Guillermo, se sacó la traba): el dueño puede cambiar su turno, pedir
   cambio y responder "Me sirve" con las reglas de siempre, y la app no le menciona a la División.

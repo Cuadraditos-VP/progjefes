@@ -888,14 +888,23 @@ function chequear(nombre, cond, detalle) {
       await ponerEtapa();
       chequear("el admin pasa a la División a la etapa 1", ((be.st[DIVC] || {})[idD] || {}).etapa === 1, (be.st[DIVC] || {})[idD]);
       const e1 = await verEtapa();
-      chequear("etapa 1: sin Cambios, con ⬆ Publicar y ☰ (feriados y colores)", !e1.cambios && e1.pub && e1.menu, e1);
+      chequear("etapa 1 (de práctica): sin Cambios ni ⬆ Publicar, con ☰ (feriados y colores)", !e1.cambios && !e1.pub && e1.menu, e1);
       chequear("etapa 1: en D no se ve el acuerdo sin avalar y tocar la celda la cambia a mano", e1.marca !== "dacu" && e1.picker && !e1.lista, e1);
       await ponerEtapa();
       const e2 = await verEtapa();
-      chequear("etapa 2: vuelve Cambios y el acuerdo, sin 🖨 Ticket", e2.cambios && e2.marca === "dacu" && e2.lista && !e2.ticket, e2);
+      chequear("etapa 2: vuelven ⬆ Publicar, Cambios y el acuerdo, sin 🖨 Ticket", e2.cambios && e2.pub && e2.marca === "dacu" && e2.lista && !e2.ticket, e2);
       await ponerEtapa();
       const e3 = await verEtapa();
       chequear("etapa 3: todo, con 🖨 Ticket", e3.cambios && e3.lista && e3.ticket, e3);
+      // Horas extra en D (solo cajeros): "con cambios" sale de lo que muestra la grilla D, no de lo que cada uno cambió en su fila
+      const otD = await D.evaluate(() => { if (typeof renderOtSummary !== "function" || viewMode !== "division") return null;
+        let dist = 0, conPropios = 0;
+        people.forEach((p, pi) => { if (!p.id) return;
+          const ot = codesInMonth(currentMes, p.id, "division"), d = codesFor(pi);
+          if (ot.some((c, di) => c !== String(d[di] || "").trim().toUpperCase())) dist++;
+          if (p.codes.some((c, di) => String(c || "") !== String(d[di] || ""))) conPropios++; });
+        return { dist, conPropios }; });
+      if (otD) chequear("en D, las horas extra usan lo mismo que muestra la grilla D (no lo que cada uno cambió en su fila)", otD.dist === 0 && otD.conPropios > 0, otD);
       chequear("un común no tiene el botón de vistas", !(await vD(B)).vis);
       chequear("en D, el acuerdo de A y B (sin avalar) se marca como acordado",
         (await D.evaluate(([s]) => [cellMark(s.a, s.d), cellMark(s.b, s.d), document.querySelectorAll("td.dacordado").length > 0], [s])).join() === "dacu,dacu,true",

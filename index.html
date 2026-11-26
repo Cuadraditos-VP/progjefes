@@ -822,6 +822,8 @@
     body.is-division:not(.is-admin) #btnAcuerdos.admin-only { display: inline-block !important; }
     /* División en etapa 1: sin el botón Cambios (banco, pedidos, acordados) */
     body.div-sin-cambios:not(.is-admin) #btnPedidos { display: none !important; }
+    /* Etapa 1 es de práctica: sin ⬆ Publicar (lo que cambien queda solo en esa PC) */
+    body.div-sin-cambios:not(.is-admin) #btnPublicarDiv { display: none !important; }
     .div-pub-btn { background: #7c3aed; white-space: nowrap; }
     .div-pub-btn.pending { background: #dc2626; }
     .div-pub-btn:disabled { opacity: 0.6; cursor: wait; }
@@ -3618,8 +3620,8 @@
     function puedeAutorizar() { return soyDivision() || currentUser === "ADMIN"; }
     // Etapas de la División (a pedido de Guillermo, para arrancar de a poco). La elige el admin en Celulares
     // (botón "Etapa N" en la fila de la División; campo "etapa" en division_*). Sin el campo = 3 (todo).
-    //   1: vista D e I, cambiar a mano, ⬆ Publicar, Feriados y Colores (sin Cambios ni banco)
-    //   2: + Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra)
+    //   1: de práctica: vista D e I, cambiar a mano, Feriados y Colores, sin ⬆ Publicar (queda solo en esa PC) y sin Cambios
+    //   2: + ⬆ Publicar y Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra)
     //   3: + Ticket
     // Solo esconde cosas en la PC de la División; el admin y los cajeros ven todo como siempre.
     function etapaDiv() {
@@ -4075,7 +4077,7 @@
       b.classList.toggle("pending", n > 0);
     }
     document.getElementById("btnPublicarDiv").addEventListener("click", async () => {
-      if (!soyDivision() || !fbReady || !FB_MESES[currentMes]) return;
+      if (!soyDivision() || !fbReady || !FB_MESES[currentMes] || divSinCambios()) return;
       const tp = turnosAPublicar();
       const cols = Object.keys(colorOverrides);
       if (!tp.cambiados.length && !cols.length) {
@@ -7997,7 +7999,7 @@
           const be = document.createElement("button");
           be.type = "button"; be.className = "ped-act sec btn-etapa";
           be.textContent = "Etapa " + etapa;
-          be.title = "Qué ve la División: 1 = turnos a mano, publicar, feriados y colores · 2 = + Cambios · 3 = + Ticket";
+          be.title = "Qué ve la División: 1 = de práctica, sin publicar · 2 = + ⬆ Publicar y Cambios · 3 = + Ticket";
           be.setAttribute("aria-label", be.title);
           be.addEventListener("click", () => cambiarEtapa(String(d.id), etapa));
           btns.appendChild(be);
@@ -8108,8 +8110,8 @@
       }
     }
     const ETAPA_TXT = {
-      1: "Etapa 1: ve la vista D y la I, cambia turnos a mano, ⬆ Publicar, Feriados y Colores. No ve Cambios (banco, pedidos, acordados).",
-      2: "Etapa 2: todo lo de la 1 más Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). Sin Ticket.",
+      1: "Etapa 1 (de práctica): ve la vista D y la I y puede probar cambios de turnos, Feriados y Colores, pero no tiene ⬆ Publicar: lo que cambie queda solo en esa PC. No ve Cambios (banco, pedidos, acordados).",
+      2: "Etapa 2: todo lo de la 1 más ⬆ Publicar y Cambios (banco, Acordados, Pasar a lo oficial, Rechazar, Autorizar, Cambio de palabra). Sin Ticket.",
       3: "Etapa 3: todo, también el 🖨 Ticket."
     };
     function cambiarEtapa(id, actual) {

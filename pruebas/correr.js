@@ -1662,6 +1662,8 @@ function chequear(nombre, cond, detalle) {
       chequear("le pide elegir su clave", (await X1.evaluate(() => miLegajo)) === LEGX && (await X1.evaluate(() => !!document.querySelector("#claveOverlay.open"))));
       await X1.fill("#clave1", "5151"); await X1.fill("#clave2", "5151"); await X1.click("#claveOk"); await wait(1500);
       const x1 = await X1.evaluate(() => ({ clave: tengoClave(), fila: !!miPersona(), filas: people.some(p => String(p.id) === "99001") }));
+      const xb = await X1.evaluate(() => { const b = document.getElementById("btnMiAlmanaque"); return { vis: getComputedStyle(b).display !== "none", txt: b.textContent }; });
+      chequear("arriba figura su nombre aunque no tenga programación", xb.vis && xb.txt.trim() === "PÉREZ", xb);
       chequear("ve la programación y no tiene fila en la grilla", x1.clave && !x1.fila && !x1.filas && (await veDatos(X1)), x1);
       await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
         const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));

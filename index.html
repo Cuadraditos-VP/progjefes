@@ -5229,16 +5229,22 @@
       const b = document.getElementById("btnMiAlmanaque");
       if (!b) return;
       const me = miPersona();
-      if (!me || currentUser === "ADMIN") { b.style.display = "none"; return; }
-      const corto = String(me.p.name || "").split(",")[0].trim() || String(me.p.name || "");
+      // Sin programación (ej. la División con legajo propio): igual se ve su nombre, para saber quién está usando la app
+      let nomSin = "";
+      if (!me && miLegajo && !soyExterno() && people.length) { try { nomSin = localStorage.getItem("jefYoNombre") || ""; } catch (e) {} }
+      if ((!me && !nomSin) || currentUser === "ADMIN") { b.style.display = "none"; return; }
+      const nomB = me ? me.p.name : nomSin;
+      const corto = String(nomB || "").split(",")[0].trim() || String(nomB || "");
       b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm-2 8h14v10H5z"/></svg><span></span>';
       b.querySelector("span").textContent = corto;
-      b.title = "Mi almanaque: " + me.p.name;
+      b.title = me ? "Mi almanaque: " + me.p.name : nomSin + " (sin programación)";
+      b.classList.toggle("sin-prog", !me);
       b.style.display = "";
     }
     document.getElementById("btnMiAlmanaque").addEventListener("click", () => {
       const me = miPersona();
       if (me) openPersonCalendar(me.pi);
+      else showShareToast("Estás como " + document.getElementById("btnMiAlmanaque").title.replace(" (sin programación)", "") + ". No tenés turnos en la programación.");
     });
     function updatePedidosBar() {
       actualizarMiBoton();

@@ -2480,10 +2480,14 @@
     // Códigos que se fusionan en un solo bloque cuando aparecen varios días seguidos
     const BLOCK_CODES = ["LAO", "10A", "10J", "C/A", "LIC"];
 
-    // Días sin programación (a pedido de Guillermo): toda la columna va de un gris parejo, sin turnos ni toques.
+    // Días sin programación (a pedido de Guillermo): toda la columna va de un gris parejo, sin turnos ni toques
+    // (salvo LAO y LIC, que se ven encima).
     // Días del mes (1, 2, …). Diciembre 2026: 24, 25 y 31.
     const DIAS_CERRADOS_BY_MES = { "2026-12": [24, 25, 31] };
     function esDiaCerrado(di) { return (DIAS_CERRADOS_BY_MES[currentMes] || []).includes(di + 1); }
+    // LAO y LIC se ven por encima del gris (a pedido de Guillermo)
+    const PASAN_SOBRE_CERRADO = ["LAO", "LIC"];
+    function tapaCerrado(code) { return PASAN_SOBRE_CERRADO.includes(String(code || "").toUpperCase()); }
 
     // La fila de quien usa el celular se resalta (el admin no tiene fila propia)
     function esMiFila(person) {
@@ -2502,7 +2506,7 @@
       let di = 0;
       while (di < codesArr.length) {
         if (onlyDay && di !== selectedDay) { di++; continue; }
-        if (esDiaCerrado(di)) {
+        if (esDiaCerrado(di) && !tapaCerrado(codesArr[di])) {
           // Sin data-pi: no abre nada al tocarla
           const c = document.createElement("td");
           c.dataset.di = String(di);
@@ -2525,7 +2529,7 @@
           while (
             runEnd + 1 < codesArr.length &&
             codesArr[runEnd + 1] &&
-            !esDiaCerrado(runEnd + 1) &&
+            (!esDiaCerrado(runEnd + 1) || tapaCerrado(upperCode)) &&
             codesArr[runEnd + 1].toUpperCase() === upperCode
           ) {
             runEnd++;

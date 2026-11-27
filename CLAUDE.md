@@ -194,7 +194,7 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   "✎ Cambiar a mano"), y encima **lo que se cambió a mano en
   ese mismo celular** (ámbar) (`marcasCerrados` → `D_CODES`, `D_MARKS`, `D_KEYS`). También muestra en verde **todo lo oficial que quedó distinto de la inicial** (lo publicado por la División, por el
   admin o al volver a subir el mes; a pedido de Guillermo, caso Aguiar). Excepción por mes (`D_OCULTAR_VIEJO`): en
-  noviembre 2026, para los días 15 al 30, lo publicado (admin o División) antes del 15/11 19:45 (según `changedAt`) no
+  noviembre 2026, para todo el mes (a pedido de Guillermo, para presentarlo en la División), lo publicado (admin o División) antes del 27/11 3:20 (según `changedAt`) no
   aparece en la D; lo publicado después sí, y los pedidos del banco siempre. Si se vuelve a subir el mes con ↑ JSON se
   pierde `changedAt` y todo lo de esos días queda oculto. NO muestra lo que los demás usuarios
   cambiaron a mano (propios, CJ) mientras no pase a lo oficial. Esquinita naranja = acordado entre los dos (falta

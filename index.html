@@ -196,6 +196,13 @@
     }
     td.empty { background: #fafafa; color: #cbd5e1; cursor: default; }
     td.empty:hover { filter: none; }
+    /* Días sin programación: gris parejo en toda la columna (sin rayas entre filas) */
+    tbody td.cerrado,
+    .grp-card tbody td.cerrado {
+      background: #a3a3a3 !important; border-color: #a3a3a3 !important;
+      color: transparent; cursor: default; padding: 0;
+    }
+    tbody td.cerrado:hover { filter: none; }
 
     [data-code] {
       background: #f1f5f9;
@@ -2473,6 +2480,11 @@
     // Códigos que se fusionan en un solo bloque cuando aparecen varios días seguidos
     const BLOCK_CODES = ["LAO", "10A", "10J", "C/A", "LIC"];
 
+    // Días sin programación (a pedido de Guillermo): toda la columna va de un gris parejo, sin turnos ni toques.
+    // Días del mes (1, 2, …). Diciembre 2026: 24, 25 y 31.
+    const DIAS_CERRADOS_BY_MES = { "2026-12": [24, 25, 31] };
+    function esDiaCerrado(di) { return (DIAS_CERRADOS_BY_MES[currentMes] || []).includes(di + 1); }
+
     // La fila de quien usa el celular se resalta (el admin no tiene fila propia)
     function esMiFila(person) {
       return !!miLegajo && currentUser !== "ADMIN" && String(person.id) === String(miLegajo);
@@ -2490,6 +2502,16 @@
       let di = 0;
       while (di < codesArr.length) {
         if (onlyDay && di !== selectedDay) { di++; continue; }
+        if (esDiaCerrado(di)) {
+          // Sin data-pi: no abre nada al tocarla
+          const c = document.createElement("td");
+          c.dataset.di = String(di);
+          c.className = "cerrado";
+          if (onlyDay) c.classList.add("day-only");
+          tr.appendChild(c);
+          di++;
+          continue;
+        }
         const code = codesArr[di];
         const upperCode = code ? code.toUpperCase() : "";
         const isBlock = code && BLOCK_CODES.includes(upperCode);
@@ -2503,6 +2525,7 @@
           while (
             runEnd + 1 < codesArr.length &&
             codesArr[runEnd + 1] &&
+            !esDiaCerrado(runEnd + 1) &&
             codesArr[runEnd + 1].toUpperCase() === upperCode
           ) {
             runEnd++;

@@ -2547,8 +2547,8 @@
       return tr;
     }
 
-    // Cuántos jefes van en el Grupo 1 (el resto va al Grupo 2). Noviembre: 11 porque se fue FRANCO.
-    const GROUP_SPLIT_BY_MES = { "2026-11": 11 };
+    // Cuántos jefes van en el Grupo 1 (el resto va al Grupo 2). Noviembre y diciembre: 11 porque se fue FRANCO.
+    const GROUP_SPLIT_BY_MES = { "2026-11": 11, "2026-12": 11 };
     function groupSplit() { return GROUP_SPLIT_BY_MES[currentMes] != null ? GROUP_SPLIT_BY_MES[currentMes] : 12; }
     const g1 = document.getElementById("group1");
     const g2 = document.getElementById("group2");

@@ -2487,7 +2487,19 @@
     function esDiaCerrado(di) { return (DIAS_CERRADOS_BY_MES[currentMes] || []).includes(di + 1); }
     // LAO y LIC se ven por encima del gris (a pedido de Guillermo)
     const PASAN_SOBRE_CERRADO = ["LAO", "LIC"];
-    function tapaCerrado(code) { return PASAN_SOBRE_CERRADO.includes(String(code || "").toUpperCase()); }
+    // Solo si es una LAO/LIC de verdad: sigue (pasando por días grises) hasta algún día normal con el mismo código.
+    // Una LIC puesta solo en los días grises (para marcarlos) queda gris.
+    function tapaCerrado(codesArr, di) {
+      const code = String(codesArr[di] || "").toUpperCase();
+      if (!PASAN_SOBRE_CERRADO.includes(code)) return false;
+      for (const paso of [-1, 1]) {
+        for (let d = di + paso; d >= 0 && d < codesArr.length; d += paso) {
+          if (String(codesArr[d] || "").toUpperCase() !== code) break;
+          if (!esDiaCerrado(d)) return true;
+        }
+      }
+      return false;
+    }
 
     // La fila de quien usa el celular se resalta (el admin no tiene fila propia)
     function esMiFila(person) {
@@ -2506,7 +2518,7 @@
       let di = 0;
       while (di < codesArr.length) {
         if (onlyDay && di !== selectedDay) { di++; continue; }
-        if (esDiaCerrado(di) && !tapaCerrado(codesArr[di])) {
+        if (esDiaCerrado(di) && !tapaCerrado(codesArr, di)) {
           // Sin data-pi: no abre nada al tocarla
           const c = document.createElement("td");
           c.dataset.di = String(di);
@@ -2529,7 +2541,7 @@
           while (
             runEnd + 1 < codesArr.length &&
             codesArr[runEnd + 1] &&
-            (!esDiaCerrado(runEnd + 1) || tapaCerrado(upperCode)) &&
+            (!esDiaCerrado(runEnd + 1) || tapaCerrado(codesArr, runEnd + 1)) &&
             codesArr[runEnd + 1].toUpperCase() === upperCode
           ) {
             runEnd++;

@@ -1669,6 +1669,12 @@ function chequear(nombre, cond, detalle) {
       await wait(2500);
       chequear("el admin lo hace División", !!(be.st["division_" + APP] || {})[LEGX] &&
         (await X1.evaluate(() => document.body.classList.contains("is-division"))));
+      const xc = await X1.evaluate(() => { window.alert = () => { window.__alerta = true; }; window.__alerta = false;
+        const di = (new Date().getDate() + 2) % 28; openShiftPicker(0, di);
+        const r = { abre: document.body.classList.contains("shift-open"), yo: document.getElementById("yoOverlay").classList.contains("open"), alerta: window.__alerta, modo: viewMode };
+        if (r.abre) { applyShift("X"); document.getElementById("closeShift").click(); }
+        r.cambio = people[0].codes[di] === "X"; return r; });
+      chequear("la División sin fila cambia turnos en la vista D (sin que le pregunte quién es)", xc.abre && !xc.yo && !xc.alerta && xc.cambio, xc);
       const X2 = await be.celular(browser, URL, "uX2", null, errores, { cuentas: true });
       await X2.fill("#yoLegajo", LEGX); await X2.click("#yoLegajoBtn"); await wait(800);
       await X2.fill("#yoClave", "5151"); await X2.click("#yoLegajoSi"); await wait(3000);

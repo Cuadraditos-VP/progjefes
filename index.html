@@ -5159,7 +5159,7 @@
     }
     function soyExterno() { return !!externoDe(miLegajo); }
     function pedirYo() {
-      if (soyExterno()) showShareToast("No tenés fila propia: no podés pedir ni responder cambios.");
+      if (soyExterno() || (miLegajo && people.length)) showShareToast("No tenés fila propia: no podés pedir ni responder cambios.");
       else openYo();
     }
     function miPersona() {
@@ -5299,7 +5299,7 @@
       if (on) { startPedidos(); updatePedidosBar(); refrescarConexion(); }
       refreshAfterEdit();
       // Al admin no se le pregunta "¿Quién sos?" (lo puede abrir con el botón si quiere asignar el celular)
-      if (on && !miPersona() && !soyExterno() && currentUser !== "ADMIN") openYo();
+      if (on && !miPersona() && !soyExterno() && !miLegajo && currentUser !== "ADMIN") openYo();
     }
     document.getElementById("btnPedidos").addEventListener("click", () => setPedidosMode(!pedidosMode));
     document.getElementById("closeBanco").addEventListener("click", () => setPedidosMode(false));
@@ -6882,7 +6882,8 @@
       const p = people[pi];
       if (!p) return false;
       // Para cambiar turnos hay que estar registrado ("¿Quién sos?"), salvo el admin
-      if (currentUser !== "ADMIN" && !miPersona() && !soyExterno()) {
+      // (los legajos sin programación, ej. la División, están registrados aunque no tengan fila)
+      if (currentUser !== "ADMIN" && !miPersona() && !soyExterno() && !miLegajo) {
         alert("Para cambiar turnos primero tenés que decir quién sos.");
         openYo();
         return false;
@@ -6907,6 +6908,7 @@
       if (soyDivision()) return { cls: "priv", txt: divSinCambios()
         ? "División (práctica): lo ven solo los de la División, en cualquier PC. No se publica."
         : "División: ya lo ven los de la División; para todos, tocá ⬆ Publicar." };
+      if (!me && miLegajo) return { cls: "priv", txt: "Solo en tu celular: este cambio lo ves solo vos." };
       if (!me) return { cls: "priv", txt: "Solo en tu celular. Elegí quién sos (en Cambios) para que los cambios de tu fila los vean todos." };
       return { cls: "priv", txt: "Fila de otro: este cambio lo ves solo vos." };
     }

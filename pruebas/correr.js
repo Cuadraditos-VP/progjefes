@@ -1662,6 +1662,8 @@ function chequear(nombre, cond, detalle) {
       chequear("le pide elegir su clave", (await X1.evaluate(() => miLegajo)) === LEGX && (await X1.evaluate(() => !!document.querySelector("#claveOverlay.open"))));
       await X1.fill("#clave1", "5151"); await X1.fill("#clave2", "5151"); await X1.click("#claveOk"); await wait(1500);
       const x1 = await X1.evaluate(() => ({ clave: tengoClave(), fila: !!miPersona(), filas: people.some(p => String(p.id) === "99001") }));
+      const xb = await X1.evaluate(() => { const b = document.getElementById("btnMiAlmanaque"); return { vis: getComputedStyle(b).display !== "none", txt: b.textContent }; });
+      chequear("arriba figura su nombre aunque no tenga programación", xb.vis && xb.txt.trim() === "PÉREZ", xb);
       chequear("ve la programación y no tiene fila en la grilla", x1.clave && !x1.fila && !x1.filas && (await veDatos(X1)), x1);
       await AD.evaluate(id => { window.confirm = () => true; document.getElementById("btnCelulares").click();
         const row = [...document.querySelectorAll("#celularesList .acu-row")].find(r => r.textContent.includes(id));
@@ -1671,7 +1673,7 @@ function chequear(nombre, cond, detalle) {
         (await X1.evaluate(() => document.body.classList.contains("is-division"))));
       const xc = await X1.evaluate(() => { window.alert = () => { window.__alerta = true; }; window.__alerta = false;
         const di = (new Date().getDate() + 2) % 28; openShiftPicker(0, di);
-        const r = { abre: document.body.classList.contains("shift-open"), yo: document.getElementById("yoOverlay").classList.contains("open"), alerta: window.__alerta, modo: viewMode };
+        const r = { abre: document.body.classList.contains("shift-open") || document.getElementById("shiftOverlay").classList.contains("open"), yo: document.getElementById("yoOverlay").classList.contains("open"), alerta: window.__alerta, modo: viewMode };
         if (r.abre) { applyShift("X"); document.getElementById("closeShift").click(); }
         r.cambio = people[0].codes[di] === "X"; return r; });
       chequear("la División sin fila cambia turnos en la vista D (sin que le pregunte quién es)", xc.abre && !xc.yo && !xc.alerta && xc.cambio, xc);

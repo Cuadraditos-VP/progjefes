@@ -1671,7 +1671,7 @@ function chequear(nombre, cond, detalle) {
         (await X1.evaluate(() => document.body.classList.contains("is-division"))));
       const xc = await X1.evaluate(() => { window.alert = () => { window.__alerta = true; }; window.__alerta = false;
         const di = (new Date().getDate() + 2) % 28; openShiftPicker(0, di);
-        const r = { abre: document.body.classList.contains("shift-open"), yo: document.getElementById("yoOverlay").classList.contains("open"), alerta: window.__alerta, modo: viewMode };
+        const r = { abre: document.body.classList.contains("shift-open") || document.getElementById("shiftOverlay").classList.contains("open"), yo: document.getElementById("yoOverlay").classList.contains("open"), alerta: window.__alerta, modo: viewMode };
         if (r.abre) { applyShift("X"); document.getElementById("closeShift").click(); }
         r.cambio = people[0].codes[di] === "X"; return r; });
       chequear("la División sin fila cambia turnos en la vista D (sin que le pregunte quién es)", xc.abre && !xc.yo && !xc.alerta && xc.cambio, xc);

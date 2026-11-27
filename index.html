@@ -2489,6 +2489,24 @@
     const PASAN_SOBRE_CERRADO = ["LAO", "LIC"];
     // Solo si es una LAO/LIC de verdad: sigue (pasando por días grises) hasta algún día normal con el mismo código.
     // Una LIC puesta solo en los días grises (para marcarlos) queda gris.
+    // Si una LAO/LIC está justo antes y justo después de días grises, esos días se ven como parte del mismo bloque
+    // (caso Espinoza: LIC del 17 al 23 y del 26 en adelante, con el 24 y el 25 vacíos)
+    function puentearCerrados(codesArr) {
+      const out = codesArr.slice();
+      let d = 0;
+      while (d < out.length) {
+        if (!esDiaCerrado(d)) { d++; continue; }
+        let fin = d;
+        while (fin + 1 < out.length && esDiaCerrado(fin + 1)) fin++;
+        const antes = d > 0 ? String(out[d - 1] || "").toUpperCase() : "";
+        const despues = fin + 1 < out.length ? String(out[fin + 1] || "").toUpperCase() : "";
+        if (antes && antes === despues && PASAN_SOBRE_CERRADO.includes(antes)) {
+          for (let k = d; k <= fin; k++) out[k] = antes;
+        }
+        d = fin + 1;
+      }
+      return out;
+    }
     function tapaCerrado(codesArr, di) {
       const code = String(codesArr[di] || "").toUpperCase();
       if (!PASAN_SOBRE_CERRADO.includes(code)) return false;
@@ -2513,7 +2531,7 @@
         <td class="sticky-col person-id" data-pi="${pi}">${person.id}</td>
         <td class="sticky-col-2 person-name" data-pi="${pi}">${person.name}</td>
       `;
-      const codesArr = codesFor(pi);
+      const codesArr = puentearCerrados(codesFor(pi));
       const onlyDay = selectedDay !== null;
       let di = 0;
       while (di < codesArr.length) {

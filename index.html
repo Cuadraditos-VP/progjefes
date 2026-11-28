@@ -203,6 +203,11 @@
       color: transparent; cursor: default; padding: 0;
     }
     tbody td.cerrado:hover { filter: none; }
+    /* En los bordes del bloque gris (al lado de un día normal), la línea vertical va del color de la grilla */
+    tbody td.cerrado.cer-ini,
+    .grp-card tbody td.cerrado.cer-ini { border-left-color: var(--grid-v, #e5e7eb) !important; }
+    tbody td.cerrado.cer-fin,
+    .grp-card tbody td.cerrado.cer-fin { border-right-color: var(--grid-v, #e5e7eb) !important; }
 
     [data-code] {
       background: #f1f5f9;
@@ -2523,6 +2528,10 @@
           const c = document.createElement("td");
           c.dataset.di = String(di);
           c.className = "cerrado";
+          // Al lado de un día normal (o de una LAO/LIC que pasa por encima), la línea va del color de la grilla
+          const grisAl = d2 => d2 >= 0 && d2 < codesArr.length && esDiaCerrado(d2) && !tapaCerrado(codesArr, d2);
+          if (onlyDay || !grisAl(di - 1)) c.classList.add("cer-ini");
+          if (onlyDay || !grisAl(di + 1)) c.classList.add("cer-fin");
           if (onlyDay) c.classList.add("day-only");
           tr.appendChild(c);
           di++;

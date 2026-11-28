@@ -667,6 +667,30 @@ function chequear(nombre, cond, detalle) {
       if (fant2) chequear("al abrir un pedido que ya no está, se cierra y desaparece", fant2.antes && !fant2.despues && !fant2.abierto, fant2);
     }
 
+    if (html.includes("function quitarPedidoAlCambiar")) {
+      console.log("\nPedido de cambio y cambio a mano ese día");
+      // A pide cambio un día y después cambia a mano su turno de ese día: el pedido se quita solo
+      const pq = await A.evaluate(s => new Promise(res => {
+        const d = [...Array(DAYS).keys()].reverse().find(x => !diaPasado(x) && !pedidoDe(people[s.a].id, x) && trabaja(actualDe(s.a, x)) && puedeEditar(s.a, x));
+        if (d == null) return res(null);
+        const id = pedDocId(currentMes, people[s.a].id, d);
+        const data = { mes: currentMes, id: String(people[s.a].id), name: people[s.a].name, dia: d + 1, quiere: "*", acepta: ["*"], ofrece: actualDe(s.a, d), t: Date.now() };
+        pedidosDocs[id] = data;
+        fbDb.collection(PED_COLLECTION).doc(id).set(data).then(() => res({ d, id }), () => res(null));
+      }), s);
+      if (pq) {
+        await wait(1200);
+        chequear("el otro celular ve el pedido", await B.evaluate(id => !!pedidosDocs[id], pq.id));
+        const cambio = await A.evaluate(([s, d]) => { const c = actualDe(s.a, d) === "N" ? "T" : "N"; openShiftPicker(s.a, d); applyShift(c);
+          const t = document.getElementById("shareToast"); return { c, toast: t && t.textContent }; }, [s, pq.d]);
+        await wait(1500);
+        chequear("al cambiar a mano su turno de ese día, el pedido se quita", !(await A.evaluate(id => !!pedidosDocs[id], pq.id)) && !(await B.evaluate(id => !!pedidosDocs[id], pq.id)));
+        chequear("y le avisa", /se quitó tu pedido/.test(cambio.toast || ""), cambio.toast);
+        await A.evaluate(([s, d]) => { openShiftPicker(s.a, d); document.getElementById("restoreShift").click(); }, [s, pq.d]);
+        await wait(800);
+      }
+    }
+
     console.log("\nCelda del franco ofrecido");
     const fr = await A.evaluate(s => {
       const f = [...Array(DAYS).keys()].find(x => x !== s.d && actualDe(s.a, x) === "F");

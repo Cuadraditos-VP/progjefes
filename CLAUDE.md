@@ -108,6 +108,9 @@ prueba (y copiala a la gemela). `pruebas/` es igual en las dos apps: mantenelo i
   va una rayita abajo: **verde + borde verde** = te sirve (`prop-sirve`), **gris** = no te sirve (`prop`), **★** = tu propio pedido
   (`prop-mio`). Hoy y lo pasado, nada. Tocar la celda de otro abre el pedido (con "✎ Cambiar a mano"). El admin y la División
   (en D, reemplaza a la esquinita celeste de antes) ven todas en gris.
+  **Pedido y cambio a mano** (a pedido de Guillermo): si el dueño cambia a mano su propio turno de un día en el que tiene un
+  pedido sin cerrar (elegir otro turno, borrar o Restaurar en el cuadro del turno), el pedido se quita solo y le sale un cartelito
+  (`quitarPedidoAlCambiar`). Los acordados, autorizados y rechazados no se tocan.
   Los cambios vencen el mismo día: hoy y los días pasados quedan grises en el banco (`diaPasado`),
   y los pedidos sin acordar de hoy desaparecen (`pedidoVencido`). El banco arranca en mañana.
   Excepción: la División y el admin sí pueden tocar hoy en el banco (para un cambio de palabra).

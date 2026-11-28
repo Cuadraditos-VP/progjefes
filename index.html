@@ -4609,14 +4609,18 @@
     }
 
     function applyShift(code) {
+      const antes = people[shiftPersonIdx].codes[shiftDayIdx] || "";
       people[shiftPersonIdx].codes[shiftDayIdx] = code;
+      quitarPedidoAlCambiar(shiftPersonIdx, shiftDayIdx, antes);
       saveEdit(shiftPersonIdx, shiftDayIdx, code);
       refreshAfterEdit();
       closeShiftPicker();
     }
 
     document.getElementById("clearShift").addEventListener("click", () => {
+      const antes = people[shiftPersonIdx].codes[shiftDayIdx] || "";
       people[shiftPersonIdx].codes[shiftDayIdx] = "";
+      quitarPedidoAlCambiar(shiftPersonIdx, shiftDayIdx, antes);
       saveEdit(shiftPersonIdx, shiftDayIdx, "");
       refreshAfterEdit();
       closeShiftPicker();
@@ -4624,7 +4628,9 @@
 
     document.getElementById("restoreShift").addEventListener("click", () => {
       const original = ORIGINAL_CODES[shiftPersonIdx][shiftDayIdx];
+      const antes = people[shiftPersonIdx].codes[shiftDayIdx] || "";
       people[shiftPersonIdx].codes[shiftDayIdx] = original;
+      quitarPedidoAlCambiar(shiftPersonIdx, shiftDayIdx, antes);
       // Si un acuerdo cambió esa celda, volver a lo original es un cambio que tienen que ver todos
       const acuR = ACU_CELDAS[(people[shiftPersonIdx] || {}).id + ":" + shiftDayIdx];
       if (acuR !== undefined && acuR !== original) saveEdit(shiftPersonIdx, shiftDayIdx, original);
@@ -7465,6 +7471,22 @@
           ? "Firebase no deja guardar el pedido (faltan las reglas de pedidos_jefes)."
           : "No se pudo guardar el pedido. Revisá la conexión.");
       });
+    }
+    // Si el empleado cambia a mano su propio turno de un día en el que tiene un pedido de cambio sin cerrar,
+    // el pedido se quita solo (a pedido de Guillermo): ya no ofrece el turno que decía el pedido.
+    function quitarPedidoAlCambiar(pi, di, antes) {
+      const p = people[pi];
+      if (!p || !esMiFila(p)) return;
+      if (String(antes || "") === String(p.codes[di] || "")) return;
+      const id = pedDocId(currentMes, p.id, di);
+      const d = pedidosDocs[id];
+      if (!d || !d.quiere || cerrado(d) || d.estado === "rechazado") return;
+      delete pedidosDocs[id];
+      if (fbDb) fbDb.collection(PED_COLLECTION).doc(id).delete().catch(() => {
+        pedidosDocs[id] = d;
+        refreshAfterEdit();
+      });
+      try { showShareToast("Como cambiaste tu turno del " + (di + 1) + ", se quitó tu pedido de cambio de ese día."); } catch (e) {}
     }
     function quitarPedidoDoc(pi, di, mantenerAbierto) {
       const id = pedDocId(currentMes, people[pi].id, di);

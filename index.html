@@ -1452,7 +1452,7 @@
     .grp-card tbody tr:first-child td.blk > .blk-seam { border-top-color: var(--ink); }
     .grp-card tbody tr:last-child td.blk > .blk-seam { border-bottom-color: transparent; }
     /* En el LIC las líneas de arriba y abajo son negras y las dibuja su propio ::after */
-    .grp-card td.blk[data-code="LIC"] > .blk-seam { border: 0; top: 0; bottom: 0; }
+    .grp-card td.blk[data-code="LIC"] > .blk-seam, .grp-card td.blk[data-code="LAO"] > .blk-seam { border: 0; top: 0; bottom: 0; }
 
     /* Bloques (LAO, LIC, 10A, 10J, C/A): etiqueta en cursiva al inicio */
     .grp-card td.blk-first {
@@ -1464,12 +1464,14 @@
        pseudo-elemento que se estira 1px a cada lado, así tapa las uniones entre días; y por
        dentro del bloque las líneas verticales (incluida la de DO/LU) toman el color del bloque. */
     .grp-card tbody td.blk[data-code="LIC"] { position: relative; box-shadow: none !important; overflow: visible !important; }
-    .grp-card tbody td.blk[data-code="LIC"]::after {
+    /* LAO: las mismas líneas negras arriba y abajo que el LIC (a pedido de Guillermo) */
+    .grp-card tbody td.blk[data-code="LAO"] { position: relative; overflow: visible !important; }
+    .grp-card tbody td.blk[data-code="LIC"]::after, .grp-card tbody td.blk[data-code="LAO"]::after {
       content: ""; position: absolute; top: -1px; bottom: -1px; left: -1.5px; right: 0; z-index: 2;
       border-top: 1px solid #111827; border-bottom: 1px solid #111827; pointer-events: none;
     }
-    .grp-card tbody td.blk-first[data-code="LIC"]::after { left: 0; }
-    .grp-card tbody td.blk-last[data-code="LIC"]::after { right: 0; }
+    .grp-card tbody td.blk-first[data-code="LIC"]::after, .grp-card tbody td.blk-first[data-code="LAO"]::after { left: 0; }
+    .grp-card tbody td.blk-last[data-code="LIC"]::after, .grp-card tbody td.blk-last[data-code="LAO"]::after { right: 0; }
     .grp-card tbody td.blk[data-code="LIC"]:not(.blk-first) { border-left: 1px solid var(--blk-bg, transparent) !important; }
     .grp-card tbody td.blk[data-code="LIC"]:not(.blk-last) { border-right: 1px solid var(--blk-bg, transparent) !important; }
 
